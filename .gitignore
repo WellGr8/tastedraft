@@ -8,3 +8,6 @@ target/
 apps/web/test-results/
 apps/web/playwright-report/
 .qloo-cache/
+
+.env
+**/.env
