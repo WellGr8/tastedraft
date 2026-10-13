@@ -199,6 +199,50 @@ describe('agent runner', () => {
     assert.equal(next.stopReason, 'max_rounds_or_budget');
   });
 
+  it('scores a live one-artist brief through to a proposal', async () => {
+    const dir = tempDir();
+    const client = new QlooClient({
+      apiKey: 'test-key',
+      retries: 0,
+      minIntervalMs: 0,
+      cacheDir: join(dir, 'cache'),
+      fetchImpl: async (url) => {
+        const path = new URL(url).pathname;
+        const body =
+          path === '/search'
+            ? { results: [{ entity_id: '11111111-2222-4333-8444-555555555555', name: 'Aphex Twin', types: ['urn:entity:artist'] }] }
+            : path === '/v2/tags'
+              ? { success: true, results: { tags: [{ id: 'urn:tag:genre:music:electronic', name: 'electronic' }] } }
+              : {
+                  success: true,
+                  results: {
+                    entities: [{ entity_id: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', name: 'Boards of Canada', subtype: 'urn:entity:artist' }],
+                    heatmap: [{ id: 'cell-1', label: 'Silver Lake', location: { lat: 34.08, lon: -118.27 }, query: { affinity: 0.4 } }],
+                    tags: [{ id: 'urn:tag:genre:music:electronic', name: 'electronic' }],
+                  },
+                };
+        return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
+      },
+    });
+    const agent = new AgentRunner({
+      store: new RunStore(join(dir, 'runs.sqlite')),
+      client,
+      recordingsDir: join(dir, 'recordings'),
+      llm: { mode: 'offline', async complete() { throw new Error('offline'); } },
+    });
+    const brief = defaultBriefV2();
+    brief.references = brief.references.filter((reference) => reference.name === 'Aphex Twin');
+    brief.positioning = 'Independent';
+    brief.priceLevel = 2;
+    brief.constraints = ['limited runs'];
+    const run = await agent.start(brief);
+    assert.equal(run.status, 'awaiting_approval');
+    assert.ok(run.proposals.length >= 1);
+    assert.ok((run.proposals[0]?.predictedDelta ?? 0) > 0);
+    assert.equal(run.report.includes('1. Build personas'), false);
+    assert.equal(run.stopReason, null);
+  });
+
   it('asks when evidence is limited, and stop ends the run', async () => {
     const agent = runnerIn(tempDir());
     const brief = defaultBriefV2();

@@ -223,9 +223,10 @@ test('try example approves until a stop reason', async ({ page }) => {
   await settle(page);
   await page.screenshot({ path: `${SHOTS3}/agent-loop-1440.png` });
   await expect(page.getByTestId('results-screen')).toBeVisible({ timeout: 90_000 });
+  await page.getByTestId('trace-why').click();
   await expect(page.getByTestId('decision-trace')).toBeVisible();
   const stop = page.getByTestId('stop-reason');
-  const reason = /approved_target|insufficient_evidence|no_meaningful_improvement|max_rounds_or_budget/;
+  const reason = /target you set|cultural evidence|move the score|used its questions|approved_target|insufficient_evidence|no_meaningful_improvement|max_rounds_or_budget/;
   for (let turn = 0; turn < 5; turn += 1) {
     if ((await stop.count()) > 0 && reason.test((await stop.textContent()) ?? '')) break;
     const closer = page.getByRole('button', { name: 'Close' });
@@ -246,6 +247,7 @@ test('try example approves until a stop reason', async ({ page }) => {
     break;
   }
   await expect(stop).toHaveText(reason);
+  if (!(await page.getByTestId('decision-trace').isVisible())) await page.getByTestId('trace-why').click();
   await expect(page.getByTestId('decision-trace')).toContainText('Build personas from Qloo');
   const issueCount = await page.locator('nextjs-portal').evaluate((el) => {
     const node = el.shadowRoot?.querySelector('.dev-tools-indicator-issue-count');
@@ -279,12 +281,12 @@ test('launch report and why qloo', async ({ page }) => {
   await page.screenshot({ path: `${SHOTS4}/result-1440.png` });
   await page.getByTestId('why-qloo').click();
   await expect(page.getByTestId('why-qloo-panel')).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByTestId('llm-stop')).toHaveText('insufficient_evidence');
+  await expect(page.getByTestId('llm-stop')).toContainText(/cultural evidence|insufficient_evidence/);
   await expect(page.getByTestId('why-qloo-panel')).toContainText('LLM-only');
   await settle(page);
   await page.screenshot({ path: `${SHOTS4}/why-qloo-1440.png` });
   const stop = page.getByTestId('stop-reason');
-  const reason = /approved_target|insufficient_evidence|no_meaningful_improvement|max_rounds_or_budget/;
+  const reason = /target you set|cultural evidence|move the score|used its questions|approved_target|insufficient_evidence|no_meaningful_improvement|max_rounds_or_budget/;
   for (let turn = 0; turn < 5; turn += 1) {
     if ((await stop.count()) > 0 && reason.test((await stop.textContent()) ?? '')) break;
     const closer = page.getByRole('button', { name: 'Close' });
@@ -305,6 +307,7 @@ test('launch report and why qloo', async ({ page }) => {
     break;
   }
   await expect(stop).toHaveText(reason);
+  await page.getByTestId('trace-why').click();
   await expect(page.getByTestId('decision-trace')).toContainText('Build personas from Qloo');
   await expect(page.getByTestId('decision-trace')).toContainText(/entities|heatmap/);
   await page.getByTestId('open-report').click();

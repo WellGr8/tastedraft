@@ -6,7 +6,9 @@
 import {
   CLAIM_LABEL,
   DEFAULT_QLOO_BUDGET,
+  EvidenceSchema,
   FRICTION_LABEL,
+  HeatmapCellSchema,
   MAX_ROUNDS,
   PERSONA_RESPONSE_LABEL,
   PersonaSchema,
@@ -25,20 +27,30 @@ import {
   type StopReason,
 } from '@tastedraft/contracts';
 import {
+  SAMPLE_ENTITIES,
   applyDiffsToBrief,
   engineBriefFromV2,
   scoreEngine,
   type EngineScore,
 } from '../agent/model.ts';
-import { detectFrictions, proposeCandidates, rankCandidates, simulateCandidates } from '../agent/propose.ts';
+import { detectFrictions, proposeCandidates, rankCandidates, rescueCandidates, simulateCandidates } from '../agent/propose.ts';
 import { evidenceKey } from '../engine/score.ts';
 import type { LlmClient } from '../llm/client.ts';
 import { conflict, notFound } from '../errors.ts';
 import { qlooAge } from '../providers/qloo/insights.ts';
 import { parseHeatCells } from '../providers/qloo/heatmap.ts';
 import { buildPersona } from '../providers/qloo/persona.ts';
-import { QlooClient } from '../providers/qloo/client.ts';
+import { QlooClient, type QlooInsightsParams } from '../providers/qloo/client.ts';
 import { QlooGateway } from './gateway.ts';
+import {
+  askFor,
+  broadenQueries,
+  decideGate,
+  ideaKeywords,
+  isQlooEntityId,
+  plainStopReason,
+  type MeasuredEvidence,
+} from './evidence-gate.ts';
 import { narrate } from './narrate.ts';
 import { evidenceFromRecording, loadRecording, recordingsDir, saveRecording, type DerivedRecording } from './record.ts';
 import { RunStore, type RunRecord } from './store.ts';
@@ -161,7 +173,8 @@ export class AgentRunner {
   }
 
   async command(id: string, message: string): Promise<CommandResult> {
-    const text = message.trim().toLowerCase();
+    const raw = message.trim();
+    const text = raw.toLowerCase();
     if (/^(approve|yes)\b/.test(text)) {
       const current = this.require(id);
       const proposal = current.proposals[0];
@@ -193,6 +206,22 @@ export class AgentRunner {
       const run = this.require(id);
       return { run, reply: this.reply(run), steps: run.steps };
     }
+    const resume = parseResume(raw);
+    if (resume) {
+      await this.enqueue(id, async () => {
+        const record = this.requireRecord(id);
+        if (record.snapshot.status !== 'awaiting_input') return;
+        applyResume(record, resume);
+        record.forced = false;
+        record.snapshot.status = 'running';
+        record.snapshot.stopReason = null;
+        record.phase = 'evidence';
+        this.options.store.save(record);
+        await this.drive(id);
+      });
+      const run = this.require(id);
+      return { run, reply: this.reply(run), steps: run.steps };
+    }
     if (/^stop\b/.test(text)) {
       await this.enqueue(id, async () => {
         const record = this.requireRecord(id);
@@ -212,7 +241,7 @@ export class AgentRunner {
     } catch (error) {
       const record = this.options.store.read(id);
       if (!record || record.snapshot.status !== 'running') throw error;
-      record.snapshot.report = error instanceof Error ? error.message : 'The run failed';
+      record.snapshot.report = error instanceof Error ? error.message.replace(/hack_[a-z0-9]+/gi, '[redacted]') : 'The run failed';
       this.stop(record, 'insufficient_evidence');
     }
   }
@@ -269,9 +298,17 @@ export class AgentRunner {
     }
     if (record.phase === 'evidence') {
       record.snapshot.evidence = evidenceFromBrief(record.brief);
-      await this.qlooEvidence(record, gateway);
+      const widened = await this.qlooEvidence(record, gateway);
       this.noteCalls(record, gateway);
+      record.snapshot.districts = safeCells(record.snapshot.districts);
+      record.snapshot.evidence = record.snapshot.evidence.flatMap((row) => {
+        const parsed = EvidenceSchema.safeParse(row);
+        return parsed.success ? [parsed.data] : [];
+      });
       record.snapshot.evidenceStrength = evidenceKey(record.brief.references.length);
+      if (widened) {
+        await this.step(record, 'broaden', 'Widen the search', widened);
+      }
       await this.step(
         record,
         'evidence',
@@ -281,19 +318,25 @@ export class AgentRunner {
       record.phase = 'gate';
     }
     if (record.phase === 'gate') {
-      const strength = record.snapshot.evidenceStrength;
-      const enough = strength !== 'LIMITED' || record.forced;
-      await this.step(
-        record,
-        'gate',
-        'Evidence sufficient?',
-        enough ? `${strength}. The engine can score this.` : `${strength}. Ask the user to continue or stop.`,
-      );
-      if (!enough) {
+      const measured = measureEvidence(record);
+      const live = gateway.mode === 'live' && record.snapshot.grounding === 'qloo';
+      const decision = decideGate({
+        measured,
+        referenceCount: record.brief.references.length,
+        live,
+        forced: record.forced,
+      });
+      if (decision === 'ask') {
+        const companion = SAMPLE_ENTITIES.find(
+          (entity) => !record.brief.references.some((reference) => reference.name === entity.name || reference.id === entity.id),
+        )?.name;
+        const ask = askFor(measured, record.brief.city, companion);
+        await this.step(record, 'ask', 'Need a little more', JSON.stringify(ask));
         record.snapshot.status = 'awaiting_input';
         this.finish(record);
         return;
       }
+      await this.step(record, 'gate', 'Evidence sufficient?', 'Enough cultural evidence to score this.');
       record.phase = 'simulate';
       await this.simulate(record, gateway);
     }
@@ -336,9 +379,14 @@ export class AgentRunner {
     };
     await this.step(record, 'simulate', 'Simulate options with the engine', `Engine total ${scored.total}.`);
     const detected = detectFrictions(record.brief, scored);
-    const ranked = rankCandidates(simulateCandidates(record.brief, proposeCandidates(record.brief, detected), scored.total)).filter(
+    let ranked = rankCandidates(simulateCandidates(record.brief, proposeCandidates(record.brief, detected), scored.total)).filter(
       (candidate) => candidate.predictedDelta > 0,
     );
+    if (!ranked.length) {
+      ranked = rankCandidates(simulateCandidates(record.brief, rescueCandidates(record.brief), scored.total)).filter(
+        (candidate) => candidate.predictedDelta > 0,
+      );
+    }
     await this.step(record, 'rank', 'Rank proposals', ranked.length ? ranked.map((candidate) => candidate.id).join(', ') : 'No positive engine delta.');
     const cited = [
       ...record.snapshot.evidence.filter((row) => row.kind === 'entity').map((row) => row.id).slice(0, 2),
@@ -446,53 +494,68 @@ export class AgentRunner {
     this.stop(record, 'insufficient_evidence');
   }
 
-  private async qlooEvidence(record: RunRecord, gateway: QlooGateway): Promise<void> {
-    const reached = await this.collectQloo(record, gateway);
-    if (reached && gateway.mode === 'live') {
-      const recording = recordingFrom(record);
-      if (recording) saveRecording(record.brief, recording, this.options.recordingsDir ?? recordingsDir());
-      return;
+  private async qlooEvidence(record: RunRecord, gateway: QlooGateway): Promise<string | null> {
+    try {
+      const collected = await this.collectQloo(record, gateway);
+      if (collected.reached && gateway.mode === 'live') {
+        const recording = recordingFrom(record);
+        if (recording) {
+          try {
+            saveRecording(record.brief, recording, this.options.recordingsDir ?? recordingsDir());
+          } catch {
+            // A recording is a convenience. It must not stop the run.
+          }
+        }
+        return collected.note;
+      }
+      if (collected.reached || gateway.mode !== 'live') return collected.note;
+      const replay = loadRecording(record.brief, this.options.recordingsDir ?? recordingsDir());
+      if (!replay) return collected.note;
+      this.applyRecording(record, replay);
+      return collected.note;
+    } catch {
+      return null;
     }
-    if (reached || gateway.mode !== 'live') return;
-    const replay = loadRecording(record.brief, this.options.recordingsDir ?? recordingsDir());
-    if (!replay) return;
-    this.applyRecording(record, replay);
   }
 
-  private async collectQloo(record: RunRecord, gateway: QlooGateway): Promise<boolean> {
+  private async collectQloo(record: RunRecord, gateway: QlooGateway): Promise<{ reached: boolean; note: string | null }> {
     let reached = false;
     const strength = evidenceKey(record.brief.references.length);
-    const name = record.brief.references[0]?.name;
-    if (name && gateway.calls < record.snapshot.budget) {
-      const result = await gateway.search({ query: name, take: 1 });
-      if (result.ok) {
-        reached = true;
-        const id = firstEntityId(result.body);
-        if (id) pushEvidence(record, { id: `ev:${id}`, name, kind: 'entity', ref: id, strength, affinity: null, source: 'qloo' });
-      }
+    const resolved: string[] = [];
+    for (const reference of record.brief.references.slice(0, 4)) {
+      if (isQlooEntityId(reference.id)) resolved.push(reference.id);
+      if (gateway.calls >= record.snapshot.budget) break;
+      const result = await gateway.search({ query: reference.name, take: 1 });
+      if (!result.ok) continue;
+      reached = true;
+      const id = firstEntityId(result.body);
+      if (!id) continue;
+      if (isQlooEntityId(id)) resolved.push(id);
+      pushEvidence(record, { id: `ev:${id}`, name: reference.name, kind: 'entity', ref: id, strength, affinity: null, source: 'qloo' });
     }
-    const tagQuery = record.brief.interests[0]?.name ?? name;
+    const tagQuery = record.brief.interests[0]?.name ?? record.brief.references[0]?.name;
+    let tagCount = 0;
     if (tagQuery && gateway.calls < record.snapshot.budget) {
       const result = await gateway.tags({ filter: { query: tagQuery }, take: 3 });
       if (result.ok) {
         reached = true;
-        for (const tag of namesFrom(result.body, 'tags').slice(0, 3)) {
-          pushEvidence(record, { id: `ev:${tag.id}`, name: tag.name, kind: 'tag', ref: tag.id, strength, affinity: null, source: 'qloo' });
+        tagCount = pushTags(record, namesFrom(result.body, 'tags'), strength);
+      }
+    }
+    const entityIds = [...new Set(resolved.filter(isQlooEntityId))].slice(0, 4);
+    let heatmapOk = false;
+    if (gateway.calls < record.snapshot.budget) {
+      const heat = await gateway.insights(heatmapParams(record.brief.city, entityIds));
+      if (heat.ok) {
+        reached = true;
+        const cells = safeCells(labelCells(parseHeatCells(heat.body))).slice(0, 6);
+        if (cells.length) {
+          record.snapshot.districts = cells;
+          heatmapOk = true;
         }
       }
     }
-    const entityIds = record.snapshot.evidence.filter((row) => row.kind === 'entity').map((row) => row.ref).slice(0, 4);
-    if (gateway.calls < record.snapshot.budget) {
-      const heat = await gateway.insights({
-        filter: { type: 'urn:heatmap', location: { query: record.brief.city } },
-        ...(entityIds.length ? { signal: { interests: { entities: entityIds.join(',') } } } : {}),
-        take: 6,
-      });
-      if (heat.ok) {
-        reached = true;
-        record.snapshot.districts = labelCells(parseHeatCells(heat.body)).slice(0, 6);
-      }
-    }
+    let demographicsOk = false;
     if (gateway.calls < record.snapshot.budget) {
       const age = qlooAge(record.brief.age);
       const demo = await gateway.insights({
@@ -505,12 +568,68 @@ export class AgentRunner {
       });
       if (demo.ok) {
         reached = true;
-        for (const tag of namesFrom(demo.body, 'tags').slice(0, 3)) {
-          pushEvidence(record, { id: `ev:${tag.id}`, name: tag.name, kind: 'tag', ref: tag.id, strength, affinity: null, source: 'qloo' });
+        const added = pushTags(record, namesFrom(demo.body, 'tags'), strength);
+        tagCount += added;
+        demographicsOk = added > 0;
+      }
+    }
+    const thin = entityIds.length === 0 || !heatmapOk || !demographicsOk || tagCount === 0;
+    if (!thin || gateway.calls >= record.snapshot.budget) return { reached, note: null };
+    const plan = broadenQueries({
+      city: record.brief.city,
+      referenceNames: [...record.brief.references.map((reference) => reference.name), ...ideaKeywords(record.brief.idea)],
+      candidateIds: entityIds,
+      heatmapFailed: !heatmapOk,
+      demographicsFailed: !demographicsOk,
+    });
+    for (const name of plan.relatedNames) {
+      if (gateway.calls >= record.snapshot.budget) break;
+      if (record.brief.references.some((reference) => reference.name.toLowerCase() === name.toLowerCase()) && entityIds.length) continue;
+      const result = await gateway.search({ query: name, take: 1 });
+      if (!result.ok) continue;
+      reached = true;
+      const id = firstEntityId(result.body);
+      if (!id || !isQlooEntityId(id)) continue;
+      if (!entityIds.includes(id)) entityIds.push(id);
+      const foundName = namesFrom(result.body, 'entities')[0]?.name ?? name;
+      pushEvidence(record, { id: `ev:${id}`, name: foundName, kind: 'entity', ref: id, strength, affinity: null, source: 'qloo' });
+    }
+    const widenedIds = plan.entityIds.length ? plan.entityIds : entityIds.filter(isQlooEntityId).slice(0, 4);
+    if (widenedIds.length && gateway.calls < record.snapshot.budget) {
+      const related = await gateway.insights({
+        filter: { type: 'urn:entity:brand' },
+        signal: { interests: { entities: widenedIds.join(',') } },
+        take: 3,
+      });
+      if (related.ok) {
+        reached = true;
+        for (const entity of namesFrom(related.body, 'entities').slice(0, 3)) {
+          if (isQlooEntityId(entity.id) && !entityIds.includes(entity.id)) entityIds.push(entity.id);
+          pushEvidence(record, { id: `ev:${entity.id}`, name: entity.name, kind: 'entity', ref: entity.id, strength, affinity: null, source: 'qloo' });
         }
       }
     }
-    return reached;
+    if (!heatmapOk && gateway.calls < record.snapshot.budget) {
+      const heat = await gateway.insights(heatmapParams(plan.location, widenedIds));
+      if (heat.ok) {
+        reached = true;
+        const cells = safeCells(labelCells(parseHeatCells(heat.body))).slice(0, 6);
+        if (cells.length) record.snapshot.districts = cells;
+      }
+    }
+    if (!demographicsOk && gateway.calls < record.snapshot.budget) {
+      const demo = await gateway.insights({
+        filter: { type: 'urn:tag' },
+        signal: { location: { query: plan.location } },
+        take: 3,
+      });
+      if (demo.ok) {
+        reached = true;
+        pushTags(record, namesFrom(demo.body, 'tags'), strength);
+      }
+    }
+    const where = plan.usedDefaultLocation ? `Tried ${plan.location} after the first place came back empty.` : 'Dropped audience and price filters.';
+    return { reached, note: where };
   }
 
   private applyRecording(record: RunRecord, recording: DerivedRecording): void {
@@ -693,20 +812,97 @@ function frictionsFrom(brief: BriefV2, scored: EngineScore): Friction[] {
 
 function renderReport(snapshot: RunSnapshot): string {
   const head = snapshot.stopReason
-    ? `Stop: ${snapshot.stopReason}.`
+    ? `${plainStopReason(snapshot.stopReason)} (${snapshot.stopReason})`
     : snapshot.status === 'awaiting_input'
-      ? 'Evidence is limited. Continue or stop.'
+      ? 'Need one more detail before this can be scored.'
       : snapshot.status === 'awaiting_approval'
         ? 'Waiting for approval.'
         : 'Running.';
-  const lines = snapshot.steps.map((step) => `${step.seq + 1}. ${step.label}`);
   const label = snapshot.grounding === 'recorded' ? 'Recorded run.' : snapshot.grounding === 'llm-only' ? 'LLM-only. No Qloo evidence.' : '';
-  return [label, head, `Round ${snapshot.round}. Qloo calls ${snapshot.qlooCalls} of ${snapshot.budget}.`, ...lines].filter(Boolean).join('\n');
+  return [label, head, `Round ${snapshot.round}. Qloo calls ${snapshot.qlooCalls} of ${snapshot.budget}.`].filter(Boolean).join('\n');
 }
 
 function pushEvidence(record: RunRecord, row: Evidence): void {
-  if (record.snapshot.evidence.some((item) => item.id === row.id)) return;
-  record.snapshot.evidence.push(row);
+  const parsed = EvidenceSchema.safeParse(row);
+  if (!parsed.success) return;
+  if (record.snapshot.evidence.some((item) => item.id === parsed.data.id)) return;
+  record.snapshot.evidence.push(parsed.data);
+}
+
+function pushTags(record: RunRecord, tags: Array<{ id: string; name: string }>, strength: Evidence['strength']): number {
+  let added = 0;
+  for (const tag of tags.slice(0, 3)) {
+    const before = record.snapshot.evidence.length;
+    pushEvidence(record, { id: `ev:${tag.id}`, name: tag.name, kind: 'tag', ref: tag.id, strength, affinity: null, source: 'qloo' });
+    if (record.snapshot.evidence.length > before) added += 1;
+  }
+  return added;
+}
+
+function heatmapParams(location: string, entityIds: readonly string[]): QlooInsightsParams {
+  const ids = entityIds.filter(isQlooEntityId).slice(0, 4);
+  return {
+    filter: { type: 'urn:heatmap', ...(location.trim() ? { location: { query: location.trim() } } : {}) },
+    ...(ids.length ? { signal: { interests: { entities: ids.join(',') } } } : {}),
+    take: 6,
+  };
+}
+
+function safeCells(cells: readonly HeatmapCell[]): HeatmapCell[] {
+  return cells.flatMap((cell) => {
+    const parsed = HeatmapCellSchema.safeParse(cell);
+    return parsed.success ? [parsed.data] : [];
+  });
+}
+
+function measureEvidence(record: RunRecord): MeasuredEvidence {
+  const evidence = record.snapshot.evidence;
+  const resolvedEntities = evidence.filter(
+    (row) => row.kind === 'entity' && (row.source === 'qloo' || row.source === 'recorded' || isQlooEntityId(row.ref)),
+  ).length;
+  const tags = evidence.filter((row) => row.kind === 'tag' && (row.source === 'qloo' || row.source === 'recorded')).length;
+  const personaAnchors = record.snapshot.personas.reduce((sum, persona) => sum + persona.anchors.length, 0);
+  return { resolvedEntities, tags, heatmapCells: record.snapshot.districts.length, personaAnchors };
+}
+
+function parseResume(message: string): { kind: 'city' | 'reference'; value: string } | null {
+  const match = message.trim().match(/^resume\s+(city|reference)\s+(.+)$/i);
+  if (!match) return null;
+  const value = match[2]?.trim() ?? '';
+  if (!value) return null;
+  return { kind: match[1]?.toLowerCase() === 'city' ? 'city' : 'reference', value };
+}
+
+function applyResume(record: RunRecord, resume: { kind: 'city' | 'reference'; value: string }): void {
+  if (resume.kind === 'city') {
+    record.brief = { ...record.brief, city: titlePlace(resume.value) };
+    return;
+  }
+  const known = SAMPLE_ENTITIES.find((entity) => entity.name.toLowerCase() === resume.value.toLowerCase());
+  const name = known?.name ?? resume.value;
+  if (record.brief.references.some((reference) => reference.name.toLowerCase() === name.toLowerCase())) return;
+  record.brief = {
+    ...record.brief,
+    references: [
+      ...record.brief.references,
+      known
+        ? { id: known.id, name: known.name, type: known.type, source: 'sample' }
+        : { id: slugId(name), name, type: 'urn:entity', source: 'user' },
+    ],
+  };
+}
+
+function titlePlace(value: string): string {
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word.slice(0, 1).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+function slugId(value: string): string {
+  const slug = value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return slug || 'reference';
 }
 
 function labelCells(cells: readonly HeatmapCell[]): HeatmapCell[] {

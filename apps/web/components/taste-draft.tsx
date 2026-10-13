@@ -26,7 +26,8 @@ import {
 } from '@/lib/api';
 import { STARTER_REFERENCES, STARTER_TAGS, defaultDraft, withImage, type DraftState } from '@/lib/defaults';
 import { scoreLive, type LiveScore } from '@/lib/engine-preview';
-import { personasOf, readRunEvents, simulationOf, traceLines, viewOf } from '@/lib/run';
+import { askFromRun, decisionTrace, EMPTY_TRACE, namesOnRun, personasOf, readRunEvents, simulationOf, viewOf, type DecisionTrace, type EvidenceAsk } from '@/lib/run';
+import { placeLabel, plainStopReason } from '@/lib/labels';
 import type { RunSnapshot } from '@tastedraft/contracts';
 import { bandOf } from '@/lib/hex';
 import { chatWithPersona, loadPersonas, mindChanges, type EvidenceChip, type MindChange, type Persona } from '@/lib/personas';
@@ -62,7 +63,7 @@ function qlooId(id: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) || id.startsWith('urn:');
 }
 
-function spotsOf(layer: MapLayer | null | undefined): HeatSpot[] {
+function spotsOf(layer: MapLayer | null | undefined, city: string): HeatSpot[] {
   if (!layer) return [];
   if (layer.kind === 'heatmap') {
     return [...layer.cells]
@@ -70,7 +71,7 @@ function spotsOf(layer: MapLayer | null | undefined): HeatSpot[] {
       .slice(0, 6)
       .map((cell) => ({
         id: cell.id,
-        label: cell.label ?? `${cell.lat.toFixed(2)}, ${cell.lng.toFixed(2)}`,
+        label: placeLabel(cell.label, city),
         weight: cell.weight,
         lat: cell.lat,
         lng: cell.lng,
@@ -87,7 +88,7 @@ export function TasteDraft() {
   const [phase, setPhase] = useState<Phase>('input');
   const [runId, setRunId] = useState<string | null>(null);
   const [labels, setLabels] = useState<string[]>([]);
-  const [trace, setTrace] = useState<string[]>([]);
+  const [trace, setTrace] = useState<DecisionTrace>(EMPTY_TRACE);
   const [v1, setV1] = useState<SimulationResponse | null>(null);
   const [v2, setV2] = useState<SimulationResponse | null>(null);
   const [v1Brief, setV1Brief] = useState<BriefV2 | null>(null);
@@ -116,6 +117,7 @@ export function TasteDraft() {
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [composer, setComposer] = useState('');
   const [error, setError] = useState('');
+  const [ask, setAsk] = useState<EvidenceAsk | null>(null);
   const [busy, setBusy] = useState(false);
   const [chatBusy, setChatBusy] = useState(false);
   const [sheet, setSheet] = useState(false);
@@ -194,7 +196,7 @@ export function TasteDraft() {
         interests: entities.length || tags.length ? { entities, tags } : undefined,
       });
       if (districtLock.current) return;
-      setHeatSpots(spotsOf(payload.fits.v1));
+      setHeatSpots(spotsOf(payload.fits.v1, current.city));
       setHeatNote(payload.note);
     } catch {
       setHeatSpots([]);
@@ -245,13 +247,13 @@ export function TasteDraft() {
     setProjectId(run.id);
     setRunId(run.id);
     setLastRun(run);
-    setTrace(traceLines(run));
+    setTrace(decisionTrace(run, nextBrief.city));
     if (run.districts.length) {
       districtLock.current = true;
       setHeatSpots(
         run.districts.slice(0, 6).map((cell) => ({
           id: cell.id,
-          label: cell.label ?? `${cell.lat.toFixed(2)}, ${cell.lng.toFixed(2)}`,
+          label: placeLabel(cell.label, nextBrief.city),
           weight: cell.weight,
           lat: cell.lat,
           lng: cell.lng,
@@ -297,9 +299,10 @@ export function TasteDraft() {
     }
     setBusy(true);
     setError('');
+    setAsk(null);
     setRunId(null);
     setLabels([]);
-    setTrace([]);
+    setTrace(EMPTY_TRACE);
     setPhase('analyzing');
     setModal(null);
     setDismissed(false);
@@ -336,11 +339,12 @@ export function TasteDraft() {
       });
       await new Promise((resolve) => setTimeout(resolve, 3500));
       if (run.status === 'awaiting_input') {
-        setTrace(traceLines(run));
-        setError('Evidence is limited. Tell the agent to continue or stop.');
+        setTrace(decisionTrace(run, resolvedBrief.city));
+        setAsk(askFromRun(run));
+        setPhase('input');
         return;
       }
-      if (run.score == null) throw new Error(run.report || 'The simulation did not return a score');
+      if (run.score == null) throw new Error(plainStopReason(run.stopReason) || 'This run stopped before it could recommend a change.');
       acceptRun(run, resolvedBrief, true);
       setPhase('result');
     } catch (err) {
@@ -382,11 +386,52 @@ export function TasteDraft() {
     void startTest({ draft: nextDraft, controls: { ...defaultControls(), priceLevel: 2 } });
   }
 
+  async function resumeAsk() {
+    if (!ask || !runId || busy) return;
+    setBusy(true);
+    setError('');
+    const nextDraft: DraftState = {
+      ...draft,
+      references: [...draft.references],
+      interests: [...draft.interests],
+      locations: [...draft.locations],
+    };
+    if (ask.kind === 'city') nextDraft.city = ask.suggestion;
+    else if (!nextDraft.references.some((item) => item.name.toLowerCase() === ask.suggestion.toLowerCase())) {
+      nextDraft.references.push({
+        id: ask.suggestion.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'reference',
+        name: ask.suggestion,
+        type: 'urn:entity',
+        source: 'user',
+      });
+    }
+    setDraft(nextDraft);
+    try {
+      const result = await client.commandRun(runId, ask.kind === 'city' ? `resume city ${ask.suggestion}` : `resume reference ${ask.suggestion}`);
+      const run = result.run;
+      if (run.status === 'awaiting_input') {
+        setAsk(askFromRun(run));
+        setTrace(decisionTrace(run, nextDraft.city));
+        return;
+      }
+      if (run.score == null) throw new Error(plainStopReason(run.stopReason) || 'This run stopped before it could recommend a change.');
+      setAsk(null);
+      acceptRun(run, toProfileBrief(nextDraft, controls), true);
+      setPhase('result');
+    } catch (err) {
+      setPhase('input');
+      setError(err instanceof Error ? err.message : 'The API could not score this concept');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function home() {
     setPhase('input');
     setModal(null);
     setView(1);
     setError('');
+    setAsk(null);
   }
 
   async function addSimilar(name: string) {
@@ -669,7 +714,7 @@ export function TasteDraft() {
       if (runId) {
         const result = await client.commandRun(runId, text);
         const open = result.run.proposals[0];
-        const view = open ? viewOf(open) : null;
+        const view = open ? viewOf(open, namesOnRun(result.run)) : null;
         setTurns((current) =>
           current.map((turn) =>
             turn.id === agentId
@@ -896,11 +941,13 @@ export function TasteDraft() {
           controls={controls}
           live={live}
           error={error}
+          ask={ask}
           busy={busy}
           onDraft={setDraft}
           onControls={setControls}
           onSubmit={() => void startTest()}
           onAddSimilar={(name) => void addSimilar(name)}
+          onAsk={() => void resumeAsk()}
           onExample={() => tryExample()}
         />
       ) : null}
@@ -968,7 +1015,7 @@ export function TasteDraft() {
           grounding={lastRun?.grounding ?? 'qloo'}
           city={draft.city}
           spots={heatSpots}
-          applied={(lastRun?.applied ?? []).map(viewOf)}
+          applied={(lastRun?.applied ?? []).map((proposal) => viewOf(proposal, lastRun ? namesOnRun(lastRun) : undefined))}
           stop={stopReason}
           trace={trace}
           onExport={() => window.print()}

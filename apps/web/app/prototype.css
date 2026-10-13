@@ -593,8 +593,17 @@ button.byb-qk{border:0;padding:0;cursor:pointer}
 .td-quotes{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
 .td-quote{margin:0;font-size:14px;line-height:1.45;color:#1B2140}
 .td-wasm{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#8A90AE}
-.td-trace{display:flex;flex-direction:column;gap:6px;margin:12px 0 0;padding:0;list-style:none}
+.td-tracebox{display:flex;flex-direction:column;gap:10px;align-items:flex-start;width:100%}
+.td-why{width:100%}
+.td-why>summary{cursor:pointer;list-style:none;width:fit-content}
+.td-why>summary::-webkit-details-marker{display:none}
+.td-trace-panel{display:flex;flex-direction:column;gap:8px;width:100%;margin-top:10px}
+.td-trace{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
 .td-trace li{font-size:13px;font-weight:500;line-height:1.45;color:#1B2140}
+.td-raw{margin:0;font:inherit;font-size:12px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;color:#4A5273}
+.ws-agent2 .td-trace li{color:#D5D8EE}
+.ws-agent2 .td-raw{color:#AEB3D4}
+.mdl{isolation:isolate;background-color:#FBFBFE}
 .td-compare{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
 .td-compare article{padding:14px;border-radius:18px;background:rgba(255,255,255,.86);box-shadow:inset 0 0 0 1px rgba(120,125,170,.22)}
 .td-report{display:flex;flex-direction:column;gap:12px;max-width:720px;margin:0 auto;padding:8px 0 80px}

@@ -2,7 +2,9 @@
 
 import { RunSnapshotSchema, type BriefV2, type Proposal, type RunSnapshot, type Step } from '@tastedraft/contracts';
 import { apiBase, type ProposalView, type SimulationResponse } from '@/lib/api';
+import { STARTER_REFERENCES, STARTER_TAGS } from '@/lib/defaults';
 import { scoreLive } from '@/lib/engine-preview';
+import { plainEvidence, plainHypothesis, plainToken, showName, traceSummary } from '@/lib/labels';
 import type { Persona } from '@/lib/personas';
 
 export async function readRunEvents(id: string, onStep: (step: Step) => void | Promise<void>): Promise<RunSnapshot> {
@@ -45,15 +47,32 @@ const PARAM_LABEL: Record<string, string> = {
   'signal.interests.entities': 'References',
 };
 
-export function viewOf(proposal: Proposal): ProposalView {
+export function namesOnRun(run: Pick<RunSnapshot, 'evidence'>): Map<string, string> {
+  const names = new Map<string, string>();
+  for (const entity of [...STARTER_REFERENCES, ...STARTER_TAGS]) {
+    names.set(entity.id, entity.name);
+    names.set(entity.id.toLowerCase(), entity.name);
+  }
+  for (const row of run.evidence) {
+    names.set(row.id, row.name);
+    names.set(row.ref, row.name);
+    names.set(row.ref.toLowerCase(), row.name);
+  }
+  return names;
+}
+
+export function viewOf(proposal: Proposal, names?: ReadonlyMap<string, string>): ProposalView {
   const change = proposal.changes[0];
-  const name = change ? PARAM_LABEL[change.param] ?? change.param : 'Change';
+  const entities = change?.param === 'signal.interests.entities';
+  const label = change ? PARAM_LABEL[change.param] ?? 'Change' : 'Change';
+  const before = plainToken(change?.from, names);
+  const after = plainToken(change?.to, names);
   return {
     id: proposal.id,
-    before: `${name} ${change?.from ?? 'none'}`,
-    after: `${name} ${change?.to ?? 'none'}`,
-    why: proposal.why,
-    evidence: proposal.evidenceRefs.join(', '),
+    before: entities ? before : `${label} ${before}`,
+    after: entities ? after : `${label} ${after}`,
+    why: plainHypothesis(proposal.why),
+    evidence: plainEvidence(proposal.evidenceRefs, names),
     evidenceIds: [...proposal.evidenceRefs],
     predictedDelta: proposal.predictedDelta ?? null,
     param: change?.param ?? null,
@@ -65,6 +84,13 @@ export function viewOf(proposal: Proposal): ProposalView {
 
 export function simulationOf(run: RunSnapshot): SimulationResponse {
   const ledger = run.simulation?.ledger ?? null;
+  const seen = new Set<string>();
+  const evidence = run.evidence.filter((row) => {
+    const key = `${row.kind}:${row.name.trim().toLowerCase()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
   return {
     id: `${run.id}-v${run.version}`,
     projectId: run.id,
@@ -75,10 +101,10 @@ export function simulationOf(run: RunSnapshot): SimulationResponse {
     score: run.score,
     ledger,
     evidenceStrength: run.evidenceStrength,
-    signals: run.evidence.slice(0, 6).map((row) => ({ domain: row.kind, name: row.name, level: row.strength })),
-    fits: run.evidence.slice(0, 2).map((row) => ({ text: row.name })),
+    signals: evidence.slice(0, 6).map((row) => ({ domain: row.kind, name: row.name, level: row.strength })),
+    fits: evidence.slice(0, 2).map((row) => ({ text: row.name })),
     frictions: run.frictions.map((friction) => ({ text: friction.hypothesis, why: friction.label })),
-    proposals: run.proposals.map(viewOf),
+    proposals: run.proposals.map((proposal) => viewOf(proposal, namesOnRun(run))),
     story: {
       mode: 'sample',
       considered: run.proposals.length,
@@ -94,6 +120,52 @@ export function simulationOf(run: RunSnapshot): SimulationResponse {
         : [],
     },
     error: run.score == null ? run.report : null,
+  };
+}
+
+export interface EvidenceAsk {
+  kind: 'city' | 'reference';
+  suggestion: string;
+  question: string;
+}
+
+export function askFromRun(run: RunSnapshot): EvidenceAsk | null {
+  const step = [...run.steps].reverse().find((item) => item.kind === 'ask');
+  if (!step) return null;
+  try {
+    const body = JSON.parse(step.detail) as Partial<EvidenceAsk>;
+    if ((body.kind !== 'city' && body.kind !== 'reference') || !body.question?.trim() || !body.suggestion?.trim()) return null;
+    return { kind: body.kind, suggestion: body.suggestion.trim(), question: body.question.trim() };
+  } catch {
+    return null;
+  }
+}
+
+export interface DecisionTrace {
+  summary: string;
+  evidence: string;
+  steps: string[];
+  raw: string[];
+}
+
+export const EMPTY_TRACE: DecisionTrace = { summary: '', evidence: '', steps: [], raw: [] };
+
+/** One human sentence for the card. Ids and coordinates stay in `raw`, for Why?. */
+export function decisionTrace(run: RunSnapshot, city = ''): DecisionTrace {
+  const names = namesOnRun(run);
+  const cited = run.evidence.map((row) => showName(row.name, names) || showName(row.ref, names)).filter(Boolean);
+  const summary = traceSummary({
+    proposalCount: run.proposals.length,
+    names: cited,
+    city,
+    heatmap: run.districts.length > 0,
+    widened: run.steps.some((step) => /widen/i.test(step.label)),
+  });
+  return {
+    summary,
+    evidence: summary,
+    steps: run.steps.map((step) => step.label),
+    raw: traceLines(run),
   };
 }
 

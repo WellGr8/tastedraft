@@ -12,6 +12,7 @@ import {
   entityId,
   indieDistrictsExcept,
   nextAgeBand,
+  previousAgeBand,
   priceLevelForPositioning,
   SAMPLE_ENTITIES,
   scoreEngine,
@@ -319,6 +320,53 @@ function addArtistCandidates(brief: BriefV2, friction: DetectedFriction): Candid
       changes: [{ param: 'signal.interests.entities', from, to }],
     },
   ];
+}
+
+/**
+ * When the measured frictions have no upward move, try a neighboring age,
+ * a second known anchor, or a lighter scarcity. The engine still has to
+ * show a positive delta before any of these is offered.
+ */
+export function rescueCandidates(brief: BriefV2): Candidate[] {
+  const out: Candidate[] = [];
+  for (const age of [previousAgeBand(brief.age), nextAgeBand(brief.age)]) {
+    if (!age) continue;
+    const from = ageBucket(brief.age);
+    const to = ageBucket(age);
+    if (from === to) continue;
+    out.push({
+      id: `rescue-age-${slug(age)}`,
+      kind: 'age',
+      frictionText: 'A neighboring age band fits this audience more closely',
+      evidenceRefs: ['audience.age'],
+      changes: [{ param: 'signal.demographics.age', from, to }],
+    });
+  }
+  const fromIds = brief.references.map((reference) => reference.id).join(',');
+  for (const entity of SAMPLE_ENTITIES) {
+    if (brief.references.some((reference) => reference.id === entity.id || reference.name === entity.name)) continue;
+    const to = fromIds ? `${fromIds},${entity.id}` : entity.id;
+    if (to === fromIds) continue;
+    out.push({
+      id: `rescue-ref-${entity.id}`,
+      kind: 'references',
+      frictionText: `Adding ${entity.name} gives this idea a second cultural anchor`,
+      evidenceRefs: [entity.id],
+      changes: [{ param: 'signal.interests.entities', from: fromIds || null, to }],
+    });
+  }
+  const scarce =
+    brief.constraints.some((item) => /limited|exclusive|scarce/i.test(item)) || /limited|exclusive|scarcity/i.test(brief.idea);
+  if (scarce) {
+    out.push({
+      id: 'rescue-channel',
+      kind: 'channel',
+      frictionText: 'A preorder drop is a lighter scarcity signal than a limited run',
+      evidenceRefs: ['friction.scarcity'],
+      changes: [{ param: 'filter.tags', from: 'limited-run', to: 'preorder-drop' }],
+    });
+  }
+  return out.filter((candidate) => candidate.changes.every((change) => change.from !== change.to));
 }
 
 export function simulateCandidates(brief: BriefV2, candidates: readonly Candidate[], baselineTotal: number): ScoredCandidate[] {

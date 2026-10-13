@@ -7,8 +7,9 @@ import { ReferenceSearch } from '@/components/reference-search';
 import type { ProposalView, SimulationResponse } from '@/lib/api';
 import { AGES, CITIES, POSITIONS, priceLevelFor, type DraftState } from '@/lib/defaults';
 import { bandOf } from '@/lib/hex';
-import { deltaText, fitOf, typeLabel } from '@/lib/labels';
+import { deltaText, fitOf, passSentence, plainStopReason, typeLabel } from '@/lib/labels';
 import { liveDetail, positioningForPrice, similarNames, type PriceLevel, type ProfileControls, type Scarcity } from '@/lib/profile';
+import type { DecisionTrace, EvidenceAsk } from '@/lib/run';
 import type { LiveScore } from '@/lib/engine-preview';
 import type { MindChange, Persona } from '@/lib/personas';
 
@@ -272,22 +273,26 @@ export function InputPhase({
   controls,
   live,
   error,
+  ask,
   busy,
   onDraft,
   onControls,
   onSubmit,
   onAddSimilar,
+  onAsk,
   onExample,
 }: {
   draft: DraftState;
   controls: ProfileControls;
   live: LiveScore | null;
   error: string;
+  ask: EvidenceAsk | null;
   busy: boolean;
   onDraft: (next: DraftState) => void;
   onControls: (next: ProfileControls) => void;
   onSubmit: () => void;
   onAddSimilar: (name: string) => void;
+  onAsk: () => void;
   onExample: () => void;
 }) {
   const [customOpen, setCustomOpen] = useState(false);
@@ -428,9 +433,19 @@ export function InputPhase({
             </button>
           </span>
         </div>
+        {ask ? (
+          <div className="byb-state is-warn" role="status" data-testid="evidence-ask">
+            <p>{ask.question}</p>
+            <div className="byb-state-acts">
+              <button type="button" className="byb-solid" data-testid="evidence-ask-action" onClick={onAsk} disabled={busy}>
+                {ask.kind === 'city' ? 'Add a city' : 'Add another reference'}
+              </button>
+            </div>
+          </div>
+        ) : null}
         {error ? (
           <div className="byb-state is-error" role="alert">
-            <p>{error}</p>
+            <p>{plainStopReason(error)}</p>
           </div>
         ) : null}
       </form>
@@ -577,7 +592,7 @@ export function ResultPhase({
   heatNote: string | null;
   changes: MindChange[];
   timeline: number[];
-  trace: string[];
+  trace: DecisionTrace;
   target: string;
   stop: string | null;
   pending: ProposalView | null;
@@ -716,8 +731,8 @@ export function ResultPhase({
           {fits[1] ? `, with ${fits[1].text.toLowerCase()}` : ''}. {signals.length} signals from the references on this brief.
         </p>
         <div>
-          {signals.map((signal) => (
-            <div key={`${signal.domain}-${signal.name}`} className="ws-sr" style={{ cursor: 'default' }}>
+          {signals.map((signal, index) => (
+            <div key={`${signal.domain}-${signal.name}-${index}`} className="ws-sr" style={{ cursor: 'default' }}>
               <span className="byb-sdom">{signal.domain}</span>
               <span className="byb-sname">{signal.name}</span>
               <span className="byb-str">
@@ -780,8 +795,8 @@ export function ResultPhase({
         <div className="ws-col g">
           <h3>What fits</h3>
           <ul className="byb-list">
-            {(fits.length ? fits : [{ text: 'Concept references' }]).map((fit) => (
-              <li key={fit.text} className="byb-li">
+            {(fits.length ? fits : [{ text: 'Concept references' }]).map((fit, index) => (
+              <li key={`${fit.text}-${index}`} className="byb-li">
                 <svg className="byb-ic" style={{ color: '#0C5F38' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <circle cx="12" cy="12" r="10" fill="currentColor" fillOpacity="0.14" stroke="none" />
                   <path d="M7.5 12.5l3 3 6-6.5" />
@@ -798,7 +813,7 @@ export function ResultPhase({
           <h3>Cultural friction</h3>
           <div className="byb-list">
             {(frictions.length ? frictions : [{ text: 'Premium pricing signals', why: '' }]).map((item, index) => (
-              <div key={item.text} className="byb-why">
+              <div key={`${item.text}-${index}`} className="byb-why">
                 <button type="button" className="byb-whyb" aria-expanded={frictionOpen === index} onClick={() => onToggleFriction(index)}>
                   <span className="t">
                     <svg className="byb-ic" style={{ color: '#A02B28' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -864,13 +879,11 @@ export function ResultPhase({
             <span className="ag-gain">{gain > 0 ? `+${gain}` : gain}</span>
           </div>
         ) : null}
-        {personas.some((persona) => persona.rejects) ? (
+        {personas.length ? (
           <p className="byb-note" data-testid="reject-list">
-            Rejects it: {personas.filter((persona) => persona.rejects).map((persona) => persona.label).join(' · ')}
+            {passSentence(personas)}
           </p>
-        ) : (
-          <p className="byb-note">Nobody in this audience rejects it on the current evidence.</p>
-        )}
+        ) : null}
         {reinterviewed ? (
           <div data-testid="reinterview">
             {changes.length ? (
@@ -885,16 +898,10 @@ export function ResultPhase({
           </div>
         ) : null}
         <ScoreTimeline scores={timeline} stop={stop} onRevert={onRevert} />
-        {trace.length ? (
-          <ol className="td-trace" data-testid="decision-trace">
-            {trace.map((line, index) => (
-              <li key={`${index}-${line}`}>{line}</li>
-            ))}
-          </ol>
-        ) : null}
+        <TraceWhy trace={trace} />
         {stop ? (
           <p className="byb-note" data-testid="stop-reason">
-            {stop}
+            {plainStopReason(stop)}
           </p>
         ) : null}
         {pending ? (
@@ -1226,9 +1233,37 @@ function WhyQloo({
         <p className="byb-note">Evidence confidence LIMITED. This pass cannot clear the evidence gate.</p>
         <p className="byb-note">{quote}</p>
         <p className="byb-note" data-testid="llm-stop">
-          {compare.stopReason ?? 'insufficient_evidence'}
+          {plainStopReason(compare.stopReason ?? 'insufficient_evidence')}
         </p>
       </article>
+    </div>
+  );
+}
+
+function TraceWhy({ trace }: { trace: DecisionTrace }) {
+  if (!trace.summary && !trace.steps.length && !trace.raw.length) return null;
+  return (
+    <div className="td-tracebox">
+      {trace.summary ? (
+        <p className="byb-note" data-testid="trace-summary">
+          {trace.summary}
+        </p>
+      ) : null}
+      <details className="td-why">
+        <summary className="byb-wtag" data-testid="trace-why">
+          Why?
+        </summary>
+        <div className="td-trace-panel" data-testid="decision-trace">
+          {trace.steps.length ? (
+            <ol className="td-trace">
+              {trace.steps.map((line, index) => (
+                <li key={`${index}-${line}`}>{line}</li>
+              ))}
+            </ol>
+          ) : null}
+          {trace.raw.length ? <p className="td-raw">{trace.raw.join('\n')}</p> : null}
+        </div>
+      </details>
     </div>
   );
 }
@@ -1252,7 +1287,7 @@ export function ReportPhase({
   spots: HeatSpot[];
   applied: ProposalView[];
   stop: string | null;
-  trace: string[];
+  trace: DecisionTrace;
   onExport: () => void;
   onBack: () => void;
 }) {
@@ -1278,13 +1313,9 @@ export function ReportPhase({
         <p className="byb-note">No change was approved.</p>
       )}
       <p className="byb-note" data-testid="report-stop">
-        {stop}
+        {plainStopReason(stop)}
       </p>
-      <ol className="td-trace" data-testid="decision-trace">
-        {trace.map((line, index) => (
-          <li key={`${index}-${line}`}>{line}</li>
-        ))}
-      </ol>
+      <TraceWhy trace={trace} />
       <div className="byb-cta no-print">
         <span className="byb-ring">
           <button type="button" className="byb-primary is-light" onClick={onExport}>

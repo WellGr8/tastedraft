@@ -137,6 +137,12 @@ export function nextAgeBand(age: string): string | null {
   return AGES[index + 1] ?? null;
 }
 
+export function previousAgeBand(age: string): string | null {
+  const index = AGES.indexOf(age as (typeof AGES)[number]);
+  if (index <= 0) return null;
+  return AGES[index - 1] ?? null;
+}
+
 export function cityForLocationQuery(query: string): string {
   if (isCityName(query)) return query;
   for (const city of CITY_NAMES) {

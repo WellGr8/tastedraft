@@ -3,7 +3,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import type { ProposalView } from '@/lib/api';
 import { hexLayout } from '@/lib/hex';
-import { fitOf } from '@/lib/labels';
+import { fitOf, passSentence } from '@/lib/labels';
 import type { EvidenceChip, Persona } from '@/lib/personas';
 
 export const AGENT_STEPS = [
@@ -127,8 +127,8 @@ export function HeatCard({ city, spots, note }: { city: string; spots: HeatSpot[
           {map.cells.map((cell, index) => (
             <div key={index} className="byb-hex" style={cssToStyle(cell.style)} />
           ))}
-          {map.pins.map((pin) => (
-            <span key={pin.id} className="td-mappin" style={cssToStyle(pin.style)} title={`${pin.label} · affinity ${pin.weight.toFixed(2)}`}>
+          {map.pins.map((pin, index) => (
+            <span key={`${pin.id}-${index}`} className="td-mappin" style={cssToStyle(pin.style)} title={`${pin.label} · affinity ${pin.weight.toFixed(2)}`}>
               {pin.label}
               {map.pins.some((other) => Math.round(other.weight * 100) !== Math.round(pin.weight * 100)) ? (
                 <small>{Math.round(pin.weight * 100)}</small>
@@ -185,11 +185,7 @@ export function LoopOutput({
           ))}
         </ul>
       ) : null}
-      {rejecting.length ? (
-        <p className="td-quote">
-          {rejecting.map((persona) => persona.label).join(', ')} {rejecting.length === 1 ? 'rejects' : 'reject'} this.
-        </p>
-      ) : null}
+      {rejecting.length ? <p className="td-quote">{passSentence(rejecting)}</p> : null}
       {proposal ? (
         <p className="td-quote">
           Simulated option: {proposal.before} → {proposal.after}
