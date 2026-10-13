@@ -1,3 +1,10 @@
 # QlooClient disk cache. Live response bodies stay on the server.
-server/data/qloo-cache/
+apps/api/data/qloo-cache/
+node_modules/
+apps/web/.next/
+apps/web/public/engine/
+target/
+*.tsbuildinfo
+apps/web/test-results/
+apps/web/playwright-report/
 .qloo-cache/

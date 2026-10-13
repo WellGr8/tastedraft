@@ -1,0 +1,6 @@
+{
+  "name": "@tastedraft/engine-rs",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Rust source of the TasteDraft scoring engine. Compiled artifacts ship in @tastedraft/engine-wasm."
+}

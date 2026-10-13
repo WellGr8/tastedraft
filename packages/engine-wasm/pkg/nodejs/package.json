@@ -1,0 +1,13 @@
+{
+  "name": "tastedraft-engine",
+  "description": "Deterministic TasteDraft scoring engine, compiled to WebAssembly for the browser and Node.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "files": [
+    "tastedraft_engine_bg.wasm",
+    "tastedraft_engine.js",
+    "tastedraft_engine.d.ts"
+  ],
+  "main": "tastedraft_engine.js",
+  "types": "tastedraft_engine.d.ts"
+}

@@ -1,0 +1,24 @@
+{
+  "name": "@tastedraft/engine-wasm",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "TypeScript wrapper for the TasteDraft scoring engine compiled to WebAssembly.",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./web": {
+      "types": "./src/web.ts",
+      "default": "./src/web.ts"
+    }
+  },
+  "scripts": {
+    "build:wasm": "bash ../engine-rs/scripts/build-wasm.sh",
+    "test": "node --disable-warning=ExperimentalWarning --import tsx --test --test-reporter spec src/parity.test.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.6"
+  }
+}

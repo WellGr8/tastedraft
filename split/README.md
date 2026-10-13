@@ -1,6 +1,6 @@
 # TasteDraft — split source
 
-`split/` is the editable source of the single-file prototype. `node build.mjs` rebuilds `../dist/TasteDraft.dc.html`.
+`split/` is the legacy prototype. The production app lives in `apps/web` and `apps/api`. This folder stays so the original screen can still be rebuilt. `node build.mjs` rebuilds `../dist/TasteDraft.dc.html`.
 
 The original bundle, before these fixes, is `../reference/Main.original.dc.html`. The cover-image variant before the fixes is `../reference/Main.with-images.dc.html`. The rebuild is no longer byte-identical to either file.
 

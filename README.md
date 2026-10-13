@@ -1,104 +1,81 @@
 # TasteDraft
 
-TasteDraft is an AI audience simulator for the Qloo Agentic Hackathon 2026. It tests whether a brand, product, or campaign concept culturally resonates with a target audience in a chosen city.
+TasteDraft tests whether a brand, product, or campaign concept resonates with an audience in a city. An interpreter reads the brief, an evidence provider supplies affinities, deterministic code calculates the score, an agent proposes a Qloo parameter change, and a person approves it. The model never writes a number.
 
-The screen is primarily Thai, with English system terms. This repository is the fixed Claude Design prototype: the editable source is `split/`, and `node split/build.mjs` rebuilds a single HTML file that opens in a browser.
+The scorer is a Rust crate compiled to WebAssembly. The API and the browser load that same build, so a what-if preview uses the ledger the server will store.
 
-The principle of the product is unchanged: an interpreter reads the brief, an evidence provider supplies affinities, deterministic code calculates the score, an agent proposes a change, and a person authorizes it. The score formula stays in the engine. The sample provider is the calibrated demo. Open data and Qloo plug in beside it.
+## Setup
 
-## Run
-
-One command runs the full loop (screen + API):
+Node.js 22.13 or newer.
 
 ```bash
-cd server
 npm install
-npm start
+cp .env.example .env
+npm run dev
 ```
 
-Open `http://127.0.0.1:8787/?autostart=1`. The server builds `dist/TasteDraft.dc.html`, serves it, and points `apiBase` at itself. Default provider is `sample` unless `QLOO_API_KEY` is set (`EVIDENCE_PROVIDER=sample|fallback|qloo`). The default brief scores **71**. Apply both proposals and the re-simulation scores **82**.
+`npm install && npm run dev` works in Windows cmd and POSIX shells. Open [http://127.0.0.1:3000](http://127.0.0.1:3000). The API listens on [http://127.0.0.1:8787](http://127.0.0.1:8787).
 
-The offline prototype is still `node split/build.mjs`, which writes `dist/TasteDraft.dc.html`. Open that file directly, or serve the repo:
-
-```bash
-python3 -m http.server 41773 --bind 0.0.0.0
-```
-
-Then open `http://127.0.0.1:41773/dist/TasteDraft.dc.html`. An empty `apiBase` never calls `fetch`.
-
-The page embeds its runtime. It still loads cover images from Wikimedia Commons, so those cards need a network.
-
-Check the score math without a browser:
-
-```bash
-node split/check-engine.mjs
-```
-
-## Source
-
-| Path | Role |
+| Command | What it does |
 |---|---|
-| `split/` | Editable source. `build.mjs` concatenates `mock-data.js`, `evidence.js`, `engine.js`, `view-model.js`, `api.js`, and `logic.js` into the design bundle. |
-| `docs/IMAGE_SOURCES.md` | Plain list of cover-image sources. Not shown in the UI. |
-| `dist/TasteDraft.dc.html` | Built file. |
-| `reference/Main.original.dc.html` | Original prototype, before cover images and these fixes. |
-| `reference/Main.with-images.dc.html` | Same prototype with Wikimedia cover images, before these fixes. |
-| `server/` | API, deterministic engine, evidence providers, and the score-free interpreter. `npm start` serves the screen and the API. |
-| `research-report.md` | Code review, Qloo API notes, and the MVP plan (Thai). |
+| `npm run dev` | API and Next.js app together |
+| `npm run build` | Production build of `apps/web`, then a typecheck of `apps/api` |
+| `npm test` | API tests, Rust/WASM parity, and the web label/spellcheck tests |
+| `npm run screenshots` | Playwright shots of input, results, and demo at 390×844 and 1440×900 |
 
-Do not edit `split/runtime.manifest.json` or `split/shell.html` unless the bundler itself has to change.
+With no keys, the sample provider scores the default brief at **71**. Approving the top agent diff (lower price level 3 → 2) re-scores to **80**. The browser shows that delta as a live preview before Apply. The older accessible-premium plus pre-order path inside the engine still scores **82**; the agent no longer offers that pair.
 
-## How a score is calculated
+## Environment
 
-`provideEvidence(brief)` returns affinities from the sample tables in `split/evidence.js` (or, later, from Qloo). `deriveSubs()` turns that packet into five sub-scores from 0 to 100. `ledgerPoints()` then applies the existing weights and rounds **each row**:
+The API reads the process environment, and a root `.env` file when you start it. Leave the keys empty to stay on sample data.
 
-- Anchor affinity × 30
-- Cross-domain fit × 25
-- Local fit × 20
-- Audience fit × 25
-- Cultural friction × 0.4, subtracted
+| Variable | Role |
+|---|---|
+| `ENGINE` | `wasm` (default) runs the Rust engine. `ts` keeps the TypeScript fallback. |
+| `QLOO_API_KEY` | Live Qloo search, insights, and heatmap. Unset means mock search and the sample score. |
+| `LLM_API_KEY` | OpenAI-compatible key for the score-free interpreter. Unset keeps `parseBrief`, `explain`, and `critique` deterministic. Ledger numbers are not sent to the model. |
+| `LLM_BASE_URL` | Chat completions base URL. Default `https://api.openai.com/v1`. |
+| `LLM_MODEL` | Model name. Default `gpt-4o-mini`. |
+| `EVIDENCE_PROVIDER` | `sample`, `fallback` (Wikidata, MusicBrainz, OpenStreetMap), or `qloo`. |
+| `HOST` / `PORT` | API bind address. Default `0.0.0.0:8787`. |
+| `DATABASE_PATH` | SQLite file. Local scratch; swap the repository for Postgres when storage must survive a restart. |
+| `NEXT_PUBLIC_API_BASE_URL` | Origin the browser calls. Default `http://127.0.0.1:8787` (`apps/web/.env`). |
 
-The total is the sum of those rounded rows.
+## Architecture
 
-Sub-scores come from the current brief:
+```
+apps/web                 Next.js App Router, TypeScript, Tailwind CSS v4, shadcn/ui, MapLibre
+apps/api                 Hono on Node. Evidence providers, agent, SQLite, engine switch
+packages/contracts       Zod schemas shared by the API and the typed web client
+packages/engine-rs       Rust scoring engine
+packages/engine-wasm     TypeScript wrapper and the committed Node and browser builds
+split/                   Legacy single-file prototype. Not the production UI.
+```
 
-- **Anchor** is the mean concept affinity of the active references. Each reference blends its strongest matching facet with the mean of the facets named in the idea (Japanese, minimal, streetwear, electronic).
-- **Cross-domain** is the mean affinity per reference type (brand, artist, film, place), scaled by coverage once there are fewer than three types. An electronic idea with no artist reference loses 6 points.
-- **Local** is the city’s indie-district affinity, plus a place bonus when a reference is tied to that city, minus a drag for premium pricing and limited-run scarcity.
-- **Audience** is age fit plus a city modifier, minus a penalty for the price posture.
-- **Friction** is the price-posture gap plus the scarcity gap, plus a small city modifier.
+The web client in `apps/web/lib/api.ts` imports `BriefV2`, `SearchResult`, `MapLayer`, and the other schemas from `@tastedraft/contracts`. The screen flow is:
 
-The default brief (the Japanese minimalist streetwear idea, ages 18–25, Los Angeles, Premium, and the five starter references) still scores **71**. Applying the agent’s proposal (accessible premium, independent pre-order drops) still scores **82**. Changing the city, age, positioning, references, or idea changes the total. Version 2 is cleared when the brief is saved again.
+1. **Input.** Reference and location cards with thumbnails, image autocomplete, interest tag chips, and spellcheck on the idea and interest fields.
+2. **Analysis.** A five-step progress list while the project is created and scored.
+3. **Results.** Score, a provenance ledger on every row, the agent's top three proposals as sentences (`Lower price level 3 → 2`), a live browser preview of each proposal's delta before Apply, a Version 1 / Version 2 diff, a version timeline, and an embedded district map. The provenance panel carries an **Engine: Rust/WASM** badge. Demo mode walks the captions and approves the top diff.
 
-Evidence strength is still the count of active, non-muted references: 4 or more is HIGH, 2–3 is MEDIUM, fewer than 2 is LIMITED. A LIMITED score is shown rounded to the nearest 5 (`≈ 70`), and the “Why …?” heading uses that same figure. The ledger underneath keeps the exact sum.
+Cards use one column on a phone, two from a small tablet, and three on a wide desktop. Result panels stack below 768px.
 
-While the provider id is `sample`, the screen says **Sample data**. Unknown references are labeled **Inferred**. `sourceId: 'qloo'` says **Qloo**. `sourceId: 'open-data'` says **Open data** (not sample data). A null measurement stays a gap: the ledger cell is empty and the strength is LIMITED.
+## Rust / WebAssembly engine
 
-## Image sources
+`packages/engine-rs` is the deterministic scorer: `deriveSubs`, `ledgerPoints` (anchor 30, cross 25, local 20, audience 25, friction factor 0.4), per-row rounding, evidence strength, LIMITED display rounding to the nearest 5, null measurements left as gaps, and counterfactual re-scoring of Qloo parameter diffs.
 
-Cover art still loads from Wikimedia Commons. Brand logos use `object-fit: contain` on a white tile. The artist portrait stays circular. Film and place images stay rounded squares. The input and result screens do not show credits. The list lives only in [docs/IMAGE_SOURCES.md](docs/IMAGE_SOURCES.md).
+`packages/engine-wasm/pkg/nodejs` is what the API loads. `packages/engine-wasm/pkg/web` is what the browser loads for the live preview. Both builds are committed, so a checkout can score without a Rust toolchain. Rebuild them with `packages/engine-rs/scripts/build-wasm.sh` (the script installs rustup and wasm-pack when they are missing).
 
-## API
+`apps/api/src/engine/wasm-adapter.ts` is the switch. Unset `ENGINE` selects wasm. `ENGINE=ts` uses the TypeScript engine.
 
-Leave the `apiBase` prop empty and the page never calls `fetch`. Scores, fits, frictions, proposals, signals, and districts come from the local engine, so the prototype works offline.
-
-Set `apiBase` (design tweak, or `?apiBase=` on a normally served page) to the backend origin with no trailing slash. The client then calls:
-
-- `POST /api/projects` with `{ idea, age, city, interests, positioning, references }`
-- `POST /api/simulations` with that brief plus `{ projectId, applied }`
-- `GET /api/simulations/:id` until the body is ready
-- `POST /api/recommendations/:id/apply` and `POST /api/recommendations/:id/dismiss`
-- `GET /api/projects/:id/versions`
-
-A simulation body is `{ score, ledger: { anchor, cross, local, audience, friction }, evidenceStrength, signals: [{ domain, name, level, feeds, sources }], districts: { min, lux }, fits, frictions: [{ text, why }], proposals: [{ id, before, after, why, evidence }], provider, status }`. Ledger numbers are the weighted points (friction is the signed row). `score` is the total. If `recommendationId` is set, apply and dismiss post once to that id; otherwise they post once per proposal id.
-
-`status` may be `pending`, `ready`, `error`, `entity_not_found`, `stale`, or `ambiguous`. `evidenceStrength` may be `HIGH`, `MEDIUM`, `LIMITED`, or `AMBIGUOUS`. `entity_not_found` (or HTTP 422 with `unresolved`) stops the run and lets the person fix the reference. A ready body with `unresolved` still renders, with the same fix action. `LIMITED` rounds the headline score to the nearest 5. `stale` keeps the numbers on screen and says they are from an older brief.
-
-The analysis checklist advances only when that stage's work finishes: local evidence functions, or the matching request. A failure stays on the failed step with retry. A failed re-run keeps the previous result and marks it stale.
-
-The `.dc.html` artifact sandbox often blocks `fetch`. This client does not tunnel around that. Serve `dist/TasteDraft.dc.html` over HTTP and point `apiBase` at a backend that sends CORS headers. With an empty `apiBase`, the sandbox never has to allow a connection. `?autostart=1` runs the test on load. `?pace=` sets the local stage gap in milliseconds so the checklist can be read.
+Parity (default brief **71** with ledger 24/20/15/17/−5, price diff **80**, Bangkok **69**, Tokyo **65**, Berlin **37**):
 
 ```bash
-node split/check-engine.mjs
-node split/check-view.mjs
+npm test -w @tastedraft/engine-wasm
 ```
+
+## Legacy prototype
+
+`split/` is the previous screen. Rebuild it with `node split/build.mjs` (writes `dist/TasteDraft.dc.html`). The API still serves that file at port 8787 so the old loop can be opened beside the Next.js app. Do not delete `split/`.
+
+Scoring weights, provider wiring, and the HTTP routes are documented in [apps/api/README.md](apps/api/README.md). Contract fields are documented in [packages/contracts/README.md](packages/contracts/README.md).

@@ -1,0 +1,21 @@
+[package]
+name = "tastedraft-engine"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Deterministic TasteDraft scoring engine, compiled to WebAssembly for the browser and Node."
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+wasm-bindgen = "0.2"
+
+[profile.release]
+lto = true
+opt-level = "s"
+codegen-units = 1
