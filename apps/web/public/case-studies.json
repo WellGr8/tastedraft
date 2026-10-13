@@ -1,0 +1,261 @@
+{
+  "method": "scoreInsightMeasurements on live Qloo affinities. Heatmap is context and is not a ledger row. One reference keeps evidence LIMITED.",
+  "rule": {
+    "encourageTotal": 55,
+    "encourageLocal": 50,
+    "lockedBeforeCalls": true
+  },
+  "contamination": "Qloo is today's graph. Later records and the 2019 Forever 21 exit can still sit in the affinities. The briefs themselves stop at pre-launch facts.",
+  "studies": [
+    {
+      "id": "billie-eilish-tokyo-2022",
+      "title": "Billie Eilish, first solo Japan show",
+      "market": "Tokyo",
+      "launch": "2022-08-26",
+      "outcome": "sold_out",
+      "outcomeSummary": "Ariake Arena, 26 August 2022, sold out on release. Extra seats went on sale 20 August. Universal Music Japan called the first solo Japan date a success.",
+      "prelaunch": "Before the 23 June 2022 announcement: Happier Than Ever (2021) had been number one in 15 countries, When We All Fall Asleep, Where Do We Go? (2019) was already out, and a September 2020 Ariake date had sold out and then been cancelled. She had played Summer Sonic 2019, which was a festival set, not a solo headline.",
+      "sources": [
+        "https://www.universal-music.co.jp/billie-eilish/news/2022-06-23/",
+        "https://www.universal-music.co.jp/billie-eilish/news/2022-08-30/",
+        "https://iflyer.tv/en/article/2022/06/23/happierthaneverworldtour-japan2022/"
+      ],
+      "subject": {
+        "query": "Billie Eilish",
+        "resolvedName": "Billie Eilish",
+        "resolvedType": "urn:entity:artist"
+      },
+      "inputs": {
+        "ageBucket": "24_and_younger",
+        "priceLevel": 3,
+        "city": "Tokyo"
+      },
+      "engine": {
+        "total": 45,
+        "anchor": null,
+        "cross": 64,
+        "local": 87,
+        "audience": 46,
+        "friction": null,
+        "evidenceStrength": "LIMITED",
+        "gaps": [
+          "anchor",
+          "friction"
+        ],
+        "verdict": "caution"
+      },
+      "derived": {
+        "anchorAffinity": null,
+        "placeCount": 8,
+        "placeAffinityMedian": 0.87,
+        "heatmapCells": 122,
+        "heatmapInCity": 65,
+        "heatmapMedian": 0.71,
+        "audienceSkew": 0.46,
+        "cross": [
+          {
+            "type": "urn:entity:brand",
+            "count": 5,
+            "medianAffinity": 0.97
+          },
+          {
+            "type": "urn:entity:movie",
+            "count": 5,
+            "medianAffinity": 0.94
+          }
+        ],
+        "qlooCalls": 7,
+        "failures": []
+      },
+      "matched": false
+    },
+    {
+      "id": "olivia-rodrigo-tokyo-2024",
+      "title": "Olivia Rodrigo, first concert in Japan",
+      "market": "Tokyo",
+      "launch": "2024-09-27",
+      "outcome": "sold_out",
+      "outcomeSummary": "Ariake Arena, 27 September 2024, sold out immediately. A second show on 28 September was added and also sold out. A last batch of seats was released on 24 September.",
+      "prelaunch": "Before the 9 May 2024 on-sale: SOUR (2021) and GUTS (September 2023) had debuted at number one in the US and the UK. She had visited Japan in September 2023 for promotion and had not played a concert there.",
+      "sources": [
+        "https://tower.jp/article/news/2024/05/09/tg013",
+        "https://niewmedia.com/en/news/040239/",
+        "https://niewmedia.com/en/news/043985/",
+        "https://en.skream.jp/news/2024/06/olivia_rodrigo_guts_world_tour_japan_add.php"
+      ],
+      "subject": {
+        "query": "Olivia Rodrigo",
+        "resolvedName": "Olivia Rodrigo",
+        "resolvedType": "urn:entity:artist"
+      },
+      "inputs": {
+        "ageBucket": "24_and_younger",
+        "priceLevel": 3,
+        "city": "Tokyo"
+      },
+      "engine": {
+        "total": 55,
+        "anchor": null,
+        "cross": 63,
+        "local": 85,
+        "audience": 87,
+        "friction": null,
+        "evidenceStrength": "LIMITED",
+        "gaps": [
+          "anchor",
+          "friction"
+        ],
+        "verdict": "encourage"
+      },
+      "derived": {
+        "anchorAffinity": null,
+        "placeCount": 8,
+        "placeAffinityMedian": 0.84,
+        "heatmapCells": 76,
+        "heatmapInCity": 61,
+        "heatmapMedian": 0.59,
+        "audienceSkew": 0.87,
+        "cross": [
+          {
+            "type": "urn:entity:brand",
+            "count": 5,
+            "medianAffinity": 0.96
+          },
+          {
+            "type": "urn:entity:movie",
+            "count": 5,
+            "medianAffinity": 0.94
+          }
+        ],
+        "qlooCalls": 7,
+        "failures": []
+      },
+      "matched": true
+    },
+    {
+      "id": "harry-styles-tokyo-2017",
+      "title": "Harry Styles, first solo Japan shows",
+      "market": "Tokyo",
+      "launch": "2017-12-07",
+      "outcome": "sold_out",
+      "outcomeSummary": "Ex Theater Roppongi, 7 December 2017, 3,600 of 3,600. The follow-up at Makuhari Messe on 12 May 2018 was 8,908 of 8,908.",
+      "prelaunch": "Before 7 December 2017: the solo album Harry Styles had been out since 12 May 2017, and One Direction had already toured Japan. The brief does not include Fine Line (2019) or Harry's House (2022). Today's Qloo graph still knows those later records.",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Harry_Styles:_Live_on_Tour",
+        "https://www.sonymusic.co.jp/artist/harrystyles/info/483508",
+        "https://www.m-messe.co.jp/event/detail/4526"
+      ],
+      "subject": {
+        "query": "Harry Styles",
+        "resolvedName": "Harry Styles",
+        "resolvedType": "urn:entity:artist"
+      },
+      "inputs": {
+        "ageBucket": "24_and_younger",
+        "priceLevel": 3,
+        "city": "Tokyo"
+      },
+      "engine": {
+        "total": 44,
+        "anchor": null,
+        "cross": 64,
+        "local": 87,
+        "audience": 42,
+        "friction": null,
+        "evidenceStrength": "LIMITED",
+        "gaps": [
+          "anchor",
+          "friction"
+        ],
+        "verdict": "caution"
+      },
+      "derived": {
+        "anchorAffinity": null,
+        "placeCount": 8,
+        "placeAffinityMedian": 0.87,
+        "heatmapCells": 101,
+        "heatmapInCity": 63,
+        "heatmapMedian": 0.68,
+        "audienceSkew": 0.42,
+        "cross": [
+          {
+            "type": "urn:entity:brand",
+            "count": 5,
+            "medianAffinity": 0.98
+          },
+          {
+            "type": "urn:entity:movie",
+            "count": 5,
+            "medianAffinity": 0.94
+          }
+        ],
+        "qlooCalls": 7,
+        "failures": []
+      },
+      "matched": false
+    },
+    {
+      "id": "forever-21-tokyo-2009",
+      "title": "Forever 21, first Japan store",
+      "market": "Tokyo",
+      "launch": "2009-04-01",
+      "outcome": "left",
+      "outcomeSummary": "The first Japan store opened in Harajuku in April 2009. The chain grew to 14 stores. On 25 September 2019 the Japanese arm said it would close every store and the online shop by 31 October 2019, citing continued sluggish sales. The US company filed for Chapter 11 the same week and said it would leave most of Asia.",
+      "prelaunch": "Before the 2009 opening: Forever 21 was a Los Angeles fast-fashion chain aimed at teens, priced as a full outfit near $100. H&M was already in Japan. The brief does not include the 2019 exit. Today's Qloo graph can still reflect it.",
+      "sources": [
+        "https://asia.nikkei.com/business/business-trends/forever-21-to-exit-japan-in-october",
+        "https://www.bbc.com/news/business-49874688",
+        "https://www.lmaga.jp/news/2019/09/77183/",
+        "https://www.shibukei.com/headline/14564/"
+      ],
+      "subject": {
+        "query": "Forever 21",
+        "resolvedName": "Forever 21",
+        "resolvedType": "urn:entity:brand"
+      },
+      "inputs": {
+        "ageBucket": "24_and_younger",
+        "priceLevel": 1,
+        "city": "Tokyo"
+      },
+      "engine": {
+        "total": 42,
+        "anchor": null,
+        "cross": 64,
+        "local": 89,
+        "audience": 31,
+        "friction": null,
+        "evidenceStrength": "LIMITED",
+        "gaps": [
+          "anchor",
+          "friction"
+        ],
+        "verdict": "caution"
+      },
+      "derived": {
+        "anchorAffinity": null,
+        "placeCount": 8,
+        "placeAffinityMedian": 0.89,
+        "heatmapCells": 108,
+        "heatmapInCity": 63,
+        "heatmapMedian": 0.7,
+        "audienceSkew": 0.31,
+        "cross": [
+          {
+            "type": "urn:entity:artist",
+            "count": 5,
+            "medianAffinity": 0.97
+          },
+          {
+            "type": "urn:entity:movie",
+            "count": 5,
+            "medianAffinity": 0.95
+          }
+        ],
+        "qlooCalls": 7,
+        "failures": []
+      },
+      "matched": true
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 import type { Entity } from '@tastedraft/contracts';
-import { STARTER_REFERENCES, TOUR_IDEA, TOUR_REFERENCES, type DraftState } from './defaults.ts';
+import { STARTER_REFERENCES, TOUR_IDEA, TOUR_REFERENCES, uniqueById, type DraftState } from './defaults.ts';
 import type { ProfileControls } from './profile.ts';
 export interface CostAssumptions {
   focusGroupUsd: number;
@@ -85,6 +85,24 @@ export function snagLine(
     : `Softest response is ${soft.label} at ${soft.fit}.`;
 }
 
+/**
+ * Neighborhood price is what nearby places charge.
+ * When the agent tests a lower merch price, say so next to that sentence.
+ */
+export function neighborhoodPriceNote(
+  priceLine: string | null,
+  proposal: { param?: string | null; to?: string | null } | null,
+): string | null {
+  if (!priceLine) return null;
+  const area = priceLine.match(/price level\s+([1-4])/i);
+  const areaLevel = area ? Number(area[1]) : NaN;
+  const merch = proposal?.param === 'filter.price_level.max' ? Number(proposal.to) : NaN;
+  if (Number.isFinite(areaLevel) && Number.isFinite(merch) && merch < areaLevel) {
+    return `${priceLine} The agent still tests a lower merch price, because the engine scores this idea higher there. Not a sales forecast.`;
+  }
+  return priceLine;
+}
+
 /** A mind changes when the engine score moves by at least 5 points. */
 export function changedMind(before: number, after: number, beforeMeasuring = false, afterMeasuring = false): boolean {
   if (beforeMeasuring || afterMeasuring) return false;
@@ -163,15 +181,17 @@ export const LAB_EXAMPLES = [
 export function seedLibrary(): LabLibrary {
   return {
     ideas: [],
-    chips: [...STARTER_REFERENCES, ...TOUR_REFERENCES]
-      .filter((entity, index, all) => all.findIndex((item) => item.name.toLowerCase() === entity.name.toLowerCase()) === index)
-      .map((entity) => ({
-      id: entity.id,
-      name: entity.name,
-      type: entity.type,
-      kind: 'reference' as const,
-      ...(entity.image ? { image: entity.image } : {}),
-    })),
+    chips: uniqueById(
+      [...STARTER_REFERENCES, ...TOUR_REFERENCES]
+        .filter((entity, index, all) => all.findIndex((item) => item.name.toLowerCase() === entity.name.toLowerCase()) === index)
+        .map((entity) => ({
+          id: entity.id,
+          name: entity.name,
+          type: entity.type,
+          kind: 'reference' as const,
+          ...(entity.image ? { image: entity.image } : {}),
+        })),
+    ),
     reports: [],
     assumptions: { ...DEFAULT_ASSUMPTIONS },
   };
@@ -207,10 +227,11 @@ export function saveLibrary(library: LabLibrary): void {
 }
 
 export function addChip(references: readonly Entity[], chip: LabChip): Entity[] {
-  if (references.length >= 8) return [...references];
-  if (references.some((item) => item.name.toLowerCase() === chip.name.toLowerCase())) return [...references];
+  const current = uniqueById(references);
+  if (current.length >= 8) return current;
+  if (current.some((item) => item.id === chip.id || item.name.toLowerCase() === chip.name.toLowerCase())) return current;
   return [
-    ...references,
+    ...current,
     {
       id: chip.id,
       name: chip.name,

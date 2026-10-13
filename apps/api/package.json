@@ -13,6 +13,8 @@
     "start": "node --disable-warning=ExperimentalWarning --import tsx src/index.ts",
     "test": "node --disable-warning=ExperimentalWarning --import tsx --test --test-reporter spec \"src/**/*.test.ts\"",
     "backtest": "node --disable-warning=ExperimentalWarning --import tsx scripts/backtest.ts",
+    "case-studies": "node --disable-warning=ExperimentalWarning --import tsx scripts/case-studies.ts",
+    "persona-live": "node --disable-warning=ExperimentalWarning --import tsx scripts/persona-live.ts",
     "typecheck": "tsc --noEmit",
     "build:web": "node ../../split/build.mjs",
     "postinstall": "node scripts/link-contract-deps.mjs"

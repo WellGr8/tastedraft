@@ -207,13 +207,27 @@ export function suggestTags(query: string): Tag[] {
   return LOCAL_TAGS.filter((tag) => norm(tag.name).includes(q)).slice(0, 8);
 }
 
-export function mergeEntities(remote: Entity[], local: Entity[]): Entity[] {
+/** Keep the first row for each id. Qloo search can return the same entity twice. */
+export function uniqueById<T extends { id: string }>(items: readonly T[]): T[] {
   const seen = new Set<string>();
+  const out: T[] = [];
+  for (const item of items) {
+    if (seen.has(item.id)) continue;
+    seen.add(item.id);
+    out.push(item);
+  }
+  return out;
+}
+
+export function mergeEntities(remote: Entity[], local: Entity[]): Entity[] {
+  const seenName = new Set<string>();
+  const seenId = new Set<string>();
   const out: Entity[] = [];
   for (const entity of [...remote, ...local]) {
-    const key = norm(entity.name);
-    if (seen.has(key)) continue;
-    seen.add(key);
+    const name = norm(entity.name);
+    if (seenId.has(entity.id) || seenName.has(name)) continue;
+    seenId.add(entity.id);
+    if (name) seenName.add(name);
     out.push(withImage(entity));
   }
   return out.slice(0, 8);

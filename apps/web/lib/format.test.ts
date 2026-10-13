@@ -59,6 +59,7 @@ describe('audience and trace copy', () => {
 
   it('keeps ids and coordinates out of the summary', () => {
     assert.equal(placeLabel('34.10, -118.33', 'Los Angeles'), 'Los Angeles');
+    assert.equal(placeLabel('Area 33.16, 139.90', 'Tokyo'), 'Tokyo');
     assert.equal(placeLabel('Silver Lake', 'Los Angeles'), 'Silver Lake');
     const id = '4278382F-4991-4D63-B207-942D86A26ACB';
     const names = new Map<string, string>([[id.toLowerCase(), 'Aphex Twin'], ['tag-japanese', 'Japanese']]);

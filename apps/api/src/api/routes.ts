@@ -12,6 +12,9 @@ import { loadMapLayers } from '../providers/qloo/heatmap.ts';
 import { createSearchRoutes } from './search.ts';
 import { createPersonaRoutes } from './persona.ts';
 import { createFeatureRoutes } from '../features/routes.ts';
+import { engineBackend } from '../engine/engine-mode.ts';
+import { describeLlm } from '../llm/client.ts';
+import type { DailyQlooBudget } from '../ops/qloo-budget.ts';
 import { CreateBody, PatchBody, SimulationBody } from './schemas.ts';
 import { BriefV2Schema } from '@tastedraft/contracts';
 import { z } from 'zod';
@@ -102,13 +105,31 @@ type zBrief = Partial<{
   interests: string;
 }>;
 
-export function createRoutes(orchestrator: Orchestrator): Hono {
+export function createRoutes(orchestrator: Orchestrator, options: { budget?: DailyQlooBudget | null; admitLive?: () => boolean } = {}): Hono {
   const api = new Hono();
   api.route('/', createSearchRoutes());
   api.route('/', createPersonaRoutes());
-  api.route('/', createFeatureRoutes());
+  api.route('/', createFeatureRoutes(options.admitLive ? { admitLive: options.admitLive } : {}));
 
-  api.get('/api/health', (c) => c.json({ ok: true, service: 'tastedraft' }));
+  api.get('/api/health', (c) => {
+    const budget = options.budget ?? null;
+    const used = budget ? budget.used() : 0;
+    const limit = budget ? budget.limit : null;
+    const llm = describeLlm();
+    return c.json({
+      ok: true,
+      service: 'tastedraft',
+      engine: engineBackend(),
+      qloo: process.env.QLOO_API_KEY?.trim() ? 'configured' : 'missing',
+      llm: llm.mode === 'live' ? llm.provider : 'off',
+      qlooBudget: {
+        used,
+        limit,
+        remaining: limit == null ? null : Math.max(0, limit - used),
+        fallback: budget?.exhausted() ? 'recorded' : 'live',
+      },
+    });
+  });
 
   api.post('/api/projects', async (c) => {
     const body = CreateBody.parse(normalizeCreate(await readJson(c)));

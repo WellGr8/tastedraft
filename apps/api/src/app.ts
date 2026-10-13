@@ -14,6 +14,9 @@ import { createRoutes } from './api/routes.ts';
 import { mountAgent } from './agent/http.ts';
 import { mountRuns } from './runner/http.ts';
 import { createOrchestrator } from './orchestrator/index.ts';
+import { corsAllowlist } from './ops/cors.ts';
+import { openDailyQlooBudget, type DailyQlooBudget } from './ops/qloo-budget.ts';
+import { rateLimit, rateLimitPerMinute } from './ops/rate-limit.ts';
 import { openRepository } from './persistence/sqlite-repository.ts';
 import { createEngineLlm } from './wiring/llm.ts';
 import { createConfiguredProvider } from './wiring/provider.ts';
@@ -27,7 +30,12 @@ export interface AppOptions {
   databasePath?: string;
   /** Separate from the project database. Defaults to data/runs.sqlite. */
   runsPath?: string;
-  env?: { EVIDENCE_PROVIDER?: string; QLOO_API_KEY?: string; LLM_API_KEY?: string; LLM_BASE_URL?: string; LLM_MODEL?: string };
+  env?: Record<string, string | undefined>;
+  /** Shared daily cap. `false` leaves live Qloo uncapped (tests). */
+  qlooBudget?: DailyQlooBudget | false;
+  /** `false` turns the per-address limit off. */
+  rateLimitPerMinute?: number | false;
+  corsOrigins?: string[];
 }
 
 function screenHtml(): string | null {
@@ -50,26 +58,36 @@ function screenHtml(): string | null {
 
 export function createApp(options: AppOptions = {}): Hono {
   const env = options.env ?? process.env;
+  const budget = options.qlooBudget === false ? null : options.qlooBudget ?? openDailyQlooBudget(env);
+  const admitLive = budget ? () => budget.tryTake() : undefined;
   const repository = options.repository ?? openRepository(options.databasePath ?? config.databasePath);
   const orchestrator = createOrchestrator({
     repository,
     provider: options.provider ?? createConfiguredProvider(env),
     llm: options.llm ?? createEngineLlm(env),
   });
+  const allowed = options.corsOrigins ?? corsAllowlist(env);
   const app = new Hono();
-  app.use('*', cors());
+  app.use('*', cors({
+    origin: (origin) => (allowed.includes(origin) ? origin : null),
+    allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Last-Event-ID', 'Accept'],
+  }));
   app.use('*', async (c, next) => {
     await next();
     const current = c.res.headers.get('content-type');
     if (!current || !/^application\/json\b/i.test(current) || /charset=/i.test(current)) return;
     c.res.headers.set('content-type', `${current}; charset=utf-8`);
   });
-  app.route('/', createRoutes(orchestrator));
+  const perMinute = options.rateLimitPerMinute === false ? 0 : options.rateLimitPerMinute ?? rateLimitPerMinute(env);
+  if (perMinute > 0) app.use('*', rateLimit({ limit: perMinute, windowMs: 60_000 }));
+  app.route('/', createRoutes(orchestrator, { budget, ...(admitLive ? { admitLive } : {}) }));
   // Team D wiring: agent routes and the results demo. Owned code lives in server/src/agent and split/results*.
   mountAgent(app);
   mountRuns(app, {
     env,
-    databasePath: options.runsPath,
+    databasePath: options.runsPath ?? env.RUNS_PATH,
+    ...(admitLive ? { admitLive } : {}),
   });
   const splitDir = join(dirname(fileURLToPath(import.meta.url)), '../../../split');
   const asset = (name: string, type: string) => {

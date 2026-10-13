@@ -23,8 +23,9 @@ const CommandBody = z.object({ message: z.string().min(1) }).strict();
 
 export interface RunHttpOptions {
   runner?: AgentRunner;
-  env?: { QLOO_API_KEY?: string; LLM_API_KEY?: string; LLM_BASE_URL?: string; LLM_MODEL?: string };
+  env?: { QLOO_API_KEY?: string; LLM_API_KEY?: string; LLM_BASE_URL?: string; LLM_MODEL?: string; LLM_PROVIDER?: string; RECORDINGS_DIR?: string };
   databasePath?: string;
+  admitLive?: () => boolean;
 }
 
 export function createRunner(options: RunHttpOptions = {}): AgentRunner {
@@ -35,6 +36,8 @@ export function createRunner(options: RunHttpOptions = {}): AgentRunner {
     store,
     env,
     llm: createLlmClient(env),
+    ...(options.admitLive ? { admitLive: options.admitLive } : {}),
+    ...(env.RECORDINGS_DIR ? { recordingsDir: env.RECORDINGS_DIR } : {}),
   });
 }
 

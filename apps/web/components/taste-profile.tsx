@@ -7,7 +7,7 @@ import { EntityOption, Thumb } from '@/components/entity-card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { TasteDraftClient } from '@/lib/api';
-import { AGES, mergeEntities, suggestEntities, type DraftState } from '@/lib/defaults';
+import { AGES, mergeEntities, suggestEntities, uniqueById, type DraftState } from '@/lib/defaults';
 import { typeLabel } from '@/lib/labels';
 import {
   MOODS,
@@ -35,14 +35,16 @@ export function TasteProfile({
   const ageIndex = Math.max(0, AGES.indexOf(draft.age as (typeof AGES)[number]));
   const scarcityIndex = controls.scarcity === 'open' ? 0 : controls.scarcity === 'preorder' ? 2 : 1;
   const suggestions = similarNames(draft);
+  const references = uniqueById(draft.references);
+  const locations = uniqueById(draft.locations);
 
   function move(from: number, to: number) {
-    if (to < 0 || to >= draft.references.length || from === to) return;
-    const references = [...draft.references];
-    const [row] = references.splice(from, 1);
+    if (to < 0 || to >= references.length || from === to) return;
+    const next = [...references];
+    const [row] = next.splice(from, 1);
     if (!row) return;
-    references.splice(to, 0, row);
-    onDraft({ ...draft, references });
+    next.splice(to, 0, row);
+    onDraft({ ...draft, references: next });
   }
 
   return (
@@ -79,21 +81,21 @@ export function TasteProfile({
         <ReferenceSearch
           city={draft.city}
           onPick={(entity) => {
-            if (draft.references.length >= 8) return;
-            if (draft.references.some((item) => item.name.toLowerCase() === entity.name.toLowerCase())) return;
-            const references = [...draft.references, entity];
-            const locations =
+            if (references.length >= 8) return;
+            if (references.some((item) => item.id === entity.id || item.name.toLowerCase() === entity.name.toLowerCase())) return;
+            const nextReferences = [...references, entity];
+            const nextLocations =
               typeLabel(entity.type) === 'Place' &&
-              !draft.locations.some((item) => item.name.toLowerCase() === entity.name.toLowerCase())
-                ? [...draft.locations, { ...entity, city: entity.city || draft.city }]
-                : draft.locations;
-            onDraft({ ...draft, references, locations });
+              !locations.some((item) => item.id === entity.id || item.name.toLowerCase() === entity.name.toLowerCase())
+                ? [...locations, { ...entity, city: entity.city || draft.city }]
+                : locations;
+            onDraft({ ...draft, references: nextReferences, locations: nextLocations });
           }}
         />
       </div>
 
       <ul className="flex flex-col gap-2" aria-label="Reference playlist">
-        {draft.references.map((entity, index) => {
+        {references.map((entity, index) => {
           const muted = controls.muted.includes(entity.id);
           return (
             <li

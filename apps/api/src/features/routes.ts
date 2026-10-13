@@ -39,6 +39,8 @@ export interface FeatureRouteOptions {
   caller?: FeatureCaller;
   cache?: FeatureCache;
   llm?: LlmClient;
+  /** False skips a live Qloo call after the daily cap. */
+  admitLive?: () => boolean;
   sleep?: (ms: number) => Promise<void>;
   now?: () => number;
   cacheTtlMs?: number;
@@ -80,7 +82,12 @@ export function createFeatureRoutes(options: FeatureRouteOptions = {}): Hono {
 
   const runFeature = async (feature: FeatureName, body: { budget?: number }, events: FeatureSseEvent[]): Promise<unknown> => {
     const budget = budgetOf(body);
-    const caller = options.caller ?? openCaller(options.client ?? new QlooClient({ minIntervalMs: 250, timeoutMs: 25_000, retries: 2 }), budget, options.sleep);
+    const caller = options.caller ?? openCaller(options.client ?? new QlooClient({
+      minIntervalMs: 250,
+      timeoutMs: 25_000,
+      retries: 2,
+      ...(options.admitLive ? { admitLive: options.admitLive } : {}),
+    }), budget, options.sleep);
     if (options.caller) {
       caller.budget = budget;
       caller.calls = 0;

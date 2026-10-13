@@ -21,6 +21,26 @@
   min-height: 0;
   overflow: auto;
   color: #f4f1ea;
+  scrollbar-color: rgba(244, 241, 234, 0.36) transparent;
+}
+
+.lab-side *,
+.lab-drawer * {
+  scrollbar-color: rgba(244, 241, 234, 0.36) transparent;
+}
+
+.lab-side::-webkit-scrollbar-thumb,
+.lab-drawer::-webkit-scrollbar-thumb,
+.lab-side *::-webkit-scrollbar-thumb,
+.lab-drawer *::-webkit-scrollbar-thumb {
+  background-color: rgba(244, 241, 234, 0.34);
+}
+
+.lab-side::-webkit-scrollbar-thumb:hover,
+.lab-drawer::-webkit-scrollbar-thumb:hover,
+.lab-side *::-webkit-scrollbar-thumb:hover,
+.lab-drawer *::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(244, 241, 234, 0.58);
 }
 
 .lab-side .lab-quiet {
@@ -827,6 +847,35 @@
   min-height: 0;
 }
 
+.lab-drawer:has(.lab-chat.is-open) .lab-log {
+  display: none;
+}
+
+.lab-chat.is-open {
+  flex: 1;
+  min-height: 280px;
+}
+
+.lab-chat.is-open .lab-lines {
+  max-height: none;
+  flex: 1;
+}
+
+.lab-chat-who {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+.lab-chat-who button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
 .lab-lines {
   display: flex;
   flex-direction: column;
@@ -899,6 +948,72 @@
   height: 8px;
   border-radius: 99px;
   background: linear-gradient(90deg, #6d5efc, #e8b07a);
+}
+
+.lab-map {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 4px 0 8px;
+}
+
+.lab-map rect {
+  fill: #f8f8fc;
+}
+
+.lab-map circle {
+  fill: #4b3aa8;
+}
+
+.lab-map text {
+  fill: #0a0f2e;
+  font-size: 10px;
+}
+
+.lab-cases {
+  margin: 10px 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lab-case-sum,
+.lab-case-note {
+  margin: 0;
+}
+
+.lab-case-sum {
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.lab-case {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  margin: 0;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lab-case b {
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.lab-case small,
+.lab-case span,
+.lab-case-note {
+  color: rgba(244, 241, 234, 0.62);
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .lab-report {

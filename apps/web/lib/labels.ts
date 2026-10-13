@@ -86,7 +86,7 @@ export function plainEvidence(ids: readonly string[], names?: ReadonlyMap<string
   return labels.join(', ');
 }
 
-const COORDINATES = /^-?\d{1,3}\.\d+\s*,\s*-?\d{1,3}\.\d+/;
+const COORDINATES = /^-?\d{1,3}\.\d+\s*,\s*-?\d{1,3}\.\d+|^area\s+-?\d/i;
 
 /** A map pin name. Coordinates stay out of the label. */
 export function placeLabel(label: string | null | undefined, city: string): string {

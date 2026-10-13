@@ -1,0 +1,4 @@
+# Compose sets SITE_ADDRESS. A hostname turns on automatic HTTPS. :80 is HTTP only.
+{$SITE_ADDRESS} {
+	reverse_proxy api:8787
+}

@@ -5,7 +5,7 @@ import type { Entity, RunSnapshot } from '@tastedraft/contracts';
 import { AGENT_STEPS, AgentSteps, CustomizeFold, HeatCard, LoopOutput, PersonaGrid, ScoreTimeline, type HeatSpot } from '@/components/persona-ui';
 import { ReferenceSearch } from '@/components/reference-search';
 import type { ProposalView, SimulationResponse } from '@/lib/api';
-import { AGES, CITIES, POSITIONS, priceLevelFor, type DraftState } from '@/lib/defaults';
+import { AGES, CITIES, POSITIONS, priceLevelFor, uniqueById, type DraftState } from '@/lib/defaults';
 import { bandOf } from '@/lib/hex';
 import { deltaText, fitOf, passSentence, plainStopReason, typeLabel } from '@/lib/labels';
 import { liveDetail, positioningForPrice, similarNames, type PriceLevel, type ProfileControls, type Scarcity } from '@/lib/profile';
@@ -114,6 +114,7 @@ function Playlist({
   onControls: (next: ProfileControls) => void;
   onAddSimilar: (name: string) => void;
 }) {
+  const references = uniqueById(draft.references);
   function toggle(id: string) {
     const muted = controls.muted.includes(id) ? controls.muted.filter((item) => item !== id) : [...controls.muted, id];
     onControls({ ...controls, muted });
@@ -123,17 +124,17 @@ function Playlist({
     onControls({ ...controls, muted: controls.muted.filter((item) => item !== id) });
   }
   function reorder(from: number, to: number) {
-    if (to < 0 || to >= draft.references.length || from === to) return;
-    const next = [...draft.references];
+    if (to < 0 || to >= references.length || from === to) return;
+    const next = [...references];
     const [item] = next.splice(from, 1);
     if (!item) return;
     next.splice(to, 0, item);
     onDraft({ ...draft, references: next });
   }
   function add(entity: Entity) {
-    if (draft.references.length >= 8) return;
-    if (draft.references.some((item) => item.name.toLowerCase() === entity.name.toLowerCase())) return;
-    onDraft({ ...draft, references: [...draft.references, entity] });
+    if (references.length >= 8) return;
+    if (references.some((item) => item.id === entity.id || item.name.toLowerCase() === entity.name.toLowerCase())) return;
+    onDraft({ ...draft, references: [...references, entity] });
   }
 
   return (
@@ -144,7 +145,7 @@ function Playlist({
       <p className="byb-help">Brands, artists, films, or places this idea refers to. Drag a cover to reorder. Switch one off to leave it out of the score.</p>
       <div className="pl" aria-label="Taste playlist">
         <div className="pl-cards">
-          {draft.references.map((entity, index) => (
+          {references.map((entity, index) => (
             <div
               key={entity.id}
               draggable
@@ -161,7 +162,7 @@ function Playlist({
         </div>
       </div>
       <div className="pl-list">
-        {draft.references.map((entity, index) => {
+        {references.map((entity, index) => {
           const on = !controls.muted.includes(entity.id);
           const fit = fitOf(entity.type);
           const shape = `cv pl-cv ${fit === 'circle' ? 'rd' : 'sq'}${fit === 'logo' ? ' logo' : ''}`;
@@ -713,7 +714,7 @@ export function ResultPhase({
         </div>
         <div className="pl" aria-label="Taste playlist">
           <div className="pl-cards">
-            {draft.references.map((entity) => (
+            {uniqueById(draft.references).map((entity) => (
               <Cover key={entity.id} entity={entity} off={controls.muted.includes(entity.id)} />
             ))}
           </div>

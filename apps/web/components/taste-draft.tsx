@@ -24,7 +24,7 @@ import {
   type ProposalView,
   type SimulationResponse,
 } from '@/lib/api';
-import { STARTER_REFERENCES, STARTER_TAGS, defaultDraft, withImage, type DraftState } from '@/lib/defaults';
+import { STARTER_REFERENCES, STARTER_TAGS, defaultDraft, uniqueById, withImage, type DraftState } from '@/lib/defaults';
 import { scoreLive, type LiveScore } from '@/lib/engine-preview';
 import { askFromRun, decisionTrace, EMPTY_TRACE, namesOnRun, personasOf, readRunEvents, simulationOf, viewOf, type DecisionTrace, type EvidenceAsk, type RunProgress } from '@/lib/run';
 import { placeLabel, plainStopReason } from '@/lib/labels';
@@ -489,8 +489,9 @@ export function TasteDraft() {
         source: 'sample',
       },
     );
-    if (draft.references.some((item) => item.name.toLowerCase() === row.name.toLowerCase())) return;
-    setDraft({ ...draft, references: [...draft.references, row] });
+    const selected = uniqueById(draft.references);
+    if (selected.some((item) => item.id === row.id || item.name.toLowerCase() === row.name.toLowerCase())) return;
+    setDraft({ ...draft, references: [...selected, row] });
   }
 
   function applyPatch(current: DraftState, currentControls: ProfileControls, patch: ChatPatch | undefined) {
@@ -503,7 +504,8 @@ export function TasteDraft() {
     if (patch.priceLevel) nextControls.priceLevel = patch.priceLevel;
     if (patch.reference && nextDraft.references.length < 8) {
       const reference = withImage(patch.reference);
-      if (!nextDraft.references.some((item) => item.name.toLowerCase() === reference.name.toLowerCase())) {
+      nextDraft.references = uniqueById(nextDraft.references);
+      if (!nextDraft.references.some((item) => item.id === reference.id || item.name.toLowerCase() === reference.name.toLowerCase())) {
         nextDraft.references.push(reference);
       }
     }

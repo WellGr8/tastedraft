@@ -119,6 +119,11 @@ export interface QlooClientOptions {
   /** Minimum gap between live calls on this client. `0` turns pacing off. */
   minIntervalMs?: number;
   sleep?: (ms: number) => Promise<void>;
+  /**
+   * Live network admission. Return false to skip the request.
+   * Cache hits do not ask. Mock mode does not ask.
+   */
+  admitLive?: () => boolean;
 }
 
 interface CacheFile {
@@ -216,6 +221,7 @@ export class QlooClient {
   private readonly retryDelayMs: number;
   private readonly minIntervalMs: number;
   private readonly sleep: (ms: number) => Promise<void>;
+  private readonly admitLive: (() => boolean) | null;
   private tail: Promise<void> = Promise.resolve();
   private lastRequestAt = 0;
 
@@ -225,7 +231,8 @@ export class QlooClient {
     this.baseUrl = (options.baseUrl ?? QLOO_HACKATHON_BASE_URL).replace(/\/$/, '');
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.timeoutMs = positive(options.timeoutMs, DEFAULT_TIMEOUT_MS);
-    this.cacheDir = options.cacheDir ?? defaultQlooCacheDir();
+    this.cacheDir = options.cacheDir ?? process.env.QLOO_CACHE_DIR ?? defaultQlooCacheDir();
+    this.admitLive = options.admitLive ?? null;
     this.cacheTtlMs = positive(options.cacheTtlMs, DEFAULT_CACHE_TTL_MS);
     this.now = options.now ?? (() => Date.now());
     this.retries = Math.min(4, Math.floor(nonNegative(options.retries, DEFAULT_RETRIES)));
@@ -268,6 +275,17 @@ export class QlooClient {
       if (cached) {
         return { ok: true, status: 200, mode: 'live', url, cached: true, body: cached };
       }
+    }
+
+    if (this.admitLive && !this.admitLive()) {
+      return {
+        ok: false,
+        status: 403,
+        mode: 'live',
+        url: path,
+        timedOut: false,
+        message: 'Daily Qloo budget reached',
+      };
     }
 
     const timeoutMs = positive(init?.timeoutMs, this.timeoutMs);

@@ -2,7 +2,7 @@
 
 import { RunSnapshotSchema, type BriefV2, type Proposal, type RunSnapshot, type Step } from '@tastedraft/contracts';
 import { apiBase, type ProposalView, type SimulationResponse } from '@/lib/api';
-import { STARTER_REFERENCES, STARTER_TAGS } from '@/lib/defaults';
+import { STARTER_REFERENCES, STARTER_TAGS, uniqueById } from '@/lib/defaults';
 import { scoreLive } from '@/lib/engine-preview';
 import { plainEvidence, plainHypothesis, plainToken, showName, traceSummary } from '@/lib/labels';
 import type { Persona } from '@/lib/personas';
@@ -214,14 +214,16 @@ export async function personasOf(run: RunSnapshot, brief: BriefV2): Promise<Pers
       : 'none';
   const people: Persona[] = [];
   for (const row of run.personas) {
-    const anchors = row.anchors.map((anchor) => ({
-      id: anchor.id,
-      name: anchor.name,
-      type: anchor.type,
-      affinity: anchor.affinity,
-      provenance: anchor.affinity == null ? 'qloo; affinity unmeasured' : `qloo; affinity ${anchor.affinity}`,
-      ...(anchor.image ? { image: anchor.image } : {}),
-    }));
+    const anchors = uniqueById(
+      row.anchors.map((anchor) => ({
+        id: anchor.id,
+        name: anchor.name,
+        type: anchor.type,
+        affinity: anchor.affinity,
+        provenance: anchor.affinity == null ? 'qloo; affinity unmeasured' : `qloo; affinity ${anchor.affinity}`,
+        ...(anchor.image ? { image: anchor.image } : {}),
+      })),
+    );
     const measuring = anchors.length === 0;
     let fit = 0;
     if (!measuring) {

@@ -260,6 +260,45 @@ describe('feature routes', () => {
     assert.equal(areas[0]?.label, 'Silver Lake');
     assert.equal(areas[0]?.priceLevel, 2);
     assert.match(areas[0]?.priceRecommendation ?? '', /price level 2/);
+    assert.match(String(res.json.priceRecommendation), /neighborhood price/);
+    assert.doesNotMatch(String(res.json.priceRecommendation), /^Recommend/);
+    assert.equal(caller.insightsCalls[0]?.extra?.['heatmap.dimensions'], 'price_level,popularity');
+    assert.equal(caller.insightsCalls[0]?.output, undefined);
+  });
+
+  it('drops heatmap cells outside Tokyo and names the in-city cell', async () => {
+    const caller = new FakeCaller();
+    const original = caller.insights.bind(caller);
+    caller.insights = async (params) => {
+      const location = (params.filter?.location as { query?: string } | undefined)?.query;
+      const type = String(params.filter?.type ?? '');
+      if (location === 'Tokyo' && type === 'urn:heatmap') {
+        caller.calls += 1;
+        caller.insightsCalls.push(params);
+        return envelope({
+          heatmap: [
+            { location: { latitude: 33.16, longitude: 139.9, geohash: 'xn76u1' }, query: { affinity: 0.95 } },
+            { location: { latitude: 35.661, longitude: 139.668, geohash: 'xn76c1' }, query: { affinity: 0.84, popularity_affinity: 0.7, price_level_affinity: 0.4 } },
+          ],
+        });
+      }
+      if (location === 'Tokyo' && type === 'urn:entity:place') {
+        caller.calls += 1;
+        caller.insightsCalls.push(params);
+        return envelope({ entities: [] });
+      }
+      return original(params);
+    };
+    const res = await post(app(caller), '/api/features/neighborhood', {
+      location: 'Tokyo',
+      anchors: [{ id: REF, name: 'Aphex Twin', type: 'artist' }],
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.json.cellCount, 1);
+    const areas = res.json.areas as Array<{ label: string; lat: number }>;
+    assert.equal(areas.length, 1);
+    assert.equal(areas[0]?.label, 'Shimokitazawa');
+    assert.ok((areas[0]?.lat ?? 0) > 35);
     assert.equal(caller.insightsCalls[0]?.extra?.['heatmap.dimensions'], 'price_level,popularity');
     assert.equal(caller.insightsCalls[0]?.output, undefined);
   });

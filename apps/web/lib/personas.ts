@@ -209,8 +209,10 @@ function takeDistinct(items: unknown[], used: Set<string>, source: string, limit
     const anchor = readAnchor(item, source);
     if (!anchor) continue;
     const key = anchor.name.toLowerCase();
-    if (used.has(key)) continue;
+    const idKey = `\0${anchor.id}`;
+    if (used.has(key) || used.has(idKey)) continue;
     used.add(key);
+    used.add(idKey);
     picked.push(anchor);
     if (picked.length === limit) break;
   }

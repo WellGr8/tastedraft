@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { BriefV2Schema } from '@tastedraft/contracts';
-import { STARTER_REFERENCES, TOUR_IDEA, TOUR_REFERENCES, defaultDraft } from './defaults.ts';
+import { readFileSync } from 'node:fs';
+import { caseStudySummary, caseStudyViews } from './cases.ts';
+import { STARTER_REFERENCES, TOUR_IDEA, TOUR_REFERENCES, defaultDraft, mergeEntities, uniqueById } from './defaults.ts';
 import {
   addChip,
   changedMind,
@@ -14,10 +16,12 @@ import {
   isTourBrief,
   previewGap,
   rememberVersion,
+  neighborhoodPriceNote,
   snagLine,
   type LabIdea,
 } from './lab.ts';
 import { mergeFeatures, parseLabFeatures, projectFeatures, stubLabFeatures } from './lab-api.ts';
+import { namedArea } from './places.ts';
 import { recordedSnapshot } from './recorded-tour.ts';
 import { anchorRefs, sentimentOf, voiceFor } from './voice.ts';
 
@@ -130,6 +134,28 @@ test('library chips, versions, and A/B copies stay deterministic', () => {
   assert.equal(copy.versions.length, 0);
   assert.equal(previewGap(71, 80), 'Variant B is +9 versus A on the engine preview. Not a sales forecast.');
   assert.equal(previewGap(71, null), 'Score both variants to compare.');
+  const hits = uniqueById([
+    { id: 'same', name: 'First' },
+    { id: 'same', name: 'Second' },
+    { id: 'other', name: 'Other' },
+  ]);
+  assert.deepEqual(hits.map((hit) => hit.name), ['First', 'Other']);
+  const doubled = [
+    { id: 'same', name: 'First', type: 'urn:entity:artist', source: 'user' },
+    { id: 'same', name: 'Again', type: 'urn:entity:artist', source: 'user' },
+  ];
+  const kept = addChip(doubled, { id: 'same', name: 'Second name', type: 'urn:entity:artist', kind: 'reference' });
+  assert.equal(kept.length, 1);
+  assert.equal(kept[0]?.name, 'First');
+  const merged = mergeEntities(
+    [
+      { id: 'qloo-1', name: 'Aphex Twin', type: 'urn:entity:artist', source: 'qloo' },
+      { id: 'qloo-1', name: 'Aphex Twin live', type: 'urn:entity:artist', source: 'qloo' },
+    ],
+    [],
+  );
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0]?.name, 'Aphex Twin');
 });
 
 test('the features parser keeps a real payload and ignores a stub-shaped miss', () => {
@@ -185,4 +211,25 @@ test('a recorded tour snapshot cites the playback places and an engine delta', (
   assert.ok(run.districts.some((cell) => cell.label === 'Shimokitazawa'));
   assert.equal(run.personas.length, 4);
   assert.equal(new Set(run.personas.map((persona) => persona.anchors.map((anchor) => anchor.name).join('|'))).size, 4);
+});
+
+test('neighborhood price stays distinct from a lower merch proposal', () => {
+  const line = 'Places in the top areas charge price level 4 ($$$$). That is the neighborhood price, not the merch price.';
+  const noted = neighborhoodPriceNote(line, { param: 'filter.price_level.max', to: '2' });
+  assert.match(noted ?? '', /lower merch price/);
+  assert.match(noted ?? '', /Not a sales forecast/);
+  assert.equal(neighborhoodPriceNote(line, { param: 'filter.price_level.max', to: '4' }), line);
+  assert.equal(namedArea('Area 33.16, 139.90', 'Tokyo', 35.661, 139.668), 'Shimokitazawa');
+  assert.equal(namedArea('Koenji', 'Tokyo', 33.16, 139.9), 'Koenji');
+});
+
+test('case studies report the published match count', () => {
+  const body = JSON.parse(readFileSync(new URL('../public/case-studies.json', import.meta.url), 'utf8'));
+  const studies = caseStudyViews(body);
+  assert.equal(studies.length, 4);
+  assert.equal(caseStudySummary(studies), '2 of 4 matched');
+  assert.deepEqual(
+    studies.map((study) => study.matched),
+    [false, true, false, true],
+  );
 });

@@ -38,6 +38,9 @@ export interface LabNeighborhood {
   weight: number;
   price: number | null;
   popularity: number | null;
+  lat?: number;
+  lng?: number;
+  tier?: number | null;
 }
 
 export interface LabNiche {
@@ -171,7 +174,18 @@ export function parseLabFeatures(body: unknown, fallback: LabFeatures): LabFeatu
         const label = text(row.label) ?? text(row.name);
         const weight = unit(row.weight);
         if (!label || weight == null) return null;
-        return { label, weight, price: unit(row.price), popularity: unit(row.popularity) };
+        const lat = typeof row.lat === 'number' && Number.isFinite(row.lat) ? row.lat : undefined;
+        const lng = typeof row.lng === 'number' && Number.isFinite(row.lng) ? row.lng : undefined;
+        const tier = row.tier === 1 || row.tier === 2 || row.tier === 3 || row.tier === 4 ? row.tier : undefined;
+        return {
+          label,
+          weight,
+          price: unit(row.price),
+          popularity: unit(row.popularity),
+          ...(lat != null ? { lat } : {}),
+          ...(lng != null ? { lng } : {}),
+          ...(tier != null ? { tier } : {}),
+        };
       },
       5,
     ),
@@ -308,6 +322,9 @@ export function projectFeatures(
         weight: roundUnit(area.affinity),
         price: area.priceLevelAffinity == null ? null : roundUnit(area.priceLevelAffinity),
         popularity: area.popularityAffinity == null ? null : roundUnit(area.popularityAffinity),
+        lat: area.lat,
+        lng: area.lng,
+        tier: area.priceLevel,
       });
     }
   }

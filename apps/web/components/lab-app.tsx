@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { RunSnapshotSchema, type BriefV2, type RunSnapshot } from '@tastedraft/contracts';
 import { ApiError, TasteDraftClient, apiBase, type ProposalView, type SimulationResponse } from '@/lib/api';
-import { AGES, STARTER_REFERENCES, STARTER_TAGS, TOUR_REFERENCES, TOUR_TAGS, tourDraft, withImage, type DraftState } from '@/lib/defaults';
+import { AGES, STARTER_REFERENCES, STARTER_TAGS, TOUR_REFERENCES, TOUR_TAGS, tourDraft, uniqueById, withImage, type DraftState } from '@/lib/defaults';
 import { scoreLive } from '@/lib/engine-preview';
 import {
   addChip,
@@ -15,6 +15,7 @@ import {
   ideaTitle,
   impactRequest,
   isTourBrief,
+  neighborhoodPriceNote,
   LAB_EXAMPLES,
   loadLibrary,
   previewGap,
@@ -36,8 +37,47 @@ import {
   stubLabFeatures,
   type LabFeatures,
 } from '@/lib/lab-api';
-import { deltaText, fitOf, placeLabel, plainStopReason, typeLabel } from '@/lib/labels';
+import { caseStudySummary, caseStudyViews, type CaseStudyView } from '@/lib/cases';
+import { deltaText, fitOf, plainStopReason, typeLabel } from '@/lib/labels';
+import { insideCity, namedArea } from '@/lib/places';
 import { chatWithPersona, type Persona } from '@/lib/personas';
+
+function personaLine(label: string, message: string): string {
+  const text = message.trim();
+  if (/^simulated persona response\b/i.test(text)) return text;
+  return `${label}: ${text}`;
+}
+
+function AreaMap({ city, areas }: { city: string; areas: Array<{ label: string; lat?: number; lng?: number }> }) {
+  const points = areas.filter((area): area is { label: string; lat: number; lng: number } => typeof area.lat === 'number' && typeof area.lng === 'number');
+  if (!points.length) return null;
+  const width = 280;
+  const height = 160;
+  const pad = 28;
+  const lats = points.map((point) => point.lat);
+  const lngs = points.map((point) => point.lng);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+  const latSpan = maxLat - minLat || 0.02;
+  const lngSpan = maxLng - minLng || 0.02;
+  const x = (lng: number) => pad + ((lng - minLng) / lngSpan) * (width - pad * 2);
+  const y = (lat: number) => pad + ((maxLat - lat) / latSpan) * (height - pad * 2);
+  return (
+    <svg className="lab-map" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Map of ${city}`}>
+      <rect width={width} height={height} rx="16" />
+      {points.map((point, index) => (
+        <g key={`${point.label}-${index}`}>
+          <circle cx={x(point.lng)} cy={y(point.lat)} r="5" />
+          <text x={x(point.lng)} y={y(point.lat) - 8} textAnchor="middle">
+            {point.label}
+          </text>
+        </g>
+      ))}
+    </svg>
+  );
+}
 import {
   defaultControls,
   positioningForPrice,
@@ -195,7 +235,10 @@ export function LabApp() {
   const [ask, setAsk] = useState<ReturnType<typeof askFromRun>>(null);
   const [features, setFeatures] = useState<LabFeatures>(() => stubLabFeatures({ city: 'Tokyo', age: '18–25' }));
   const [impactCost, setImpactCost] = useState<number | null>(null);
-  const [places, setPlaces] = useState<Array<{ label: string; weight: number }>>([]);
+  const [places, setPlaces] = useState<Array<{ label: string; weight: number; lat?: number; lng?: number }>>([]);
+  const [studies, setStudies] = useState<CaseStudyView[]>([]);
+  const [openStudy, setOpenStudy] = useState<string | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
   const [whyRun, setWhyRun] = useState<RunSnapshot | null>(null);
   const [whyBusy, setWhyBusy] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -211,6 +254,7 @@ export function LabApp() {
   const generation = useRef(0);
   const settled = useRef(false);
   const featureAbort = useRef<AbortController | null>(null);
+  const chatInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const saved = loadLibrary();
@@ -222,6 +266,23 @@ export function LabApp() {
     if (!ready) return;
     saveLibrary(library);
   }, [library, ready]);
+
+  useEffect(() => {
+    let cancel = false;
+    void fetch('/case-studies.json')
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body) => {
+        if (!cancel) setStudies(caseStudyViews(body));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancel = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (chatOpen) chatInput.current?.focus();
+  }, [chatOpen, talking?.id]);
 
   useEffect(() => {
     let cancel = false;
@@ -269,7 +330,7 @@ export function LabApp() {
     const handle = window.setTimeout(() => {
       void client
         .search(query.trim(), undefined, draft.city)
-        .then((result) => setHits(result.entities.slice(0, 4).map((entity) => withImage(entity))))
+        .then((result) => setHits(uniqueById(result.entities).slice(0, 4).map((entity) => withImage(entity))))
         .catch(() => setHits([]));
     }, 250);
     return () => window.clearTimeout(handle);
@@ -356,10 +417,15 @@ export function LabApp() {
   function noteDistricts(run: RunSnapshot, city: string) {
     if (!run.districts.length) return;
     setPlaces(
-      run.districts.slice(0, 4).map((cell) => ({
-        label: placeLabel(cell.label, city),
-        weight: cell.weight,
-      })),
+      run.districts.slice(0, 5).flatMap((cell) => {
+        if (!insideCity(cell.lat, cell.lng, city)) return [];
+        return [{
+          label: namedArea(cell.label ?? '', city, cell.lat, cell.lng),
+          weight: cell.weight,
+          lat: cell.lat,
+          lng: cell.lng,
+        }];
+      }),
     );
   }
 
@@ -375,10 +441,15 @@ export function LabApp() {
       setPlaces((current) =>
         current.length
           ? current
-          : layer.cells.slice(0, 4).map((cell) => ({
-              label: placeLabel(cell.label, brief.city),
-              weight: cell.weight,
-            })),
+          : layer.cells.slice(0, 5).flatMap((cell) => {
+              if (!insideCity(cell.lat, cell.lng, brief.city)) return [];
+              return [{
+                label: namedArea(cell.label ?? '', brief.city, cell.lat, cell.lng),
+                weight: cell.weight,
+                lat: cell.lat,
+                lng: cell.lng,
+              }];
+            }),
       );
     } catch {
       // The run's own districts still draw the strip.
@@ -837,14 +908,35 @@ export function LabApp() {
     }
   }
 
+  function openTalk(persona: Persona) {
+    setTalking(persona);
+    setChatOpen(true);
+    const opening = persona.interview.trim();
+    setLines([{ role: 'agent', text: personaLine('Simulated persona response', opening) }]);
+  }
+
+  function closeTalk() {
+    setChatOpen(false);
+    setTalking(null);
+  }
+
   async function send() {
     const text = composer.trim();
     if (!text) return;
+    const history = lines
+      .slice(-8)
+      .map((line) => ({
+        role: line.role === 'you' ? ('user' as const) : ('persona' as const),
+        content: line.text.slice(0, 500),
+      }))
+      .filter((item) => item.content.length > 0);
     setComposer('');
     setLines((current) => [...current, { role: 'you', text }]);
     try {
       if (talking) {
-        const anchors = talking.anchors.slice(0, 3).map((anchor) => featureEntity(anchor));
+        const anchors = talking.anchors.slice(0, 8).map((anchor) => featureEntity(anchor));
+        setLines((current) => [...current, { role: 'agent', text: '' }]);
+        let streamed = '';
         const feature = anchors.length
           ? await loadPersonaChat(
               {
@@ -855,14 +947,35 @@ export function LabApp() {
                   age: talking.age,
                   anchors,
                 },
-                message: text,
+                message: text.slice(0, 500),
+                ...(history.length ? { history } : {}),
               },
               fetch,
               apiBase(),
+              undefined,
+              (token) => {
+                streamed += token;
+                const partial = streamed;
+                setLines((current) => {
+                  const next = current.slice();
+                  const last = next[next.length - 1];
+                  if (last?.role === 'agent') next[next.length - 1] = { role: 'agent', text: partial };
+                  return next;
+                });
+              },
             )
           : null;
         const reply = feature ?? { label: 'Simulated persona response', message: (await chatWithPersona(talking, text, fetch, apiBase())).say };
-        setLines((current) => [...current, { role: 'agent', text: `${reply.label}: ${reply.message}` }]);
+        const shown = personaLine(reply.label, reply.message);
+        setLines((current) => {
+          const next = current.slice();
+          const last = next[next.length - 1];
+          if (last?.role === 'agent') {
+            next[next.length - 1] = { role: 'agent', text: shown };
+            return next;
+          }
+          return [...current, { role: 'agent', text: shown }];
+        });
         return;
       }
       if (!runId) {
@@ -948,9 +1061,19 @@ export function LabApp() {
     personas.map((persona) => ({ label: persona.label, fit: persona.fit, rejects: persona.rejects, measuring: persona.measuring })),
     v1?.frictions.map((item) => item.text) ?? [],
   );
-  const neighborhoods = features.neighborhoods.length
-    ? features.neighborhoods.map((item) => item.label)
-    : places.map((item) => item.label);
+  const heat = (features.neighborhoods.length ? features.neighborhoods : places)
+    .map((item) => ({
+      label: namedArea(item.label, draft.city, item.lat, item.lng),
+      weight: item.weight,
+      ...(typeof item.lat === 'number' ? { lat: item.lat } : {}),
+      ...(typeof item.lng === 'number' ? { lng: item.lng } : {}),
+    }))
+    .filter((item) => item.lat == null || item.lng == null || insideCity(item.lat, item.lng, draft.city));
+  const neighborhoods = heat.map((item) => item.label);
+  const priceNote = neighborhoodPriceNote(features.priceLine, proposal);
+  const customersReady = personas.length > 0 || Boolean(ask);
+  const references = uniqueById(draft.references);
+  const chips = uniqueById(library.chips);
   const moved = /moved on/i.test(error);
 
   return (
@@ -991,7 +1114,7 @@ export function LabApp() {
           </button>
         ))}
         <div className="lab-chips">
-          {library.chips.map((chip) => (
+          {chips.map((chip) => (
             <div
               key={chip.id}
               className="lab-chip"
@@ -1027,6 +1150,27 @@ export function LabApp() {
             </span>
           </button>
         ))}
+        {studies.length ? (
+          <div className="lab-cases" data-testid="case-studies">
+            <p className="lab-case-sum">{caseStudySummary(studies)}</p>
+            {studies.map((study) => (
+              <button
+                key={study.id}
+                type="button"
+                className="lab-case"
+                aria-expanded={openStudy === study.id}
+                onClick={() => setOpenStudy((current) => (current === study.id ? null : study.id))}
+              >
+                <b>{study.short}</b>
+                <small>
+                  {study.verdict} · {study.matched ? 'Match' : 'Miss'}
+                </small>
+                {openStudy === study.id && study.outcomeSummary ? <span>{study.outcomeSummary}</span> : null}
+              </button>
+            ))}
+            <p className="lab-case-note">Not a sales forecast.</p>
+          </div>
+        ) : null}
       </aside>
       <main className="lab-canvas">
         <div className="lab-scroll">
@@ -1058,7 +1202,7 @@ export function LabApp() {
                   <p>Four simulated customers. One change you can approve. The number comes from the engine, and it is not a sales forecast.</p>
                 </div>
                 <div className="lab-fan" aria-hidden="true">
-                  {draft.references.slice(0, 4).map((entity) => (
+                  {references.slice(0, 4).map((entity) => (
                     <Cover key={entity.id} name={entity.name} type={entity.type} image={entity.image} size={78} />
                   ))}
                 </div>
@@ -1161,7 +1305,7 @@ export function LabApp() {
                   }
                 }}
               >
-                {draft.references.map((entity) => (
+                {references.map((entity) => (
                   <figure key={entity.id} className="lab-album">
                     <Cover name={entity.name} type={entity.type} image={entity.image} size={72} />
                     <figcaption>{entity.name}</figcaption>
@@ -1208,18 +1352,18 @@ export function LabApp() {
               <h2 className="lab-section-title">What customers say</h2>
               {lastRun?.grounding === 'recorded' ? <span className="lab-pill" data-testid="recorded-run">Recorded run</span> : null}
               <p className="lab-fine">{status}</p>
-              {ask ? (
-                <div className="lab-card" data-testid="evidence-ask">
-                  <p>{ask.question}</p>
-                  <button type="button" className="lab-quiet" data-testid="evidence-ask-action" onClick={() => void acceptEvidence()}>
-                    Use {ask.suggestion}
-                  </button>
-                </div>
-              ) : null}
-              <div className="lab-personas">
-                {personas.length === 0 && busy
-                  ? [0, 1, 2, 3].map((item) => <div key={item} className="lab-shimmer" />)
-                  : personas.map((persona) => (
+              {customersReady ? (
+                <>
+                  {ask ? (
+                    <div className="lab-card" data-testid="evidence-ask">
+                      <p>{ask.question}</p>
+                      <button type="button" className="lab-quiet" data-testid="evidence-ask-action" onClick={() => void acceptEvidence()}>
+                        Use {ask.suggestion}
+                      </button>
+                    </div>
+                  ) : null}
+                  <div className="lab-personas">
+                    {personas.map((persona) => (
                       <article key={persona.id} className="lab-card lab-persona" data-testid="persona-card">
                         <header>
                           <div>
@@ -1232,58 +1376,65 @@ export function LabApp() {
                           <strong className="lab-score-lg" data-testid="persona-score">{persona.measuring || persona.fit <= 0 ? '—' : persona.fit}</strong>
                         </header>
                         <div className="lab-anchors">
-                          {persona.anchors.slice(0, 3).map((anchor) => (
+                          {uniqueById(persona.anchors).slice(0, 3).map((anchor) => (
                             <Cover key={anchor.id} name={anchor.name} type={anchor.type} image={anchor.image} size={48} />
                           ))}
                         </div>
                         <p className="lab-quote" data-testid="persona-quote">{persona.interview}</p>
-                        <button type="button" className="lab-quiet" onClick={() => { setTalking(persona); setLines((current) => [...current, { role: 'agent', text: persona.interview }]); }}>
+                        <button type="button" className="lab-quiet" onClick={() => openTalk(persona)}>
                           Talk
                         </button>
                       </article>
                     ))}
-              </div>
-              <p className="lab-note">{snag}</p>
-              <p className="lab-fine" data-testid="feature-stub">Target is {draft.age} in {draft.city}.</p>
-              {features.competitors.length ? (
-                <p className="lab-fine">Also near {[...new Set(features.competitors.map((row) => row.name))].slice(0, 3).join(', ')}.</p>
-              ) : null}
-              <details className="lab-why">
-                <summary>Why?</summary>
-                {features.mismatch != null ? <p className="lab-fine">Mean demographic mismatch {features.mismatch}.</p> : <p className="lab-fine">{features.demographicLine}</p>}
-                {notableSkews(features.skews).length ? (
-                  <div className="lab-skew">
-                    {notableSkews(features.skews).map((row) => (
-                      <div key={`${row.name}-${row.bucket}`}>
-                        <span>{row.name} · {row.bucket.replaceAll('_', ' ')} ({row.skew > 0 ? `+${row.skew}` : row.skew})</span>
-                        <i><em style={{ width: `${Math.max(8, Math.round(Math.abs(row.skew) * 100))}%` }} data-sign={row.skew < 0 ? 'down' : 'up'} /></i>
+                  </div>
+                  <p className="lab-note">{snag}</p>
+                  <p className="lab-fine" data-testid="feature-stub">Target is {draft.age} in {draft.city}.</p>
+                  {features.competitors.length ? (
+                    <p className="lab-fine">Also near {[...new Set(features.competitors.map((row) => row.name))].slice(0, 3).join(', ')}.</p>
+                  ) : null}
+                  <details className="lab-why">
+                    <summary>Why?</summary>
+                    {features.mismatch != null ? <p className="lab-fine">Mean demographic mismatch {features.mismatch}.</p> : <p className="lab-fine">{features.demographicLine}</p>}
+                    {notableSkews(features.skews).length ? (
+                      <div className="lab-skew">
+                        {notableSkews(features.skews).map((row) => (
+                          <div key={`${row.name}-${row.bucket}`}>
+                            <span>{row.name} · {row.bucket.replaceAll('_', ' ')} ({row.skew > 0 ? `+${row.skew}` : row.skew})</span>
+                            <i><em style={{ width: `${Math.max(8, Math.round(Math.abs(row.skew) * 100))}%` }} data-sign={row.skew < 0 ? 'down' : 'up'} /></i>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    {features.warnings.filter((warning) => !/budget exhausted/i.test(warning)).slice(0, 3).map((warning) => (
+                      <p key={warning} className="lab-fine">{warning}</p>
+                    ))}
+                  </details>
+                  <div className="lab-card lab-heat" data-testid="heatmap">
+                    <span className="lab-label">Neighborhood fit</span>
+                    <AreaMap city={draft.city} areas={heat} />
+                    {heat.length === 0 ? <p className="lab-fine">{busy ? 'Loading neighborhoods' : 'Neighborhoods appear as the heatmap returns.'}</p> : null}
+                    {priceNote ? <p className="lab-fine" data-testid="price-note">{priceNote}</p> : null}
+                    {heat.map((item) => (
+                      <div key={item.label}>
+                        <span className="lab-fine">{item.label}</span>
+                        <i style={{ width: `${Math.max(8, Math.round(item.weight * 100))}%` }} />
                       </div>
                     ))}
                   </div>
-                ) : null}
-                {features.warnings.filter((warning) => !/budget exhausted/i.test(warning)).slice(0, 3).map((warning) => (
-                  <p key={warning} className="lab-fine">{warning}</p>
-                ))}
-              </details>
-              <div className="lab-card lab-heat" data-testid="heatmap">
-                <span className="lab-label">Neighborhood fit</span>
-                {neighborhoods.length === 0 ? <p className="lab-fine">Neighborhoods appear as the heatmap returns.</p> : null}
-                {features.priceLine ? <p className="lab-fine">{features.priceLine}</p> : null}
-                {(features.neighborhoods.length ? features.neighborhoods.map((item) => ({ label: item.label, weight: item.weight, price: item.price })) : places.map((item) => ({ label: item.label, weight: item.weight, price: null }))).map((item) => (
-                  <div key={item.label}>
-                    <span className="lab-fine">
-                      {item.label}
-                      {item.price != null ? ` · price ${item.price}` : ''}
-                    </span>
-                    <i style={{ width: `${Math.max(8, Math.round(item.weight * 100))}%` }} />
+                  {(features.activation.places.length || features.activation.podcasts.length || features.activation.brands.length) ? (
+                    <p className="lab-fine">
+                      Show up at {[...features.activation.places, ...features.activation.podcasts, ...features.activation.brands].join(', ')}.
+                    </p>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  <p className="lab-fine" data-testid="customers-loading">Loading customers</p>
+                  <div className="lab-personas">
+                    {[0, 1, 2, 3].map((item) => <div key={item} className="lab-shimmer" />)}
                   </div>
-                ))}
-              </div>
-              {(features.activation.places.length || features.activation.podcasts.length || features.activation.brands.length) ? (
-                <p className="lab-fine">
-                  Show up at {[...features.activation.places, ...features.activation.podcasts, ...features.activation.brands].join(', ')}.
-                </p>
-              ) : null}
+                </>
+              )}
               <div className="lab-go">
                 <span className="byb-ring" data-busy={busy ? 'true' : 'false'}>
                   <button type="button" className="byb-primary" disabled={busy || !proposal} onClick={() => bump(3)}>
@@ -1455,9 +1606,14 @@ export function LabApp() {
             <li key={label}>{label}</li>
           ))}
         </ul>
-        <div className="lab-chat">
+        <div className={chatOpen ? 'lab-chat is-open' : 'lab-chat'} data-testid={chatOpen ? 'persona-chat' : undefined}>
           <div className="lab-lines">
-            {talking ? <p>Talking with {talking.label}. Simulated.</p> : null}
+            {talking ? (
+              <p className="lab-chat-who">
+                Talking with {talking.label}. Simulated.
+                <button type="button" onClick={closeTalk}>Close</button>
+              </p>
+            ) : null}
             {lines.map((line, index) => (
               <p key={`${line.role}-${index}`} className={line.role === 'you' ? 'is-you' : undefined}>{line.text}</p>
             ))}
@@ -1468,7 +1624,7 @@ export function LabApp() {
               void send();
             }}
           >
-            <input data-testid="chat-input" value={composer} placeholder={talking ? `Ask ${talking.label}` : 'Ask the agent'} onChange={(event) => setComposer(event.target.value)} />
+            <input ref={chatInput} data-testid="chat-input" value={composer} placeholder={talking ? `Ask ${talking.label}` : 'Ask the agent'} onChange={(event) => setComposer(event.target.value)} />
             <button type="submit" data-testid="chat-send">Send</button>
           </form>
         </div>

@@ -3,6 +3,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import type { ProposalView } from '@/lib/api';
 import { hexLayout } from '@/lib/hex';
+import { uniqueById } from '@/lib/defaults';
 import { fitOf, passSentence } from '@/lib/labels';
 import type { EvidenceChip, Persona } from '@/lib/personas';
 
@@ -74,7 +75,7 @@ export function PersonaGrid({
             </div>
             {persona.anchors.length ? (
               <div className="td-anchors">
-                {persona.anchors.map((anchor) => (
+                {uniqueById(persona.anchors).map((anchor) => (
                   <figure key={anchor.id} className="td-anchor" title={anchor.name}>
                     <span className={anchorStyle(anchor.type)}>
                       <b>{anchor.name.slice(0, 1).toUpperCase()}</b>

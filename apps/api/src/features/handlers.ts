@@ -42,9 +42,11 @@ import {
 import { scoreInsightMeasurements } from '../engine/wasm-adapter.ts';
 import type { QlooInsightsParams } from '../providers/qloo/client.ts';
 import { createLlmClient, type LlmClient } from '../llm/client.ts';
+import { draftPersonaReply } from '../llm/persona.ts';
 import type { FeatureRun } from './caller.ts';
 import { callInsights, callSearch, metaOf } from './caller.ts';
 import { entityTypeUrn } from './params.ts';
+import { areaLabel, cityBox, haversineKm, insideCity } from './places.ts';
 import { parseDemographics, parseEntities, parseHeatmap, searchHits, type ParsedEntity } from './parse.ts';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -57,13 +59,12 @@ function dollars(level: 1 | 2 | 3 | 4): string {
   return '$'.repeat(level);
 }
 
-function km(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
-  const radius = 6371;
-  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
-  const south = Math.sin(dLat / 2) ** 2
-    + Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-  return 2 * radius * Math.asin(Math.min(1, Math.sqrt(south)));
+function areaPriceLine(level: 1 | 2 | 3 | 4 | null, affinity: number | null): string {
+  if (level) return `Places nearby charge price level ${level} (${dollars(level)}).`;
+  if (affinity != null) {
+    return `No priced place in this area. Heatmap price affinity is ${affinity.toFixed(2)}, which is not a price tier.`;
+  }
+  return 'No price recommendation. This area had no priced places.';
 }
 
 async function resolveOne(run: FeatureRun, entity: FeatureEntity, feature: FeatureName): Promise<FeatureEntity | null> {
@@ -259,14 +260,17 @@ export async function neighborhoodFit(run: FeatureRun, request: NeighborhoodFitR
     signal,
     extra: { 'heatmap.dimensions': 'price_level,popularity' },
   });
-  const cells = heat?.ok ? parseHeatmap(heat.body) : [];
+  const box = cityBox(request.location);
+  const cells = (heat?.ok ? parseHeatmap(heat.body) : []).filter((cell) => insideCity(cell.lat, cell.lng, box));
   const placesResult = await callInsights(run, 'neighborhood', 'Places', request.location, {
     filter: { type: 'urn:entity:place', location: { query: request.location } },
     signal,
     extra: { sort_by: 'quality' },
     take: 20,
   });
-  const places = placesResult?.ok ? parseEntities(placesResult.body, 'urn:entity:place') : [];
+  const places = (placesResult?.ok ? parseEntities(placesResult.body, 'urn:entity:place') : []).filter(
+    (place) => place.lat != null && place.lng != null && insideCity(place.lat, place.lng, box),
+  );
   const groups = new Map<string, typeof cells>();
   for (const cell of cells) {
     const key = cell.geohash.slice(0, 5) || `${cell.lat.toFixed(2)},${cell.lng.toFixed(2)}`;
@@ -286,17 +290,17 @@ export async function neighborhoodFit(run: FeatureRun, request: NeighborhoodFitR
     return { id, lat, lng, affinity, popularityAffinity, priceLevelAffinity, score };
   });
   clusters.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
-  const areas = clusters.slice(0, 5).map((cluster) => {
-    const nearby = places.filter((place) => place.lat != null && place.lng != null && km(cluster, { lat: place.lat, lng: place.lng }) <= 4);
-    const labels = nearby.map((place) => place.neighborhood).filter((label): label is string => Boolean(label));
-    const label = mode(labels) ?? `Area ${cluster.lat.toFixed(2)}, ${cluster.lng.toFixed(2)}`;
+  const fromCells = clusters.slice(0, 5).map((cluster) => {
+    const nearby = places.filter((place) => haversineKm(cluster, { lat: place.lat!, lng: place.lng! }) <= 4);
+    const label = areaLabel({
+      lat: cluster.lat,
+      lng: cluster.lng,
+      city: request.location,
+      neighborhoods: nearby.map((place) => place.neighborhood).filter((name): name is string => Boolean(name)),
+      nearbyNames: nearby.map((place) => place.name),
+    });
     const priced = nearby.filter((place) => place.priceLevel != null).sort((a, b) => (b.affinity ?? 0) - (a.affinity ?? 0));
     const priceLevel = priced[0]?.priceLevel ?? null;
-    const priceRecommendation = priceLevel
-      ? `Recommend price level ${priceLevel} (${dollars(priceLevel)}).`
-      : cluster.priceLevelAffinity != null
-        ? `No priced place in this area. Heatmap price affinity is ${cluster.priceLevelAffinity.toFixed(2)}, which is not a price tier.`
-        : 'No price recommendation. This area had no priced places.';
     return {
       id: cluster.id,
       label,
@@ -306,14 +310,39 @@ export async function neighborhoodFit(run: FeatureRun, request: NeighborhoodFitR
       popularityAffinity: cluster.popularityAffinity == null ? null : round4(cluster.popularityAffinity),
       priceLevelAffinity: cluster.priceLevelAffinity == null ? null : round4(cluster.priceLevelAffinity),
       priceLevel,
-      priceRecommendation,
+      priceRecommendation: areaPriceLine(priceLevel, cluster.priceLevelAffinity),
       evidenceRefs: nearby.map((place) => place.id).slice(0, 8),
     };
   });
+  const fromPlaces = fromCells.length
+    ? []
+    : places
+        .filter((place) => place.affinity != null && place.lat != null && place.lng != null)
+        .sort((a, b) => (b.affinity ?? 0) - (a.affinity ?? 0) || a.name.localeCompare(b.name))
+        .slice(0, 5)
+        .map((place) => ({
+          id: place.id,
+          label: areaLabel({
+            lat: place.lat!,
+            lng: place.lng!,
+            city: request.location,
+            neighborhoods: place.neighborhood ? [place.neighborhood] : [],
+            nearbyNames: [place.name],
+          }),
+          lat: Math.round(place.lat! * 1e6) / 1e6,
+          lng: Math.round(place.lng! * 1e6) / 1e6,
+          affinity: round4(place.affinity!),
+          popularityAffinity: place.popularity == null ? null : round4(Math.min(1, Math.max(0, place.popularity))),
+          priceLevelAffinity: null,
+          priceLevel: place.priceLevel,
+          priceRecommendation: areaPriceLine(place.priceLevel, null),
+          evidenceRefs: [place.id],
+        }));
+  const areas = fromCells.length ? fromCells : fromPlaces;
   const levels = areas.map((area) => area.priceLevel).filter((level): level is 1 | 2 | 3 | 4 => level != null);
   const chosen = mode(levels.map(String));
   const priceRecommendation = chosen
-    ? `Recommend price level ${chosen} (${dollars(Number(chosen) as 1 | 2 | 3 | 4)}) across the top areas.`
+    ? `Places in the top areas charge price level ${chosen} (${dollars(Number(chosen) as 1 | 2 | 3 | 4)}). That is the neighborhood price, not the merch price.`
     : areas[0]?.priceRecommendation ?? 'No heatmap cells came back, so there is no price recommendation.';
   return NeighborhoodFitResultSchema.parse({
     ...metaOf(run),
@@ -577,80 +606,10 @@ export async function reinterview(run: FeatureRun, request: ReinterviewRequest):
   return ReinterviewResultSchema.parse({ ...metaOf(run), personas });
 }
 
-function templateChat(request: PersonaChatRequest): { message: string; citations: PersonaChatResult['citations'] } {
-  const anchors = [...request.persona.anchors].sort((a, b) => (b.affinity ?? -1) - (a.affinity ?? -1)).slice(0, 3);
-  const cited = anchors.map((anchor) => {
-    const affinity = anchor.affinity == null ? '' : `, affinity ${anchor.affinity.toFixed(2)}`;
-    return `${anchor.name} (${anchor.id}${affinity})`;
-  });
-  const message = [
-    'Simulated persona response.',
-    `I'm ${request.persona.label} in ${request.persona.location}.`,
-    `You asked: ${request.message.trim()}`,
-    cited.length
-      ? `I would answer from the Qloo anchors I actually have: ${cited.join('; ')}.`
-      : 'I have no Qloo anchors, so I cannot ground an answer.',
-    'Those anchors are the only evidence for this reply.',
-  ].join(' ');
-  return {
-    message,
-    citations: anchors.map((anchor) => ({
-      id: anchor.id,
-      name: anchor.name,
-      affinity: anchor.affinity ?? null,
-    })),
-  };
-}
-
 export async function personaChat(run: FeatureRun, request: PersonaChatRequest, llm: LlmClient = createLlmClient()): Promise<PersonaChatResult> {
   run.emit({ type: 'step', feature: 'persona-chat', label: 'Ground the reply', detail: request.persona.label });
-  let source: 'llm' | 'template' = 'template';
-  let drafted = templateChat(request);
-  if (llm.mode === 'live') {
-    try {
-      const raw = await llm.complete([
-        {
-          role: 'system',
-          content: 'You speak as a simulated persona. Return JSON {"message":"...","citationIds":["..."]}. The message must start with "Simulated persona response." Cite only the provided Qloo anchor ids. Do not invent entities, scores, or forecasts.',
-        },
-        {
-          role: 'user',
-          content: JSON.stringify({
-            persona: {
-              label: request.persona.label,
-              location: request.persona.location,
-              age: request.persona.age ?? null,
-              gender: request.persona.gender ?? null,
-            },
-            anchors: request.persona.anchors.map((anchor) => ({
-              id: anchor.id,
-              name: anchor.name,
-              affinity: anchor.affinity ?? null,
-            })),
-            history: request.history ?? [],
-            message: request.message,
-          }),
-        },
-      ]);
-      const parsed = JSON.parse(raw) as { message?: unknown; citationIds?: unknown };
-      const text = typeof parsed.message === 'string' ? parsed.message.trim() : '';
-      const ids = Array.isArray(parsed.citationIds) ? parsed.citationIds.filter((id): id is string => typeof id === 'string') : [];
-      const known = new Map(request.persona.anchors.map((anchor) => [anchor.id, anchor]));
-      const citations = ids.filter((id) => known.has(id)).map((id) => {
-        const anchor = known.get(id)!;
-        return { id, name: anchor.name, affinity: anchor.affinity ?? null };
-      });
-      if (text && citations.length) {
-        source = 'llm';
-        drafted = {
-          message: text.startsWith('Simulated persona response') ? text : `Simulated persona response. ${text}`,
-          citations,
-        };
-      }
-    } catch {
-      run.warnings.push('The language model was unavailable. The reply is the template fallback.');
-    }
-  }
+  const drafted = await draftPersonaReply(llm, request);
+  if (drafted.warning) run.warnings.push(drafted.warning);
   for (const part of drafted.message.split(/(\s+)/)) {
     if (part) run.emit({ type: 'token', feature: 'persona-chat', text: part });
   }
@@ -660,7 +619,7 @@ export async function personaChat(run: FeatureRun, request: PersonaChatRequest, 
   return PersonaChatResultSchema.parse({
     ...metaOf(run),
     label: 'Simulated persona response',
-    source,
+    source: drafted.source,
     message: drafted.message,
     citations: drafted.citations,
   });

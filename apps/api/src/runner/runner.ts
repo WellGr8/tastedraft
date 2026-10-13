@@ -69,6 +69,8 @@ export interface RunnerOptions {
   sleep?: (ms: number) => Promise<void>;
   /** Runtime recordings. Gitignored. A missing file falls back to the derived fixture. */
   recordingsDir?: string;
+  /** False skips the live call. The run then plays the derived recording. */
+  admitLive?: () => boolean;
 }
 
 export interface CommandResult {
@@ -667,6 +669,7 @@ export class AgentRunner {
         apiKey: this.options.env?.QLOO_API_KEY ?? '',
         retries: 0,
         minIntervalMs: 0,
+        ...(this.options.admitLive ? { admitLive: this.options.admitLive } : {}),
       });
     return new QlooGateway(client, {
       budget: record.snapshot.budget,

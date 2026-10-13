@@ -16,6 +16,7 @@ import {
   mergeTags,
   suggestEntities,
   suggestTags,
+  uniqueById,
   type DraftState,
 } from '@/lib/defaults';
 import { typeLabel } from '@/lib/labels';
@@ -141,7 +142,7 @@ export function InputScreen({
           <span className="text-xs font-semibold tracking-[0.12em] text-label uppercase">Cultural references</span>
           <p className="text-[13px] leading-6 text-slate">Three to eight cards. One column on a phone, up to three across on a desktop.</p>
           <ul className={entityGridClass}>
-            {draft.references.map((entity) => (
+            {uniqueById(draft.references).map((entity) => (
               <EntityCard
                 key={entity.id}
                 entity={entity}
@@ -159,14 +160,16 @@ export function InputScreen({
             city={draft.city}
             placeholder="Search a brand, artist, film, or place"
             onPick={(entity) => {
-              if (draft.references.length >= 8) return;
-              if (draft.references.some((item) => item.name.toLowerCase() === entity.name.toLowerCase())) return;
-              const references = [...draft.references, entity];
+              const selected = uniqueById(draft.references);
+              if (selected.length >= 8) return;
+              if (selected.some((item) => item.id === entity.id || item.name.toLowerCase() === entity.name.toLowerCase())) return;
+              const references = [...selected, entity];
+              const places = uniqueById(draft.locations);
               const locations =
                 typeLabel(entity.type) === 'Place' &&
-                !draft.locations.some((item) => item.name.toLowerCase() === entity.name.toLowerCase())
-                  ? [...draft.locations, { ...entity, city: entity.city || draft.city }]
-                  : draft.locations;
+                !places.some((item) => item.id === entity.id || item.name.toLowerCase() === entity.name.toLowerCase())
+                  ? [...places, { ...entity, city: entity.city || draft.city }]
+                  : places;
               onChange({ ...draft, references, locations });
             }}
           />
@@ -177,7 +180,7 @@ export function InputScreen({
           <p className="text-[13px] leading-6 text-slate">Places are biased toward {draft.city}. The city is named once, on the card.</p>
           {draft.locations.length ? (
             <ul className={entityGridClass}>
-              {draft.locations.map((entity) => (
+              {uniqueById(draft.locations).map((entity) => (
                 <EntityCard
                   key={entity.id}
                   entity={entity}

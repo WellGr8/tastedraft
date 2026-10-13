@@ -19,6 +19,7 @@ export default defineConfig({
       url: 'http://127.0.0.1:8787/api/health',
       reuseExistingServer: true,
       timeout: 120_000,
+      env: { ...process.env, RATE_LIMIT_PER_MINUTE: process.env.RATE_LIMIT_PER_MINUTE ?? '600' },
     },
     {
       command: 'npm run dev',

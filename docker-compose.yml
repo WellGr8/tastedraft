@@ -1,0 +1,68 @@
+# Oracle Cloud VM (or any Linux host). Keys stay in .env, which is gitignored.
+# Do not publish 8787. Caddy is the only public listener.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: "8787"
+      DATABASE_PATH: /data/tastedraft.sqlite
+      RUNS_PATH: /data/runs.sqlite
+      QLOO_BUDGET_PATH: /data/qloo-budget.sqlite
+      QLOO_CACHE_DIR: /data/qloo-cache
+      RECORDINGS_DIR: /data/recordings
+      QLOO_DAILY_BUDGET: ${QLOO_DAILY_BUDGET:-400}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-60}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+    volumes:
+      - tastedraft-data:/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    volumes:
+      - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+  backup:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    entrypoint: ["node", "ops/backup-sqlite.mjs"]
+    environment:
+      DATABASE_PATH: /data/tastedraft.sqlite
+      RUNS_PATH: /data/runs.sqlite
+      QLOO_BUDGET_PATH: /data/qloo-budget.sqlite
+      BACKUP_DIR: /data/backups
+      BACKUP_KEEP_DAYS: "14"
+    volumes:
+      - tastedraft-data:/data
+
+volumes:
+  tastedraft-data:
+  caddy-data:
+  caddy-config:

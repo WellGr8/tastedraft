@@ -64,6 +64,8 @@ test('lab walks four steps with live progress and a plain report', async ({ page
   await page.goto('/');
   await expect(page.getByRole('heading', { name: /Test the taste/ })).toBeVisible();
   await expect(page.getByTestId('live-score')).toHaveText('52', { timeout: 30_000 });
+  await expect(page.getByTestId('case-studies')).toContainText('2 of 4 matched');
+  await expect(page.getByTestId('case-studies')).toContainText('Not a sales forecast');
   await expect(page.getByTestId('cost-avoided')).toHaveText('$10,400');
   await expect(page.getByText('Not a sales forecast').first()).toBeVisible();
   await expect(page.getByText('Estimate, not a forecast').first()).toBeVisible();
@@ -93,6 +95,15 @@ test('lab walks four steps with live progress and a plain report', async ({ page
   const quotes = (await page.getByTestId('persona-quote').allTextContents()).map((quote) => quote.trim()).filter(Boolean);
   expect(quotes.length).toBeGreaterThanOrEqual(3);
   expect(new Set(quotes).size).toBe(quotes.length);
+  await expect(page.getByTestId('heatmap')).toBeVisible();
+  await expect(page.getByTestId('heatmap')).not.toContainText(/Area \d/);
+  await expect(page.getByRole('img', { name: 'Map of Tokyo' })).toBeVisible();
+  await page.getByRole('button', { name: 'Talk' }).first().click();
+  await expect(page.getByTestId('persona-chat')).toBeVisible();
+  await page.getByTestId('chat-input').fill('Would you go to this show?');
+  await page.getByTestId('chat-send').click();
+  await expect.poll(async () => page.getByText('Simulated persona response').count(), { timeout: 60_000 }).toBeGreaterThanOrEqual(2);
+  await page.getByRole('button', { name: 'Close' }).click();
   await page.setViewportSize({ width: 1440, height: 900 });
   await shot(page, 'step2-1440');
   await page.setViewportSize({ width: 1280, height: 900 });

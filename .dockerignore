@@ -1,0 +1,15 @@
+node_modules
+.git
+.env
+.env.*
+!.env.example
+**/.next
+**/target
+apps/api/data
+apps/web/test-results
+apps/web/playwright-report
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+*.tsbuildinfo
