@@ -1,0 +1,13 @@
+{
+  "v": 1,
+  "entities": [
+    { "id": "ev:recorded-comme", "name": "Comme des Garcons", "ref": "comme-des-garcons" },
+    { "id": "ev:recorded-muji", "name": "Muji", "ref": "muji" }
+  ],
+  "tags": [
+    { "id": "ev:recorded-streetwear", "name": "streetwear", "ref": "tag-streetwear" }
+  ],
+  "cells": [
+    { "id": "cell-35.66-139.70", "lat": 35.66, "lng": 139.7, "weight": 0.62, "label": "35.66, 139.70" }
+  ]
+}

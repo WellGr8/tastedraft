@@ -26,6 +26,8 @@ Affinity on `InsightSignal` is 0–1. `null` means the call did not measure that
 | `Proposal` | `id`, `changes` (Qloo param diffs), `why`, `evidenceRefs`, `predictedDelta?` |
 | `MapLayer` | `{ kind: 'heatmap', cells }` or `{ kind: 'pins', pins }` |
 | `SimulationResult` | `id`, `brief`, `signals`, `explainability`, `ledger`, `proposals`, `layers`, `mode` (`live` or `mock`) |
+| `PersonaRequest` | `brief`, `location`, `audiences` (3–4 buckets: `id`, `label`, `age?`, `gender?`) |
+| `PersonaResult` | `location`, `segments` (artists, brands, places, dining, film insights with `affinity` and `image?`), `mode`, `warnings` |
 
 ## Folder ownership
 

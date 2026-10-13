@@ -1,7 +1,7 @@
 /**
- * Authored stand-in for the hackathon API.
- * These bodies are written for TasteDraft. They are not Qloo responses,
- * not recordings, and not the fixtures under server/src/providers/fixtures.
+ * Authored stand-in used only when the API key is unset.
+ * These bodies are written for TasteDraft tests and offline insights.
+ * They are not Qloo responses. Search does not use this catalog.
  * Every envelope sets `mock: true`. Ids start with `td-mock-`.
  */
 
@@ -29,72 +29,7 @@ interface MockTag {
   type: string;
 }
 
-const CATALOG: readonly MockEntity[] = [
-  {
-    entity_id: 'td-mock-entity-comme-des-garcons',
-    name: 'Comme des Garçons',
-    type: 'urn:entity',
-    subtype: 'urn:entity:brand',
-    properties: {
-      description: 'Default brief brand. Authored for mock search, not a Qloo entity.',
-      image: { url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Comme_des_Garcons_logo.svg/500px-Comme_des_Garcons_logo.svg.png' },
-    },
-  },
-  {
-    entity_id: 'td-mock-entity-muji',
-    name: 'Muji',
-    type: 'urn:entity',
-    subtype: 'urn:entity:brand',
-    properties: {
-      description: 'Default brief brand. The brand ranks ahead of the same-name person.',
-      image: { url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/MUJI_logo.svg/500px-MUJI_logo.svg.png' },
-    },
-  },
-  {
-    entity_id: 'td-mock-entity-muji-person',
-    name: 'Muji',
-    type: 'urn:entity',
-    subtype: 'urn:entity:person',
-    properties: {
-      description: 'Same-name person kept so mock search can disambiguate the brand.',
-      image: { url: 'https://example.invalid/tastedraft-mock/muji-person.png' },
-    },
-  },
-  {
-    entity_id: 'td-mock-entity-aphex-twin',
-    name: 'Aphex Twin',
-    type: 'urn:entity',
-    subtype: 'urn:entity:artist',
-    properties: {
-      description: 'Default brief artist. Authored for mock search, not a Qloo entity.',
-      image: { url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Aphex_Twin%2C_2008.jpg/500px-Aphex_Twin%2C_2008.jpg' },
-    },
-  },
-  {
-    entity_id: 'td-mock-entity-lost-in-translation',
-    name: 'Lost in Translation',
-    type: 'urn:entity',
-    subtype: 'urn:entity:movie',
-    properties: {
-      description: 'Default brief film. Authored for mock search, not a Qloo entity.',
-      image: { url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/New_York_Bar_Unplugged%2C_Park_Hyatt_Tokyo_%288376387540%29.jpg/500px-New_York_Bar_Unplugged%2C_Park_Hyatt_Tokyo_%288376387540%29.jpg' },
-    },
-  },
-  {
-    entity_id: 'td-mock-entity-silver-lake',
-    name: 'Silver Lake',
-    type: 'urn:entity',
-    subtype: 'urn:entity:place',
-    properties: {
-      description: 'Default brief place in Los Angeles. Authored for mock search, not a Qloo entity.',
-      image: { url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Know_Your_City_No.101_Silver_Lake_Reservoir.jpg/500px-Know_Your_City_No.101_Silver_Lake_Reservoir.jpg' },
-      location: { lat: 34.0869, lon: -118.2702, city: 'Los Angeles' },
-    },
-  },
-];
-
 const ENTITIES: readonly MockEntity[] = [
-  ...CATALOG,
   {
     entity_id: 'td-mock-entity-velvet-circuit',
     name: 'Velvet Circuit',

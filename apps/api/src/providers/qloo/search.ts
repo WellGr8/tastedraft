@@ -1,34 +1,24 @@
 /**
  * TasteDraft search for the input screen.
  *
- * Calls QlooClient `/search` and `/v2/tags` only. Mock mode is the client's
- * own no-key path. This module does not open a second HTTP client for Qloo.
- *
- * QlooClient gaps (do not patch the client here):
- * - `search()` has no city parameter. Place searches bias by a second query
- *   that appends the city, then this module drops places whose city conflicts.
- * - Mock bodies have no prototype entities (Muji, Silver Lake) and no geo.
- * - Image URLs are filled from Wikidata only when a Qloo row has none.
+ * Qloo `/search` is first. Entity images are the ones Qloo returned.
+ * Wikidata and MusicBrainz run only when that call fails (no key, HTTP
+ * error, timeout, or success: false). Place searches still bias by appending
+ * the city, then drop places whose city conflicts. This module does not open
+ * its own Qloo HTTP client and does not read the offline mock catalog.
  */
 import { EntitySchema, SearchResultSchema, TagSchema, type Entity, type SearchResult, type Tag } from '@tastedraft/contracts';
-import { createHttpClient } from '../http.ts';
-import { WikidataProvider } from '../wikidata.ts';
 import { QlooClient, type QlooResult } from './client.ts';
 import { createOpenCatalog, type OpenCatalog } from './open-search.ts';
 
 const TAKE = 8;
-
-export interface ImageFallback {
-  lookup(name: string, city?: string): Promise<string | undefined>;
-}
 
 export interface EntitySearchInput {
   client: QlooClient;
   q: string;
   type?: string;
   city?: string;
-  images?: ImageFallback;
-  /** Wikidata + MusicBrainz. Used when the Qloo key is unset and the mock catalog misses. */
+  /** Wikidata + MusicBrainz. Used only after Qloo search fails. */
   openData?: OpenCatalog;
 }
 
@@ -160,6 +150,7 @@ function readNumber(value: unknown, path: string): number | undefined {
 function readImage(row: unknown): string | undefined {
   return (
     readString(row, 'properties.image.url') ??
+    readString(row, 'properties.images.0.url') ??
     readString(row, 'image.url') ??
     readString(row, 'properties.image') ??
     readString(row, 'image')
@@ -191,6 +182,11 @@ function readGeo(row: unknown): Entity['geo'] | undefined {
 }
 
 function readUrn(row: unknown): string {
+  const types = readPath(row, 'types');
+  if (Array.isArray(types)) {
+    const urn = types.find((item) => typeof item === 'string' && item.startsWith('urn:entity:') && item !== 'urn:entity');
+    if (typeof urn === 'string') return urn;
+  }
   const subtype = readString(row, 'subtype');
   const type = readString(row, 'type');
   if (subtype && subtype !== 'urn:entity') return subtype;
@@ -260,31 +256,19 @@ function searchQueries(q: string, type: string | undefined, city: string | undef
   return queries;
 }
 
-async function fillImages(entities: readonly Entity[], images: ImageFallback | undefined): Promise<Entity[]> {
-  if (!images) return [...entities];
-  return Promise.all(
-    entities.map(async (entity) => {
-      if (entity.image) return entity;
-      try {
-        const image = await images.lookup(entity.name, entity.city);
-        if (!image) return entity;
-        const next: Entity = { ...entity, image };
-        const parsed = EntitySchema.safeParse(next);
-        return parsed.success ? parsed.data : entity;
-      } catch {
-        return entity;
-      }
-    }),
-  );
+function qlooSearchOk(result: QlooResult): result is Extract<QlooResult, { ok: true }> {
+  return result.ok && result.mode === 'live' && result.status === 200 && result.body.success !== false;
 }
 
-function mockCovers(entities: readonly Entity[], query: string): boolean {
-  const q = normalizeName(query);
-  if (!q) return false;
-  return entities.some((entity) => {
-    const name = normalizeName(entity.name);
-    return name === q || name.includes(q) || q.includes(name);
-  });
+async function openFallback(input: EntitySearchInput, q: string, type: string | undefined, city: string | undefined): Promise<SearchResult> {
+  try {
+    const catalog = input.openData ?? createOpenCatalog();
+    const opened = await catalog.search(q, type, city);
+    const entities = disambiguateEntities(opened, { query: q, type, city }).slice(0, TAKE);
+    return SearchResultSchema.parse({ query: q, entities, source: 'open-data' });
+  } catch {
+    return SearchResultSchema.parse({ query: q, entities: [], source: 'open-data' });
+  }
 }
 
 export async function searchEntities(input: EntitySearchInput): Promise<SearchResult> {
@@ -292,38 +276,21 @@ export async function searchEntities(input: EntitySearchInput): Promise<SearchRe
   const type = input.type?.trim() || undefined;
   const city = input.city?.trim() || undefined;
   const queries = searchQueries(q, type, city);
-  let mode: QlooResult['mode'] = input.client.mode;
   const merged: Entity[] = [];
+  let live = false;
   for (const query of queries) {
     const result = await input.client.search({
       query,
       ...(type ? { types: canonicalType(type) || type } : {}),
       take: TAKE,
     });
-    mode = result.mode;
-    if (!result.ok || result.body.success === false) continue;
-    merged.push(...entitiesFromQloo(result.body, sourceId(result.mode)));
+    if (!qlooSearchOk(result)) continue;
+    live = true;
+    merged.push(...entitiesFromQloo(result.body, 'qloo'));
   }
-  const ranked = disambiguateEntities(merged, { query: q, type, city }).slice(0, TAKE);
-  if (mode === 'mock' && !mockCovers(ranked, q)) {
-    try {
-      const catalog = input.openData ?? createOpenCatalog();
-      const opened = await catalog.search(q, type, city);
-      const openRanked = disambiguateEntities(opened, { query: q, type, city }).slice(0, TAKE);
-      if (openRanked.length) {
-        const entities = await fillImages(openRanked, input.images);
-        return SearchResultSchema.parse({ query: q, entities, source: 'open-data' });
-      }
-    } catch {
-      // The mock rows, even when they miss the name, stay the last resort.
-    }
-  }
-  const entities = await fillImages(ranked, input.images);
-  return SearchResultSchema.parse({
-    query: q,
-    entities,
-    source: sourceId(mode),
-  });
+  if (!live) return openFallback(input, q, type, city);
+  const entities = disambiguateEntities(merged, { query: q, type, city }).slice(0, TAKE);
+  return SearchResultSchema.parse({ query: q, entities, source: 'qloo' });
 }
 
 export async function searchTags(client: QlooClient, q: string): Promise<TagSearchResult> {
@@ -335,19 +302,4 @@ export async function searchTags(client: QlooClient, q: string): Promise<TagSear
   });
   const tags = result.ok && result.body.success !== false ? tagsFromQloo(result.body).slice(0, TAKE) : [];
   return { query, tags, source: sourceId(result.mode) };
-}
-
-/** Wikidata P18 image, used only when a Qloo entity has no image of its own. */
-export function createWikidataImageFallback(http = createHttpClient()): ImageFallback {
-  const provider = new WikidataProvider({ http });
-  return {
-    async lookup(name, city) {
-      try {
-        const rows = await provider.resolveEntities([name], city ? { city } : undefined);
-        return rows[0]?.image ?? undefined;
-      } catch {
-        return undefined;
-      }
-    },
-  };
 }

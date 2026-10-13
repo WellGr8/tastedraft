@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start --hostname 0.0.0.0 --port 3000",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test lib/format.test.ts",
+    "test": "node --experimental-strip-types --test lib/format.test.ts lib/personas.test.ts",
     "screenshots": "playwright test"
   },
   "dependencies": {

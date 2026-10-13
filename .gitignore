@@ -1,5 +1,18 @@
-# QlooClient disk cache. Live response bodies stay on the server.
+# Secrets. Copy .env.example to .env and keep the real file local.
+.env
+.env.*
+!.env.example
+
+# QlooClient disk cache and local SQLite. Live response bodies stay on the server.
 apps/api/data/qloo-cache/
+apps/api/data/recordings/
+server/data/qloo-cache/
+.qloo-cache/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+
 node_modules/
 apps/web/.next/
 apps/web/public/engine/
@@ -7,7 +20,3 @@ target/
 *.tsbuildinfo
 apps/web/test-results/
 apps/web/playwright-report/
-.qloo-cache/
-
-.env
-**/.env

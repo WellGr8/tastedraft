@@ -26,7 +26,14 @@ import type {
 } from './types.ts';
 
 export async function initEngine(moduleOrPath?: InitInput | Promise<InitInput>): Promise<void> {
-  await init(moduleOrPath);
+  if (moduleOrPath === undefined) {
+    await init();
+    return;
+  }
+  const resolved = await moduleOrPath;
+  // wasm-bindgen warns, and Next's dev badge counts that warning, when the
+  // bytes are passed positionally instead of `{ module_or_path }`.
+  await init({ module_or_path: resolved } as InitInput);
 }
 
 function read<T>(json: string): T {

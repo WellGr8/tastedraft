@@ -13,7 +13,7 @@ import { AppError } from '../../errors.ts';
 import { openRepository } from '../../persistence/sqlite-repository.ts';
 import { jsonResponse, mockFetch } from '../test-support.ts';
 import { QlooClient } from './client.ts';
-import { disambiguateEntities, searchEntities, searchTags, type ImageFallback } from './search.ts';
+import { disambiguateEntities, searchEntities, searchTags } from './search.ts';
 
 function tempCache(): string {
   return mkdtempSync(join(tmpdir(), 'tastedraft-search-'));
@@ -23,12 +23,10 @@ function liveClient(body: unknown, cacheDir: string): QlooClient {
   return new QlooClient({
     apiKey: 'test-key',
     cacheDir,
+    minIntervalMs: 0,
+    retries: 0,
     fetchImpl: mockFetch(async () => jsonResponse(body)),
   });
-}
-
-function images(lookup: ImageFallback['lookup']): ImageFallback {
-  return { lookup };
 }
 
 const muji: Entity[] = [
@@ -72,48 +70,42 @@ describe('search disambiguation', () => {
 });
 
 describe('searchEntities', () => {
-  it('uses mock mode without a key and does not ask Wikidata for an image Qloo already has', async () => {
-    let lookups = 0;
-    const client = new QlooClient({
-      apiKey: '',
-      fetchImpl: () => {
-        throw new Error('network');
-      },
+  it('falls back to open data when no key is set and does not return the mock catalog', async () => {
+    const client = new QlooClient({ apiKey: '', fetchImpl: () => { throw new Error('network'); } });
+    const hit = {
+      id: 'Q1',
+      name: 'NewJeans',
+      type: 'urn:entity:brand',
+      source: 'wikidata',
+      image: 'https://example.invalid/newjeans.png',
+    };
+    const result = await searchEntities({
+      client,
+      q: 'Velvet',
+      type: 'brand',
+      openData: { async search() { return [hit]; } },
     });
-      const result = await searchEntities({
-        client,
-        q: 'Velvet',
-        type: 'brand',
-        images: images(async () => {
-          lookups += 1;
-          return 'https://example.invalid/should-not-be-used.png';
-        }),
-      });
-      assert.equal(result.source, 'mock');
-      assert.equal(result.query, 'Velvet');
-      assert.equal(result.entities.length, 1);
-      assert.equal(result.entities[0]?.name, 'Velvet Circuit');
-      assert.equal(result.entities[0]?.type, 'urn:entity:brand');
-      assert.match(result.entities[0]?.image ?? '', /velvet-circuit/);
-    assert.equal(lookups, 0);
+    assert.equal(result.source, 'open-data');
+    assert.equal(result.entities[0]?.name, 'NewJeans');
+    assert.equal(result.entities.some((entity) => entity.name === 'Velvet Circuit'), false);
     SearchResultSchema.parse(result);
   });
 
-  it('resolves Muji to the brand and fills a missing image from the fallback', async () => {
+  it('keeps a Qloo image and does not call open data on success', async () => {
     const cacheDir = tempCache();
-    let lookups = 0;
+    let calls = 0;
     try {
       const client = liveClient(
         {
           success: true,
           results: {
             entities: [
-              { entity_id: 'person-muji', name: 'Muji', subtype: 'urn:entity:person' },
+              { entity_id: 'person-muji', name: 'Muji', types: ['urn:entity:person'] },
               {
                 entity_id: 'brand-muji',
                 name: 'Muji',
-                subtype: 'urn:entity:brand',
-                properties: { description: 'Japanese retailer' },
+                types: ['urn:entity:brand'],
+                properties: { image: { url: 'https://example.invalid/muji.png' } },
               },
             ],
           },
@@ -124,18 +116,18 @@ describe('searchEntities', () => {
         client,
         q: 'Muji',
         type: 'urn:entity:brand',
-        images: images(async (name) => {
-          lookups += 1;
-          assert.equal(name, 'Muji');
-          return 'https://commons.wikimedia.org/wiki/Special:FilePath/MUJI_logo.svg';
-        }),
+        openData: {
+          async search() {
+            calls += 1;
+            return [];
+          },
+        },
       });
+      assert.equal(calls, 0);
       assert.equal(result.source, 'qloo');
       assert.equal(result.entities.length, 1);
       assert.equal(result.entities[0]?.id, 'brand-muji');
-      assert.equal(result.entities[0]?.type, 'urn:entity:brand');
-      assert.match(result.entities[0]?.image ?? '', /MUJI_logo/);
-      assert.equal(lookups, 1);
+      assert.equal(result.entities[0]?.image, 'https://example.invalid/muji.png');
     } finally {
       rmSync(cacheDir, { recursive: true, force: true });
     }
@@ -166,9 +158,6 @@ describe('searchEntities', () => {
         q: 'Silver',
         type: 'place',
         city: 'Los Angeles',
-        images: images(async () => {
-          throw new Error('wikidata should not run');
-        }),
       });
       assert.equal(result.entities[0]?.city, 'Los Angeles');
       assert.deepEqual(result.entities[0]?.geo, { lat: 34.09, lng: -118.26 });
@@ -178,62 +167,66 @@ describe('searchEntities', () => {
     }
   });
 
-  it('keeps a mock hit and does not call open data', async () => {
-    let calls = 0;
-    const client = new QlooClient({ apiKey: '' });
-    const result = await searchEntities({
-      client,
-      q: 'Muji',
-      openData: {
-        async search() {
-          calls += 1;
-          return [];
-        },
-      },
-    });
-    assert.equal(calls, 0);
-    assert.equal(result.source, 'mock');
-    assert.equal(result.entities[0]?.name, 'Muji');
-  });
-
-  it('falls back to open data when the mock catalog misses, and mock stays last', async () => {
-    const client = new QlooClient({ apiKey: '' });
-    const hit = {
-      id: 'Q123',
-      name: 'NewJeans',
-      type: 'urn:entity:artist',
-      source: 'wikidata',
-      image: 'https://commons.wikimedia.org/wiki/Special:FilePath/NewJeans.jpg',
-    };
-    const found = await searchEntities({
-      client,
-      q: 'NewJeans',
-      openData: { async search() { return [hit]; } },
-    });
-    assert.equal(found.source, 'open-data');
-    assert.equal(found.entities[0]?.name, 'NewJeans');
-    assert.match(found.entities[0]?.image ?? '', /NewJeans/);
-
-    const missed = await searchEntities({
-      client,
-      q: 'NewJeans',
-      openData: { async search() { return []; } },
-    });
-    assert.equal(missed.source, 'mock');
-    assert.deepEqual(missed.entities, []);
-  });
-
-  it('returns an empty SearchResult when Qloo fails', async () => {
+  it('falls back to open data when Qloo fails, and an open-data error stays empty', async () => {
     const cacheDir = tempCache();
     try {
       const client = new QlooClient({
         apiKey: 'test-key',
         cacheDir,
+        minIntervalMs: 0,
+        retries: 0,
         fetchImpl: mockFetch(async () => {
           throw new Error('down');
         }),
       });
-      const result = await searchEntities({ client, q: 'Muji', type: 'brand' });
+      const hit = {
+        id: 'Q123',
+        name: 'NewJeans',
+        type: 'urn:entity:artist',
+        source: 'wikidata',
+        image: 'https://example.invalid/newjeans.png',
+      };
+      const found = await searchEntities({
+        client,
+        q: 'NewJeans',
+        openData: { async search() { return [hit]; } },
+      });
+      assert.equal(found.source, 'open-data');
+      assert.equal(found.entities[0]?.name, 'NewJeans');
+
+      const missed = await searchEntities({
+        client,
+        q: 'NewJeans',
+        openData: {
+          async search() {
+            throw new Error('wikidata down');
+          },
+        },
+      });
+      assert.equal(missed.source, 'open-data');
+      assert.deepEqual(missed.entities, []);
+    } finally {
+      rmSync(cacheDir, { recursive: true, force: true });
+    }
+  });
+
+  it('returns an empty Qloo result when the live search succeeds with no entities', async () => {
+    const cacheDir = tempCache();
+    let calls = 0;
+    try {
+      const client = liveClient({ success: true, results: { entities: [] } }, cacheDir);
+      const result = await searchEntities({
+        client,
+        q: 'Muji',
+        type: 'brand',
+        openData: {
+          async search() {
+            calls += 1;
+            return [{ id: 'Q1', name: 'Muji', type: 'urn:entity:brand', source: 'wikidata' }];
+          },
+        },
+      });
+      assert.equal(calls, 0);
       assert.equal(result.source, 'qloo');
       assert.deepEqual(result.entities, []);
     } finally {
@@ -254,7 +247,8 @@ describe('searchTags', () => {
 });
 
 describe('GET /api/search', () => {
-  it('returns a SearchResult and tags, and rejects a missing query', async () => {
+  it('returns a Qloo SearchResult from a synthetic body and rejects a missing query', async () => {
+    const cacheDir = tempCache();
     const app = new Hono();
     app.onError((err, c) => {
       if (err instanceof AppError) {
@@ -263,48 +257,131 @@ describe('GET /api/search', () => {
       if (err instanceof ZodError) return c.json({ error: { message: err.message } }, 400);
       throw err;
     });
-    app.route(
-      '/',
-      createSearchRoutes({
-        client: new QlooClient({ apiKey: '' }),
-        images: images(async () => {
-          throw new Error('wikidata should not run');
+    try {
+      app.route(
+        '/',
+        createSearchRoutes({
+          client: new QlooClient({
+            apiKey: 'test-key',
+            cacheDir,
+            minIntervalMs: 0,
+            retries: 0,
+            fetchImpl: mockFetch(async (url) => {
+              const query = (url.searchParams.get('query') ?? '').toLowerCase();
+              if (url.pathname === '/v2/tags') {
+                return jsonResponse({
+                  success: true,
+                  results: { tags: [{ id: 'fixture-tag-night', name: 'night-grid electronic', type: 'urn:tag' }] },
+                });
+              }
+              if (query.includes('lantern')) {
+                return jsonResponse({
+                  success: true,
+                  results: {
+                    entities: [{
+                      entity_id: 'fixture-lantern',
+                      name: 'Lantern Row',
+                      types: ['urn:entity:place'],
+                      properties: { image: { url: 'https://example.invalid/lantern.png' } },
+                    }],
+                  },
+                });
+              }
+              if (query.includes('silver')) {
+                return jsonResponse({
+                  success: true,
+                  results: {
+                    entities: [{
+                      entity_id: 'fixture-lake',
+                      name: 'Silver Lake',
+                      types: ['urn:entity:place'],
+                      properties: {
+                        image: { url: 'https://example.invalid/lake.png' },
+                        location: { lat: 34.0869, lon: -118.2702, city: 'Los Angeles' },
+                      },
+                    }],
+                  },
+                });
+              }
+              return jsonResponse({
+                success: true,
+                results: {
+                  entities: [
+                    { entity_id: 'fixture-person', name: 'Muji', types: ['urn:entity:person'] },
+                    {
+                      entity_id: 'fixture-brand',
+                      name: 'Muji',
+                      types: ['urn:entity:brand'],
+                      properties: { image: { url: 'https://example.invalid/muji.png' } },
+                    },
+                  ],
+                },
+              });
+            }),
+          }),
         }),
-      }),
-    );
-    const found = await app.request('/api/search?q=Velvet&type=brand');
+      );
+      const found = await app.request('/api/search?q=Muji&type=brand');
+      assert.equal(found.status, 200);
+      const body = SearchResultSchema.parse(await found.json());
+      assert.equal(body.source, 'qloo');
+      assert.equal(body.entities[0]?.id, 'fixture-brand');
+      assert.equal(body.entities[0]?.image, 'https://example.invalid/muji.png');
+
+      const place = await app.request('/api/search?q=Lantern&type=place&city=Los%20Angeles');
+      assert.equal(place.status, 200);
+      const places = SearchResultSchema.parse(await place.json());
+      assert.equal(places.entities[0]?.name, 'Lantern Row');
+      assert.equal(places.entities[0]?.city, 'Los Angeles');
+
+      const tags = await app.request('/api/tags?q=night');
+      assert.equal(tags.status, 200);
+      const tagBody = (await tags.json()) as { source: string; tags: Array<{ name: string }> };
+      assert.equal(tagBody.source, 'qloo');
+      assert.equal(tagBody.tags[0]?.name, 'night-grid electronic');
+
+      const lake = await app.request('/api/search?q=Silver%20Lake&type=place&city=Los%20Angeles');
+      assert.equal(lake.status, 200);
+      const lakeBody = SearchResultSchema.parse(await lake.json());
+      assert.equal(lakeBody.entities[0]?.name, 'Silver Lake');
+      assert.equal(lakeBody.entities[0]?.city, 'Los Angeles');
+      assert.deepEqual(lakeBody.entities[0]?.geo, { lat: 34.0869, lng: -118.2702 });
+
+      const missing = await app.request('/api/search');
+      assert.equal(missing.status, 400);
+    } finally {
+      rmSync(cacheDir, { recursive: true, force: true });
+    }
+  });
+
+  it('uses open data when the route has no Qloo key', async () => {
+    const app = new Hono();
+    app.onError((err, c) => {
+      if (err instanceof AppError) {
+        return c.json({ error: { code: err.code, message: err.message } }, err.status as ContentfulStatusCode);
+      }
+      throw err;
+    });
+    app.route('/', createSearchRoutes({
+      client: new QlooClient({ apiKey: '' }),
+      openData: {
+        async search() {
+          return [{
+            id: 'Q9',
+            name: 'NewJeans',
+            type: 'urn:entity:artist',
+            source: 'wikidata',
+            image: 'https://example.invalid/newjeans.png',
+          }];
+        },
+      },
+    }));
+    const found = await app.request('/api/search?q=NewJeans');
     assert.equal(found.status, 200);
     const body = SearchResultSchema.parse(await found.json());
-    assert.equal(body.source, 'mock');
-    assert.equal(body.entities[0]?.name, 'Velvet Circuit');
-
-    const place = await app.request('/api/search?q=Lantern&type=place&city=Los%20Angeles');
-    assert.equal(place.status, 200);
-    const places = SearchResultSchema.parse(await place.json());
-    assert.equal(places.entities[0]?.name, 'Lantern Row');
-    assert.equal(places.entities[0]?.city, 'Los Angeles');
-
-    const tags = await app.request('/api/tags?q=night');
-    assert.equal(tags.status, 200);
-    const tagBody = (await tags.json()) as { source: string; tags: Array<{ name: string }> };
-    assert.equal(tagBody.source, 'mock');
-    assert.equal(tagBody.tags[0]?.name, 'night-grid electronic');
-
-    const muji = await app.request('/api/search?q=Muji');
-    assert.equal(muji.status, 200);
-    const mujiBody = SearchResultSchema.parse(await muji.json());
-    assert.equal(mujiBody.entities[0]?.name, 'Muji');
-    assert.equal(mujiBody.entities[0]?.type, 'urn:entity:brand');
-
-    const lake = await app.request('/api/search?q=Silver%20Lake&type=place&city=Los%20Angeles');
-    assert.equal(lake.status, 200);
-    const lakeBody = SearchResultSchema.parse(await lake.json());
-    assert.equal(lakeBody.entities[0]?.name, 'Silver Lake');
-    assert.equal(lakeBody.entities[0]?.city, 'Los Angeles');
-    assert.deepEqual(lakeBody.entities[0]?.geo, { lat: 34.0869, lng: -118.2702 });
-
-    const missing = await app.request('/api/search');
-    assert.equal(missing.status, 400);
+    assert.equal(body.source, 'open-data');
+    assert.equal(body.entities[0]?.name, 'NewJeans');
+    assert.equal(body.entities.some((entity) => entity.id.startsWith('td-mock-')), false);
   });
 
   it('is mounted on the app and rejects a missing query before calling Qloo', async () => {
@@ -317,7 +394,7 @@ describe('GET /api/search', () => {
 
   it('formats a missing query from the mounted route', async () => {
     const api = new Hono();
-    api.route('/', createSearchRoutes({ images: images(async () => undefined) }));
+    api.route('/', createSearchRoutes());
     api.onError((err, c) => {
       if (err instanceof AppError) {
         return c.json({ error: { code: err.code, message: err.message } }, err.status as ContentfulStatusCode);

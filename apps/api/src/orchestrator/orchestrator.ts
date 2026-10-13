@@ -27,6 +27,7 @@ import type {
 import { conflict, notFound } from '../errors.ts';
 import { AppError } from '../errors.ts';
 import { applyChange, assertPlaylist, canonicalBrief, forEvidence, mergeBrief, projectName, type BriefPatch } from './brief.ts';
+import { createSampleEvidenceProvider } from './stubs/sample-evidence-provider.ts';
 import { buildSignals } from './present.ts';
 
 export interface CreateProjectInput {
@@ -88,7 +89,9 @@ export class Orchestrator {
       let scored: ScoredPacket;
       let insights = null;
       if (demo) {
-        packet = await this.provider.getEvidence(brief);
+        // A live Qloo provider must not replace the calibrated sample graph.
+        const evidence = this.provider.id === 'qloo' ? createSampleEvidenceProvider() : this.provider;
+        packet = await evidence.getEvidence(brief);
         scored = scorePacket(packet);
       } else {
         const v2 = brief.briefV2;

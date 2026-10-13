@@ -12,6 +12,7 @@
     "prestart": "node ../../split/build.mjs",
     "start": "node --disable-warning=ExperimentalWarning --import tsx src/index.ts",
     "test": "node --disable-warning=ExperimentalWarning --import tsx --test --test-reporter spec \"src/**/*.test.ts\"",
+    "backtest": "node --disable-warning=ExperimentalWarning --import tsx scripts/backtest.ts",
     "typecheck": "tsc --noEmit",
     "build:web": "node ../../split/build.mjs",
     "postinstall": "node scripts/link-contract-deps.mjs"

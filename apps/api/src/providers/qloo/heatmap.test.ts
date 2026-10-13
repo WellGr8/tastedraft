@@ -13,7 +13,7 @@ import { geohashCenter, loadMapLayers } from './heatmap.ts';
 
 function liveClient(fetchImpl: typeof fetch): { client: QlooClient; cleanup: () => void } {
   const cacheDir = mkdtempSync(join(tmpdir(), 'td-heat-'));
-  const client = new QlooClient({ apiKey: 'test-key', fetchImpl, cacheDir });
+  const client = new QlooClient({ apiKey: 'test-key', fetchImpl, cacheDir, minIntervalMs: 0, retries: 0 });
   return { client, cleanup: () => rmSync(cacheDir, { recursive: true, force: true }) };
 }
 
@@ -84,7 +84,7 @@ describe('loadMapLayers', () => {
     const heat = client.seen.filter((params) => params.filter?.type === 'urn:heatmap');
     assert.equal(heat.length, 4);
     assert.ok(heat.every((params) => (params.filter?.location as { query?: string } | undefined)?.query === 'Los Angeles'));
-    assert.ok(heat.every((params) => (params.output?.heatmap as { boundary?: string } | undefined)?.boundary === 'urn:entity:locality'));
+    assert.ok(heat.every((params) => params.output?.heatmap === undefined));
     assert.ok(heat.some((params) => params.signal?.interests && JSON.stringify(params.signal.interests).includes('td-mock-entity-velvet-circuit')));
     assert.ok(heat.some((params) => params.extra?.['heatmap.dimensions'] === 'price_level'));
     assert.ok(heat.some((params) => !params.extra));
@@ -123,7 +123,7 @@ describe('loadMapLayers', () => {
       assert.ok(Math.abs((payload.fits.v1.cells[1]?.lat ?? 0) - 57.64911) < 0.001);
       const decoded = urls.map((url) => decodeURIComponent(url));
       assert.ok(decoded.every((url) => url.includes('filter.type=urn:heatmap')));
-      assert.ok(decoded.every((url) => url.includes('output.heatmap.boundary=urn:entity:locality')));
+      assert.ok(decoded.every((url) => !url.includes('output.heatmap.boundary')));
       assert.ok(decoded.some((url) => url.includes('signal.interests.tags=night-grid')));
       assert.ok(decoded.some((url) => url.includes('heatmap.dimensions=price_level')));
     } finally {

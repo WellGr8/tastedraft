@@ -1,11 +1,15 @@
 import {
   BriefV2Schema,
   MapLayerSchema,
+  RunSnapshotSchema,
   SearchResultSchema,
+  StepSchema,
   TagSchema,
   type BriefV2,
   type MapLayer,
+  type RunSnapshot,
   type SearchResult,
+  type Step,
   type Tag,
 } from '@tastedraft/contracts';
 import { z } from 'zod';
@@ -62,6 +66,34 @@ export const SimulationResponseSchema = z.object({
     })
     .nullable(),
   evidenceStrength: z.enum(['HIGH', 'MEDIUM', 'LIMITED']).nullable(),
+  signals: z
+    .array(
+      z
+        .object({
+          domain: z.string(),
+          name: z.string(),
+          level: z.string(),
+          feeds: z.string().optional(),
+        })
+        .passthrough(),
+    )
+    .optional()
+    .default([]),
+  fits: z
+    .array(z.object({ text: z.string(), isNew: z.boolean().optional() }).passthrough())
+    .optional()
+    .default([]),
+  frictions: z
+    .array(z.object({ text: z.string(), why: z.string().optional() }).passthrough())
+    .optional()
+    .default([]),
+  districts: z
+    .object({
+      min: z.array(z.string()).optional().default([]),
+      lux: z.array(z.string()).optional().default([]),
+    })
+    .passthrough()
+    .optional(),
   proposals: z.array(ProposalViewSchema),
   story: z
     .object({
@@ -246,6 +278,48 @@ export class TasteDraftClient {
       method: 'PATCH',
       body: JSON.stringify(patch),
     });
+  }
+
+  async createRun(brief: BriefV2, grounding?: 'qloo' | 'llm-only'): Promise<{ id: string }> {
+    return z.object({ id: z.string().min(1) }).parse(
+      await this.request('/api/runs', {
+        method: 'POST',
+        body: JSON.stringify(grounding ? { brief, grounding } : { brief }),
+      }),
+    );
+  }
+
+  async getRun(id: string): Promise<RunSnapshot> {
+    return RunSnapshotSchema.parse(await this.request(`/api/runs/${encodeURIComponent(id)}`));
+  }
+
+  async approveRun(id: string, proposalId: string): Promise<RunSnapshot> {
+    return RunSnapshotSchema.parse(
+      await this.request(`/api/runs/${encodeURIComponent(id)}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({ proposalId }),
+      }),
+    );
+  }
+
+  async dismissRun(id: string, proposalId: string): Promise<RunSnapshot> {
+    return RunSnapshotSchema.parse(
+      await this.request(`/api/runs/${encodeURIComponent(id)}/dismiss`, {
+        method: 'POST',
+        body: JSON.stringify({ proposalId }),
+      }),
+    );
+  }
+
+  async commandRun(id: string, message: string): Promise<{ reply: string; steps: Step[]; run: RunSnapshot }> {
+    return z
+      .object({ reply: z.string(), steps: z.array(StepSchema), run: RunSnapshotSchema })
+      .parse(
+        await this.request(`/api/runs/${encodeURIComponent(id)}/command`, {
+          method: 'POST',
+          body: JSON.stringify({ message }),
+        }),
+      );
   }
 
   async chat(body: ChatRequestBody, signal?: AbortSignal): Promise<Response> {

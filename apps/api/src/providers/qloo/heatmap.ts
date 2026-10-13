@@ -1,10 +1,12 @@
 /**
  * District layers for the brief map.
  *
- * Asks QlooClient for `filter.type=urn:heatmap` with `output.heatmap.boundary`
- * and `signal.interests.*`. When that call has no coordinates, falls back to
- * `urn:entity:place` pins for `filter.location.query`. No API key: the client
- * is already in mock mode, and known cities are drawn on their own districts.
+ * Asks QlooClient for `filter.type=urn:heatmap` with `filter.location.query`
+ * and `signal.interests.*`. A heatmap needs both; a locality boundary
+ * (`output.heatmap.boundary`) returns HTTP 500 on the hackathon host, so it
+ * is not sent. When that call has no coordinates, falls back to
+ * `urn:entity:place` pins. No API key: the client is already in mock mode,
+ * and known cities are drawn on their own districts.
  * This module does not open its own HTTP client.
  */
 import { MapLayerSchema, type HeatmapCell, type MapLayer, type MapPin } from '@tastedraft/contracts';
@@ -299,7 +301,7 @@ function uniqueId(id: string, seen: Set<string>): string {
   return next;
 }
 
-function parseHeatCells(body: unknown): HeatmapCell[] {
+export function parseHeatCells(body: unknown): HeatmapCell[] {
   const seen = new Set<string>();
   const cells: HeatmapCell[] = [];
   rowsOf(body).forEach((row, index) => {
@@ -460,7 +462,6 @@ async function buildLayer(
   const signal = signalFrom(interests);
   const params: QlooInsightsParams = {
     filter: { type: 'urn:heatmap', location: { query: city } },
-    output: { heatmap: { boundary: 'urn:entity:locality' } },
     take: 40,
     ...(signal ? { signal } : {}),
     ...(district === 'friction' ? { extra: { 'heatmap.dimensions': 'price_level' } } : {}),

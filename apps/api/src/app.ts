@@ -12,6 +12,7 @@ import type { ProjectRepository } from './domain/repository.ts';
 import { AppError } from './errors.ts';
 import { createRoutes } from './api/routes.ts';
 import { mountAgent } from './agent/http.ts';
+import { mountRuns } from './runner/http.ts';
 import { createOrchestrator } from './orchestrator/index.ts';
 import { openRepository } from './persistence/sqlite-repository.ts';
 import { createEngineLlm } from './wiring/llm.ts';
@@ -24,6 +25,8 @@ export interface AppOptions {
   /** Score-free interpreter. Defaults to server/src/llm (offline without LLM_API_KEY). */
   llm?: LlmClient;
   databasePath?: string;
+  /** Separate from the project database. Defaults to data/runs.sqlite. */
+  runsPath?: string;
   env?: { EVIDENCE_PROVIDER?: string; QLOO_API_KEY?: string; LLM_API_KEY?: string; LLM_BASE_URL?: string; LLM_MODEL?: string };
 }
 
@@ -58,6 +61,10 @@ export function createApp(options: AppOptions = {}): Hono {
   app.route('/', createRoutes(orchestrator));
   // Team D wiring: agent routes and the results demo. Owned code lives in server/src/agent and split/results*.
   mountAgent(app);
+  mountRuns(app, {
+    env,
+    databasePath: options.runsPath,
+  });
   const splitDir = join(dirname(fileURLToPath(import.meta.url)), '../../../split');
   const asset = (name: string, type: string) => {
     app.get(`/assets/${name}`, (c) => {

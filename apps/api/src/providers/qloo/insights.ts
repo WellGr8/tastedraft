@@ -250,18 +250,43 @@ function readAffinity(row: Record<string, unknown>): number | null {
   return unit;
 }
 
+function contributionWeight(item: Record<string, unknown>): number | null {
+  const raw = typeof item.weight === 'number' ? item.weight : typeof item.score === 'number' ? item.score : null;
+  if (raw === null || !Number.isFinite(raw) || raw < 0 || raw > 1) return null;
+  return raw;
+}
+
 function readContributions(row: Record<string, unknown>, target: string): ExplainabilityContribution[] {
   const query = isRecord(row.query) ? row.query : undefined;
   const raw = query?.explainability ?? row.explainability;
-  if (!Array.isArray(raw)) return [];
   const out: ExplainabilityContribution[] = [];
-  for (const item of raw) {
-    if (!isRecord(item)) continue;
-    const input = typeof item.input === 'string' ? item.input : '';
-    const weight = item.weight;
-    const itemTarget = typeof item.target === 'string' ? item.target : target;
-    if (!input || !itemTarget || typeof weight !== 'number' || weight < 0 || weight > 1) continue;
+  const push = (item: Record<string, unknown>, fallbackInput: string): void => {
+    const input = typeof item.input === 'string' && item.input
+      ? item.input
+      : typeof item.entity_id === 'string' && item.entity_id
+        ? item.entity_id
+        : typeof item.tag_id === 'string' && item.tag_id
+          ? item.tag_id
+          : typeof item.id === 'string' && item.id
+            ? item.id
+            : fallbackInput;
+    const weight = contributionWeight(item);
+    const itemTarget = typeof item.target === 'string' && item.target ? item.target : target;
+    if (!input || !itemTarget || weight === null) return;
     out.push({ input, weight, target: itemTarget });
+  };
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      if (isRecord(item)) push(item, '');
+    }
+    return out;
+  }
+  if (!isRecord(raw)) return out;
+  for (const [key, value] of Object.entries(raw)) {
+    const items = Array.isArray(value) ? value : [value];
+    for (const item of items) {
+      if (isRecord(item)) push(item, key);
+    }
   }
   return out;
 }

@@ -12,9 +12,13 @@
  * The hackathon guide says POST JSON fails, so this client only sends GET.
  *
  * Mock mode (no API key): no network call. Bodies come from `mock-data.ts`,
- * which is authored for TasteDraft and is not a Qloo response. Live 200
- * bodies are stored under `apps/api/data/qloo-cache`, which is gitignored.
- * The API key is a cache-key hash only. It is never written into a file.
+ * a small authored stand-in for insights and heatmap tests. Search does not
+ * use that catalog. Live 200 bodies are stored under `server/data/qloo-cache`,
+ * which is gitignored. The API key is a cache-key hash only. It is never
+ * written into a file, a log line, or an error message.
+ *
+ * Live calls are paced, timed out, and retried on 429, 5xx, and network
+ * errors. A non-2xx response is a failure. Callers keep going.
  */
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -108,6 +112,13 @@ export interface QlooClientOptions {
   cacheDir?: string;
   cacheTtlMs?: number;
   now?: () => number;
+  /** Extra attempts after the first live call. 4xx other than 429 are not retried. */
+  retries?: number;
+  /** Base backoff before the first retry. Later retries double it. */
+  retryDelayMs?: number;
+  /** Minimum gap between live calls on this client. `0` turns pacing off. */
+  minIntervalMs?: number;
+  sleep?: (ms: number) => Promise<void>;
 }
 
 interface CacheFile {
@@ -117,7 +128,15 @@ interface CacheFile {
 }
 
 export function defaultQlooCacheDir(): string {
-  return fileURLToPath(new URL('../../../data/qloo-cache/', import.meta.url));
+  return fileURLToPath(new URL('../../../../../server/data/qloo-cache/', import.meta.url));
+}
+
+const DEFAULT_RETRIES = 2;
+const DEFAULT_RETRY_DELAY_MS = 250;
+const DEFAULT_MIN_INTERVAL_MS = 200;
+
+function nonNegative(value: number | undefined, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : fallback;
 }
 
 function positive(value: number | undefined, fallback: number): number {
@@ -161,6 +180,29 @@ function readKey(options: QlooClientOptions): string {
   return raw.trim();
 }
 
+function sanitizeMessage(message: string): string {
+  return message.replace(/hack_[a-z0-9]+/gi, '[redacted]').slice(0, 240);
+}
+
+function failureMessage(body: QlooEnvelope, status: number): string {
+  const record = body as { error?: unknown; message?: unknown };
+  const error = record.error;
+  if (typeof error === 'string' && error.trim()) return sanitizeMessage(error.trim());
+  if (Array.isArray(error)) {
+    const first = error.find((item) => item && typeof item === 'object' && 'message' in item) as { message?: unknown } | undefined;
+    if (typeof first?.message === 'string' && first.message.trim()) return sanitizeMessage(first.message.trim());
+  }
+  if (typeof record.message === 'string' && record.message.trim()) return sanitizeMessage(record.message.trim());
+  if (body.success === false) return `Qloo returned success: false (HTTP ${status})`;
+  return `Qloo returned HTTP ${status}`;
+}
+
+function retryable(result: QlooResult): boolean {
+  if (result.ok) return false;
+  if (result.timedOut || result.status === undefined) return true;
+  return result.status === 429 || result.status === 500 || result.status === 502 || result.status === 503 || result.status === 504;
+}
+
 export class QlooClient {
   readonly mode: QlooMode;
   readonly baseUrl: string;
@@ -170,6 +212,12 @@ export class QlooClient {
   private readonly cacheDir: string;
   private readonly cacheTtlMs: number;
   private readonly now: () => number;
+  private readonly retries: number;
+  private readonly retryDelayMs: number;
+  private readonly minIntervalMs: number;
+  private readonly sleep: (ms: number) => Promise<void>;
+  private tail: Promise<void> = Promise.resolve();
+  private lastRequestAt = 0;
 
   constructor(options: QlooClientOptions = {}) {
     this.apiKey = readKey(options);
@@ -180,6 +228,10 @@ export class QlooClient {
     this.cacheDir = options.cacheDir ?? defaultQlooCacheDir();
     this.cacheTtlMs = positive(options.cacheTtlMs, DEFAULT_CACHE_TTL_MS);
     this.now = options.now ?? (() => Date.now());
+    this.retries = Math.min(4, Math.floor(nonNegative(options.retries, DEFAULT_RETRIES)));
+    this.retryDelayMs = nonNegative(options.retryDelayMs, DEFAULT_RETRY_DELAY_MS);
+    this.minIntervalMs = nonNegative(options.minIntervalMs, DEFAULT_MIN_INTERVAL_MS);
+    this.sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
   }
 
   search(params: QlooSearchParams, init?: QlooCallOptions): Promise<QlooResult> {
@@ -219,6 +271,43 @@ export class QlooClient {
     }
 
     const timeoutMs = positive(init?.timeoutMs, this.timeoutMs);
+    let last: QlooResult = {
+      ok: false,
+      mode: 'live',
+      url,
+      timedOut: false,
+      message: 'Request failed',
+    };
+    const attempts = this.retries + 1;
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      if (attempt > 0) await this.sleep(this.retryDelayMs * 2 ** (attempt - 1));
+      await this.pace();
+      last = await this.once(url, timeoutMs, useCache);
+      if (last.ok || !retryable(last)) break;
+    }
+    return last;
+  }
+
+  private async pace(): Promise<void> {
+    if (this.minIntervalMs <= 0) return;
+    const previous = this.tail;
+    let release: () => void = () => {};
+    this.tail = new Promise((resolve) => {
+      release = resolve;
+    });
+    await previous;
+    try {
+      if (this.lastRequestAt > 0) {
+        const wait = this.lastRequestAt + this.minIntervalMs - this.now();
+        if (wait > 0) await this.sleep(wait);
+      }
+      this.lastRequestAt = this.now();
+    } finally {
+      release();
+    }
+  }
+
+  private async once(url: string, timeoutMs: number, useCache: boolean): Promise<QlooResult> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -256,7 +345,17 @@ export class QlooClient {
           message: `Response was not a Qloo JSON object (HTTP ${response.status})`,
         };
       }
-      if (response.status === 200 && useCache) {
+      if (response.status < 200 || response.status >= 300 || body.data.success === false) {
+        return {
+          ok: false,
+          status: response.status,
+          mode: 'live',
+          url,
+          timedOut: false,
+          message: failureMessage(body.data, response.status),
+        };
+      }
+      if (useCache) {
         try {
           this.writeCache(url, body.data);
         } catch {
@@ -266,13 +365,13 @@ export class QlooClient {
       return { ok: true, status: response.status, mode: 'live', url, cached: false, body: body.data };
     } catch (error) {
       const timedOut = controller.signal.aborted;
-      const message = error instanceof Error ? error.message : 'Request failed';
+      const raw = error instanceof Error ? error.message : 'Request failed';
       return {
         ok: false,
         mode: 'live',
         url,
         timedOut,
-        message: timedOut ? `Timed out after ${timeoutMs}ms calling ${this.baseUrl}` : message,
+        message: timedOut ? `Timed out after ${timeoutMs}ms calling ${this.baseUrl}` : sanitizeMessage(raw),
       };
     } finally {
       clearTimeout(timer);

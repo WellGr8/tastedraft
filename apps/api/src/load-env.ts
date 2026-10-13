@@ -10,9 +10,13 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 
 const candidates = [
+  join(process.cwd(), '.env.local'),
   join(process.cwd(), '.env'),
+  join(process.cwd(), '..', '..', '.env.local'),
   join(process.cwd(), '..', '..', '.env'),
+  join(here, '..', '.env.local'),
   join(here, '..', '.env'),
+  join(here, '..', '..', '..', '.env.local'),
   join(here, '..', '..', '..', '.env'),
 ];
 

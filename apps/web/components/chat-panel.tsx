@@ -125,7 +125,7 @@ export function ChatPanel({
                       <span className="font-bold text-good">{proposal.to}</span>
                     </p>
                     <p className="mt-1 text-[13px] leading-5 text-slate">{proposal.why}</p>
-                    {proposal.delta != null ? <p className="mt-1 text-[13px] font-semibold text-iris">Engine {deltaText(proposal.delta)}</p> : null}
+                    {proposal.delta != null ? <p className="mt-1 text-[13px] font-semibold text-iris">About {deltaText(proposal.delta)}</p> : null}
                     {proposal.status === 'open' ? (
                       <div className="mt-2 flex flex-wrap gap-2">
                         <Button type="button" size="sm" onClick={() => onApprove(proposal.id)} disabled={busy}>

@@ -1,16 +1,12 @@
 import { Hono } from 'hono';
 import { QlooClient } from '../providers/qloo/client.ts';
-import {
-  createWikidataImageFallback,
-  searchEntities,
-  searchTags,
-  type ImageFallback,
-} from '../providers/qloo/search.ts';
+import { searchEntities, searchTags } from '../providers/qloo/search.ts';
+import type { OpenCatalog } from '../providers/qloo/open-search.ts';
 import { badRequest } from '../errors.ts';
 
 export interface SearchRouteOptions {
   client?: QlooClient;
-  images?: ImageFallback;
+  openData?: OpenCatalog;
 }
 
 function queryParam(value: string | undefined, name: string, max: number): string {
@@ -22,7 +18,6 @@ function queryParam(value: string | undefined, name: string, max: number): strin
 /** GET /api/search and GET /api/tags. Handlers stay thin; ranking lives in search.ts. */
 export function createSearchRoutes(options: SearchRouteOptions = {}): Hono {
   const api = new Hono();
-  const images = options.images ?? createWikidataImageFallback();
 
   api.get('/api/search', async (c) => {
     const q = queryParam(c.req.query('q'), 'q', 200);
@@ -31,7 +26,7 @@ export function createSearchRoutes(options: SearchRouteOptions = {}): Hono {
     const city = queryParam(c.req.query('city'), 'city', 80);
     const result = await searchEntities({
       client: options.client ?? new QlooClient(),
-      images,
+      openData: options.openData,
       q,
       type: type || undefined,
       city: city || undefined,

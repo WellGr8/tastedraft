@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, it } from 'node:test';
 import { InsightSignalSchema, ScoreLedgerSchema, type BriefV2 } from '@tastedraft/contracts';
 import { DEFAULT_IDEA } from '../../engine/index.ts';
@@ -137,20 +140,64 @@ describe('category insights', () => {
   });
 
   it('leaves a live empty body unmeasured', async () => {
+    const cacheDir = mkdtempSync(join(tmpdir(), 'td-insights-'));
     const client = new QlooClient({
       apiKey: 'test-key',
+      cacheDir,
+      minIntervalMs: 0,
+      retries: 0,
       fetchImpl: async () => new Response(JSON.stringify({ success: true, results: { entities: [] } }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       }),
     });
-    const run = await runInsights(client, BANGKOK_SNACK_BRIEF);
-    assert.equal(run.mode, 'live');
-    assert.equal(run.ledger.total, null);
-    assert.equal(run.evidenceStrength, 'LIMITED');
-    assert.deepEqual(run.gaps, ['anchor', 'cross', 'local', 'audience', 'friction']);
-    assert.equal(run.signals.some((signal) => signal.name === 'Yaowarat Grill'), false);
-    assert.equal(run.calls.every((call) => call.ok && new URL(call.url).searchParams.get('feature.explainability') === 'true'), true);
+    try {
+      const run = await runInsights(client, BANGKOK_SNACK_BRIEF);
+      assert.equal(run.mode, 'live');
+      assert.equal(run.ledger.total, null);
+      assert.equal(run.evidenceStrength, 'LIMITED');
+      assert.deepEqual(run.gaps, ['anchor', 'cross', 'local', 'audience', 'friction']);
+      assert.equal(run.signals.some((signal) => signal.name === 'Yaowarat Grill'), false);
+      assert.equal(run.calls.every((call) => call.ok && new URL(call.url).searchParams.get('feature.explainability') === 'true'), true);
+    } finally {
+      rmSync(cacheDir, { recursive: true, force: true });
+    }
+  });
+
+  it('reads the live explainability object', async () => {
+    const cacheDir = mkdtempSync(join(tmpdir(), 'td-explain-'));
+    const client = new QlooClient({
+      apiKey: 'test-key',
+      cacheDir,
+      minIntervalMs: 0,
+      retries: 0,
+      fetchImpl: async () => new Response(JSON.stringify({
+        success: true,
+        results: {
+          entities: [{
+            entity_id: 'td-mock-entity-yaowarat-grill',
+            name: 'Yaowarat Grill',
+            subtype: 'urn:entity:place',
+            query: {
+              affinity: 0.84,
+              explainability: {
+                'signal.interests.entities': [{ entity_id: 'td-mock-entity-maa-kai-yang', score: 0.38 }],
+              },
+            },
+          }],
+        },
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    });
+    try {
+      const run = await runInsights(client, BANGKOK_SNACK_BRIEF);
+      assert.ok(run.explainability.some((row) => (
+        row.input === 'td-mock-entity-maa-kai-yang'
+        && row.weight === 0.38
+        && row.target === 'td-mock-entity-yaowarat-grill'
+      )));
+    } finally {
+      rmSync(cacheDir, { recursive: true, force: true });
+    }
   });
 
   it('omits demographics when the age band is unknown and marks audience LIMITED', async () => {

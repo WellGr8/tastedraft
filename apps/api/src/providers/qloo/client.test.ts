@@ -66,7 +66,7 @@ describe('QlooClient', () => {
       return jsonResponse({ success: true, results: { entities: [] } });
     });
     try {
-      const client = new QlooClient({ apiKey: 'test-key', cacheDir, fetchImpl });
+      const client = new QlooClient({ apiKey: 'test-key', cacheDir, fetchImpl, minIntervalMs: 0, retries: 0 });
       assert.equal(client.mode, 'live');
       const result = await client.insights({
         filter: { type: 'urn:entity:place', location: { query: 'Los Angeles' }, price_level: { min: 2, max: 4 } },
@@ -114,7 +114,7 @@ describe('QlooClient', () => {
       return jsonResponse({ success: true, results: { tags: [] } });
     });
     try {
-      const client = new QlooClient({ apiKey: 'test-key', cacheDir, fetchImpl });
+      const client = new QlooClient({ apiKey: 'test-key', cacheDir, fetchImpl, minIntervalMs: 0, retries: 0 });
       const result = await client.tags({ filter: { query: 'paper' }, feature: { semantic_search: true } });
       assert.equal(result.ok, true);
     } finally {
@@ -136,6 +136,8 @@ describe('QlooClient', () => {
         apiKey: 'test-key',
         cacheDir,
         cacheTtlMs: 1_000,
+        minIntervalMs: 0,
+        retries: 0,
         now: () => now,
         fetchImpl,
       });
@@ -150,11 +152,12 @@ describe('QlooClient', () => {
       assert.equal(JSON.stringify(cached.body).includes('test-key'), false);
       now = 2_000;
       const third = await client.search({ query: 'Velvet Circuit' });
-      assert.equal(third.ok && third.status, 500);
-      assert.equal(third.ok && third.cached, false);
+      assert.equal(third.ok, false);
+      if (!third.ok) assert.equal(third.status, 500);
       assert.equal(calls, 2);
       const fourth = await client.search({ query: 'Velvet Circuit' });
-      assert.equal(fourth.ok && fourth.status, 500);
+      assert.equal(fourth.ok, false);
+      if (!fourth.ok) assert.equal(fourth.status, 500);
       assert.equal(calls, 3);
     } finally {
       rmSync(cacheDir, { recursive: true, force: true });
@@ -168,6 +171,8 @@ describe('QlooClient', () => {
         apiKey: 'test-key',
         cacheDir,
         timeoutMs: 20,
+        minIntervalMs: 0,
+        retries: 0,
         fetchImpl: mockFetch((_url, init) => new Promise((_resolve, reject) => {
           init?.signal?.addEventListener('abort', () => {
             const reason = init.signal?.reason;
@@ -218,6 +223,88 @@ describe('QlooClient', () => {
 
   it('keeps the cache directory gitignored', () => {
     execFileSync('git', ['check-ignore', '-q', 'apps/api/data/qloo-cache/example.json'], { cwd: repoRoot });
+    execFileSync('git', ['check-ignore', '-q', 'server/data/qloo-cache/example.json'], { cwd: repoRoot });
+    execFileSync('git', ['check-ignore', '-q', '.env.local'], { cwd: repoRoot });
     execFileSync('git', ['check-ignore', '-q', '.qloo-cache/example.json'], { cwd: repoRoot });
+  });
+
+  it('retries a 503 and then returns the successful body', async () => {
+    const cacheDir = tempCache();
+    let calls = 0;
+    const waits: number[] = [];
+    try {
+      const client = new QlooClient({
+        apiKey: 'test-key',
+        cacheDir,
+        minIntervalMs: 0,
+        retries: 2,
+        retryDelayMs: 5,
+        sleep: async (ms) => {
+          waits.push(ms);
+        },
+        fetchImpl: mockFetch(async () => {
+          calls += 1;
+          if (calls < 3) return jsonResponse({ success: false }, 503);
+          return jsonResponse({ success: true, results: { entities: [{ name: 'kept' }] } });
+        }),
+      });
+      const result = await client.search({ query: 'kept' });
+      assert.equal(result.ok, true);
+      if (!result.ok) return;
+      assert.equal(calls, 3);
+      assert.deepEqual(waits, [5, 10]);
+      const entities = (result.body.results as { entities: Array<{ name: string }> }).entities;
+      assert.equal(entities[0]?.name, 'kept');
+    } finally {
+      rmSync(cacheDir, { recursive: true, force: true });
+    }
+  });
+
+  it('does not retry a 400', async () => {
+    const cacheDir = tempCache();
+    let calls = 0;
+    try {
+      const client = new QlooClient({
+        apiKey: 'test-key',
+        cacheDir,
+        minIntervalMs: 0,
+        retries: 2,
+        fetchImpl: mockFetch(async () => {
+          calls += 1;
+          return jsonResponse({ success: false, error: [{ message: 'at least one valid signal or filter is required' }] }, 400);
+        }),
+      });
+      const result = await client.search({ query: 'nope' });
+      assert.equal(result.ok, false);
+      if (!result.ok) assert.match(result.message, /valid signal/);
+      assert.equal(calls, 1);
+    } finally {
+      rmSync(cacheDir, { recursive: true, force: true });
+    }
+  });
+
+  it('paces live calls', async () => {
+    const cacheDir = tempCache();
+    const waits: number[] = [];
+    let now = 1_000;
+    try {
+      const client = new QlooClient({
+        apiKey: 'test-key',
+        cacheDir,
+        minIntervalMs: 100,
+        retries: 0,
+        now: () => now,
+        sleep: async (ms) => {
+          waits.push(ms);
+          now += ms;
+        },
+        fetchImpl: mockFetch(async () => jsonResponse({ success: true, results: { entities: [] } })),
+      });
+      await client.search({ query: 'one' });
+      await client.search({ query: 'two' });
+      assert.deepEqual(waits, [100]);
+    } finally {
+      rmSync(cacheDir, { recursive: true, force: true });
+    }
   });
 });
