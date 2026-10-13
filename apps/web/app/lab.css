@@ -495,8 +495,30 @@
   border-radius: 14px;
 }
 
-.lab-cover.has-photo.is-logo {
-  background: #fff;
+.lab-mark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: 100%;
+  height: 100%;
+  line-height: 1;
+}
+
+.lab-mark b {
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.lab-mark small {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.86;
 }
 
 .lab-cover.is-logo img {
@@ -571,6 +593,13 @@
   white-space: nowrap;
 }
 
+.lab-follow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 4px 0 36px;
+}
+
 .lab-go {
   position: sticky;
   bottom: 10px;
@@ -579,8 +608,9 @@
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-  padding: 8px 0 2px;
-  background: linear-gradient(180deg, rgba(243, 239, 232, 0), #f3efe8 28%);
+  margin-top: 8px;
+  padding: 18px 0 2px;
+  background: linear-gradient(180deg, rgba(243, 239, 232, 0), #f3efe8 42%);
 }
 
 .lab-go .byb-ring {

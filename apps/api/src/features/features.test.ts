@@ -9,6 +9,7 @@ import { toEntityUrn, readContributions } from '../providers/qloo/insights.ts';
 import type { QlooInsightsParams, QlooResult, QlooSearchParams } from '../providers/qloo/client.ts';
 import { createFeatureRoutes, type FeatureCaller } from './routes.ts';
 import { assertInsightParams } from './params.ts';
+import { entityQueries, hasLeadingMark } from './query.ts';
 import { FeatureCache } from './cache.ts';
 
 const REF = '11111111-1111-4111-8111-111111111111';
@@ -185,6 +186,16 @@ describe('feature scores', () => {
     assert.equal(array[0]?.weight, 0.4);
     assert.equal(object[0]?.input, 'b');
     assert.equal(object[0]?.weight, 0.6);
+  });
+});
+
+describe('entity query cleanup', () => {
+  it('glues a leading symbol to the name and keeps a plain fallback', () => {
+    assert.deepEqual(entityQueries('% Arabica'), ['%Arabica', '% Arabica', 'Arabica']);
+    assert.deepEqual(entityQueries('%Arabica'), ['%Arabica', 'Arabica']);
+    assert.deepEqual(entityQueries('Blue Bottle'), ['Blue Bottle']);
+    assert.equal(hasLeadingMark('% Arabica'), true);
+    assert.equal(hasLeadingMark('Blue Bottle'), false);
   });
 });
 

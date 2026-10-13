@@ -1,5 +1,6 @@
 import { assumptionsFor, detectLaunch, type LaunchKind } from '@tastedraft/contracts';
 import type { Entity } from '@tastedraft/contracts';
+import { sentimentOf } from './voice.ts';
 import {
   COFFEE_IDEA,
   COFFEE_REFERENCES,
@@ -87,22 +88,29 @@ export function formatElapsed(ms: number): string {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
+function whoFits(personas: readonly { label: string; fit: number }[]): string {
+  return personas.map((persona) => `${persona.label} (${persona.fit})`).join(', ');
+}
+
+/**
+ * The summary uses the same bands as the persona cards.
+ */
 export function snagLine(
   personas: readonly { label: string; fit: number; rejects: boolean; measuring: boolean }[],
   frictions: readonly string[],
 ): string {
   const scored = personas.filter((persona) => !persona.measuring && persona.fit > 0);
-  const passing = scored.filter((persona) => persona.rejects);
   const friction = frictions.find((line) => line.trim());
-  if (passing.length) {
-    const who = passing.map((persona) => `${persona.label} (${persona.fit})`).join(', ');
-    return friction ? `${who} would pass. Where it snags: ${friction}` : `${who} would pass on this evidence.`;
-  }
   if (!scored.length) return 'Still measuring where this snags.';
-  const soft = [...scored].sort((a, b) => a.fit - b.fit)[0]!;
-  return friction
-    ? `Softest response is ${soft.label} at ${soft.fit}. Where it snags: ${friction}`
-    : `Softest response is ${soft.label} at ${soft.fit}.`;
+  const buy = scored.filter((persona) => sentimentOf(persona.fit) === 'buy');
+  const curious = scored.filter((persona) => sentimentOf(persona.fit) === 'curious');
+  const pass = scored.filter((persona) => sentimentOf(persona.fit) === 'pass');
+  const parts: string[] = [];
+  if (buy.length) parts.push(`${whoFits(buy)} would buy`);
+  if (curious.length) parts.push(`${whoFits(curious)} ${curious.length === 1 ? 'is' : 'are'} curious`);
+  if (pass.length) parts.push(`${whoFits(pass)} would pass`);
+  const sentence = `${parts.join('. ')}.`;
+  return friction ? `${sentence} Where it snags: ${friction}` : sentence;
 }
 
 /**

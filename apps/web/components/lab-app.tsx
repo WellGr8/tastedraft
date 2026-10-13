@@ -160,6 +160,7 @@ function Cover({ name, type, image, size = 72 }: { name: string; type: string; i
   const shape = fitOf(type);
   const tone = hue(name);
   const letter = name.trim().slice(0, 1).toUpperCase() || '·';
+  const kind = typeLabel(type);
   useEffect(() => {
     if (!image) {
       setHidden(true);
@@ -187,10 +188,17 @@ function Cover({ name, type, image, size = 72 }: { name: string; type: string; i
       style={{
         width: size,
         height: size,
-        background: photo && shape === 'logo' ? '#fff' : `linear-gradient(145deg, hsl(${tone} 52% 42%), hsl(${(tone + 36) % 360} 42% 18%))`,
+        background: `linear-gradient(145deg, hsl(${tone} 52% 42%), hsl(${(tone + 36) % 360} 42% 18%))`,
       }}
     >
-      {photo ? <img src={image ?? ''} alt="" onError={() => setHidden(true)} /> : letter}
+      {photo ? (
+        <img src={image ?? ''} alt="" referrerPolicy="no-referrer" onError={() => setHidden(true)} />
+      ) : (
+        <span className="lab-mark">
+          <b>{letter}</b>
+          <small>{kind}</small>
+        </span>
+      )}
     </span>
   );
 }
@@ -399,7 +407,7 @@ export function LabApp() {
   }
 
   function rememberLabel(label: string) {
-    if (/budget exhausted/i.test(label)) return;
+    if (/budget exhausted|No Qloo entity for/i.test(label)) return;
     setLabels((current) => (current.includes(label) ? current : [...current, label]));
   }
 
@@ -648,7 +656,8 @@ export function LabApp() {
         },
       );
       if (!alive(token) || settled.current) return;
-      const useful = run.score != null && run.proposals.some((item) => (item.predictedDelta ?? 0) > 0);
+      const anchored = run.personas.some((persona) => persona.anchors.length > 0);
+      const useful = anchored && run.score != null && run.proposals.some((item) => (item.predictedDelta ?? 0) > 0);
       if (run.status === 'awaiting_input' || !useful) {
         await settleRecorded(brief, token);
         return;
@@ -1419,11 +1428,13 @@ export function LabApp() {
                       </article>
                     ))}
                   </div>
-                  <p className="lab-note">{snag}</p>
-                  <p className="lab-fine" data-testid="feature-stub">Target is {draft.age} in {draft.city}.</p>
-                  {features.competitors.length ? (
-                    <p className="lab-fine">Also near {[...new Set(features.competitors.map((row) => row.name))].slice(0, 3).join(', ')}.</p>
-                  ) : null}
+                  <div className="lab-follow">
+                    <p className="lab-note" data-testid="customer-summary">{snag}</p>
+                    <p className="lab-fine" data-testid="feature-stub">Target is {draft.age} in {draft.city}.</p>
+                    {features.competitors.length ? (
+                      <p className="lab-fine">Also near {[...new Set(features.competitors.map((row) => row.name))].slice(0, 3).join(', ')}.</p>
+                    ) : null}
+                  </div>
                   <details className="lab-why">
                     <summary>Why?</summary>
                     {features.mismatch != null ? <p className="lab-fine">Mean demographic mismatch {features.mismatch}.</p> : <p className="lab-fine">{features.demographicLine}</p>}

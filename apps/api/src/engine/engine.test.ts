@@ -67,6 +67,17 @@ describe('deterministic engine', () => {
       if (city === 'Los Angeles') continue;
       assert.notEqual(score({ city }).points.total, base, city);
     }
+    const losAngeles = score({ city: 'Los Angeles' }).points.total;
+    const quiet = { pos: 'Independent', posture: 'Independent', scarcity: 'none', age: '26–35' };
+    const quietLa = score({ ...quiet, city: 'Los Angeles' }).points.total;
+    for (const city of ['Bangkok', 'Seoul', 'New York', 'Lisbon']) {
+      assert.notEqual(score({ city }).points.total, losAngeles, city);
+      assert.notEqual(score({ ...quiet, city }).points.total, quietLa, `${city} independent`);
+    }
+    assert.notEqual(score({ city: 'Bangkok' }).points.total, score({ city: 'Lisbon' }).points.total);
+    assert.notEqual(score({ city: 'Seoul' }).points.total, score({ city: 'Bangkok' }).points.total);
+    assert.equal(score({ city: 'Tokyo' }).points.total, losAngeles);
+    assert.equal(score({ city: 'NYC' }).points.total, score({ city: 'New York' }).points.total);
     for (let i = 1; i < AGES.length; i++) {
       assert.notEqual(score({ age: AGES[i] }).points.total, base, AGES[i]);
     }

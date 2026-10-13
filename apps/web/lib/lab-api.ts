@@ -539,7 +539,7 @@ export async function loadLabFeatures(brief: BriefV2, options: FeatureLoadOption
   const persona = audiencePersona(brief);
   const onEvent = (event: FeatureSseEvent) => {
     if (event.type === 'step' && !/budget exhausted/i.test(event.label)) options.onStep?.(event.label);
-    if (event.type === 'warning' && !/budget exhausted/i.test(event.message)) options.onStep?.(event.message);
+    if (event.type === 'warning' && !/budget exhausted|No Qloo entity for/i.test(event.message)) options.onStep?.(event.message);
   };
   const [demographic, competitors, neighborhood, niche, activation] = await Promise.all([
     references.length

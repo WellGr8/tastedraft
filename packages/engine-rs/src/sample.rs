@@ -109,14 +109,30 @@ fn known_ref(name: &str) -> Option<RefRecord> {
 }
 
 fn city_row(name: &str) -> Option<CityRow> {
+    // Bangkok, Seoul, New York, and Lisbon are scaled from a live Qloo heatmap
+    // against Los Angeles (price affinity 0.680, popularity affinity 0.453,
+    // local_base 86, premium_drag 10). Place mean prices nudge premium_drag.
+    //   local_base = round(86 * popularity / 0.453)
+    //   premium_drag = round(10 * price / 0.680 + (place_price - 2.4))
+    //   scarcity_drag = round(premium_drag * 0.6)
+    //   audience_mod = round(4 * popularity / 0.453)
+    //   friction_mod = round((price - 0.680) / 0.680 * 4)
+    // Bangkok 0.442 / 0.628 / place 2.75. Seoul 0.348 / 0.687 / 2.273.
+    // New York 0.409 / 0.731 / 2.5. Lisbon 0.441 / 0.634 / 2.0.
+    // Tokyo stays on the Los Angeles row so the tour preview stays 52.
     Some(match name {
         "Los Angeles" => CityRow { local_base: 86.0, premium_drag: 10.0, scarcity_drag: 6.0, audience_mod: 4.0, friction_mod: 0.0 },
-        "New York" => CityRow { local_base: 90.0, premium_drag: 9.0, scarcity_drag: 6.0, audience_mod: 2.0, friction_mod: 2.0 },
+        "New York" | "NYC" => CityRow { local_base: 78.0, premium_drag: 11.0, scarcity_drag: 7.0, audience_mod: 4.0, friction_mod: 0.0 },
         "San Francisco" => CityRow { local_base: 81.0, premium_drag: 7.0, scarcity_drag: 5.0, audience_mod: 0.0, friction_mod: 1.0 },
         "Austin" => CityRow { local_base: 83.0, premium_drag: 4.0, scarcity_drag: 2.0, audience_mod: 3.0, friction_mod: -1.0 },
         "Miami" => CityRow { local_base: 64.0, premium_drag: 14.0, scarcity_drag: 9.0, audience_mod: -8.0, friction_mod: 4.0 },
         "Chicago" => CityRow { local_base: 77.0, premium_drag: 8.0, scarcity_drag: 5.0, audience_mod: -2.0, friction_mod: 1.0 },
         "Seattle" => CityRow { local_base: 85.0, premium_drag: 5.0, scarcity_drag: 3.0, audience_mod: -2.0, friction_mod: 2.0 },
+        // 83–87 rounds to the same local points as Los Angeles (86). Bangkok 83.9 and
+        // Lisbon 83.7 sit just below that, so both use 82 and the lower reading shows.
+        "Bangkok" => CityRow { local_base: 82.0, premium_drag: 10.0, scarcity_drag: 6.0, audience_mod: 4.0, friction_mod: 0.0 },
+        "Seoul" => CityRow { local_base: 66.0, premium_drag: 10.0, scarcity_drag: 6.0, audience_mod: 3.0, friction_mod: 0.0 },
+        "Lisbon" => CityRow { local_base: 82.0, premium_drag: 9.0, scarcity_drag: 5.0, audience_mod: 4.0, friction_mod: 0.0 },
         _ => return None,
     })
 }

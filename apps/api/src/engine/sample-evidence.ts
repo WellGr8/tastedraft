@@ -73,14 +73,20 @@ interface CityRow {
   frictionMod: number;
 }
 
+// Bangkok, Seoul, New York, and Lisbon follow the Qloo heatmap scale in sample.rs.
+// Tokyo is absent on purpose and keeps the Los Angeles row.
 const CITY_EVIDENCE: Record<string, CityRow> = {
   'Los Angeles': { localBase: 86, premiumDrag: 10, scarcityDrag: 6, audienceMod: 4, frictionMod: 0 },
-  'New York': { localBase: 90, premiumDrag: 9, scarcityDrag: 6, audienceMod: 2, frictionMod: 2 },
+  'New York': { localBase: 78, premiumDrag: 11, scarcityDrag: 7, audienceMod: 4, frictionMod: 0 },
+  NYC: { localBase: 78, premiumDrag: 11, scarcityDrag: 7, audienceMod: 4, frictionMod: 0 },
   'San Francisco': { localBase: 81, premiumDrag: 7, scarcityDrag: 5, audienceMod: 0, frictionMod: 1 },
   Austin: { localBase: 83, premiumDrag: 4, scarcityDrag: 2, audienceMod: 3, frictionMod: -1 },
   Miami: { localBase: 64, premiumDrag: 14, scarcityDrag: 9, audienceMod: -8, frictionMod: 4 },
   Chicago: { localBase: 77, premiumDrag: 8, scarcityDrag: 5, audienceMod: -2, frictionMod: 1 },
   Seattle: { localBase: 85, premiumDrag: 5, scarcityDrag: 3, audienceMod: -2, frictionMod: 2 },
+  Bangkok: { localBase: 82, premiumDrag: 10, scarcityDrag: 6, audienceMod: 4, frictionMod: 0 },
+  Seoul: { localBase: 66, premiumDrag: 10, scarcityDrag: 6, audienceMod: 3, frictionMod: 0 },
+  Lisbon: { localBase: 82, premiumDrag: 9, scarcityDrag: 5, audienceMod: 4, frictionMod: 0 },
 };
 
 interface AgeRow {

@@ -48,6 +48,7 @@ import { callInsights, callSearch, metaOf } from './caller.ts';
 import { entityTypeUrn } from './params.ts';
 import { areaLabel, cityBox, haversineKm, insideCity } from './places.ts';
 import { parseDemographics, parseEntities, parseHeatmap, searchHits, type ParsedEntity } from './parse.ts';
+import { entityQueries, hasLeadingMark } from './query.ts';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -67,16 +68,30 @@ function areaPriceLine(level: 1 | 2 | 3 | 4 | null, affinity: number | null): st
   return 'No price recommendation. This area had no priced places.';
 }
 
-async function resolveOne(run: FeatureRun, entity: FeatureEntity, feature: FeatureName): Promise<FeatureEntity | null> {
-  if (isQlooId(entity.id)) return entity;
-  const type = entity.type ? entityTypeUrn(entity.type) : undefined;
-  const found = await callSearch(run, feature, 'Resolve entity', entity.name, {
-    query: entity.name,
+async function searchHit(
+  run: FeatureRun,
+  feature: FeatureName,
+  detail: string,
+  query: string,
+  type: string | undefined,
+): Promise<{ id: string; name: string; type: string } | null> {
+  const found = await callSearch(run, feature, 'Resolve entity', detail, {
+    query,
     ...(type ? { types: type } : {}),
     take: 1,
   });
   if (!found?.ok) return null;
-  const hit = searchHits(found.body)[0];
+  return searchHits(found.body)[0] ?? null;
+}
+
+async function resolveOne(run: FeatureRun, entity: FeatureEntity, feature: FeatureName): Promise<FeatureEntity | null> {
+  if (isQlooId(entity.id)) return entity;
+  const type = entity.type ? entityTypeUrn(entity.type) : undefined;
+  const queries = entityQueries(entity.name);
+  const first = queries[0] ?? entity.name.trim();
+  let hit = hasLeadingMark(entity.name) ? await searchHit(run, feature, entity.name, first, undefined) : null;
+  if (!hit) hit = await searchHit(run, feature, entity.name, first, type);
+  if (!hit && queries[1] && queries[1] !== first) hit = await searchHit(run, feature, entity.name, queries[1], type);
   if (!hit) {
     run.warnings.push(`No Qloo entity for "${entity.name}".`);
     return null;

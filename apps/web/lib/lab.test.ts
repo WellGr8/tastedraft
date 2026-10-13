@@ -116,15 +116,19 @@ test('persona voice follows that persona’s anchors and fit', () => {
   );
 });
 
-test('a snag names the passing persona, and a changed mind is a 5-point move', () => {
+test('a snag uses the card verdict, and a changed mind is a 5-point move', () => {
   const line = snagLine(
     [
       { label: 'Tokyo 18–25', fit: 82, rejects: false, measuring: false },
       { label: 'Tokyo 46+', fit: 54, rejects: true, measuring: false },
+      { label: 'Bangkok 46+', fit: 48, rejects: true, measuring: false },
     ],
     ['Premium price'],
   );
-  assert.match(line, /Tokyo 46\+/);
+  assert.match(line, /Tokyo 18–25 \(82\) would buy/);
+  assert.match(line, /Tokyo 46\+ \(54\) is curious/);
+  assert.match(line, /Bangkok 46\+ \(48\) would pass/);
+  assert.doesNotMatch(line, /Tokyo 46\+ \(54\) would pass/);
   assert.match(line, /Premium price/);
   assert.equal(changedMind(82, 54), true);
   assert.equal(changedMind(82, 84), false);

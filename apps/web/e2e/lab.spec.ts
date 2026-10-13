@@ -152,7 +152,7 @@ test('lab walks four steps with live progress and a plain report', async ({ page
 });
 
 test('example launches fill the form and reach customers', async ({ page }) => {
-  test.setTimeout(420_000);
+  test.setTimeout(600_000);
   prepare();
   const errors = watch(page);
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -161,11 +161,11 @@ test('example launches fill the form and reach customers', async ({ page }) => {
   await expect(page.getByTestId('impact-compare')).toContainText(/music focus group/i);
   await shot(page, 'examples-home');
   const examples = [
-    { name: 'Bangkok coffee shop', idea: /coffee shop in Bangkok/, kind: /Cafe/, city: 'Bangkok', file: 'example-bangkok' },
-    { name: 'Seoul indie game', idea: /video game launch in Seoul/, kind: /Video game/, city: 'Seoul', file: 'example-seoul' },
-    { name: 'NYC skincare', idea: /skincare brand/, kind: /TV series/, city: 'New York', file: 'example-nyc' },
-    { name: 'Lisbon eco tour', idea: /eco travel tour in Lisbon/, kind: /Travel/, city: 'Lisbon', file: 'example-lisbon' },
-    { name: 'Tokyo tour + merch', idea: /Tokyo tour \+ merch/, kind: /Music/, city: 'Tokyo', file: 'example-tokyo' },
+    { name: 'Bangkok coffee shop', idea: /coffee shop in Bangkok/, kind: /Cafe/, city: 'Bangkok', file: 'example-bangkok', cost: '$3,600' },
+    { name: 'Seoul indie game', idea: /video game launch in Seoul/, kind: /Video game/, city: 'Seoul', file: 'example-seoul', cost: '$12,000' },
+    { name: 'NYC skincare', idea: /skincare brand/, kind: /TV series/, city: 'New York', file: 'example-nyc', cost: '$8,200' },
+    { name: 'Lisbon eco tour', idea: /eco travel tour in Lisbon/, kind: /Travel/, city: 'Lisbon', file: 'example-lisbon', cost: '$7,600' },
+    { name: 'Tokyo tour + merch', idea: /Tokyo tour \+ merch/, kind: /Music/, city: 'Tokyo', file: 'example-tokyo', cost: '$10,400' },
   ];
   for (const example of examples) {
     await page.getByRole('button', { name: example.name }).click();
@@ -174,14 +174,33 @@ test('example launches fill the form and reach customers', async ({ page }) => {
     await expect(page.getByTestId('launch-kind')).toContainText(example.kind);
     await shot(page, example.file);
   }
-  await page.getByRole('button', { name: 'Bangkok coffee shop' }).click();
-  await expect(page.getByTestId('cost-avoided')).not.toHaveText('$10,400');
-  await page.getByRole('button', { name: 'Test this idea' }).click();
-  await expect(page.getByTestId('persona-card').first()).toBeVisible({ timeout: 40_000 });
-  await expect(page.getByTestId('taste-graph').first()).toBeVisible();
-  const scores = await page.getByTestId('persona-score').allTextContents();
-  expect(new Set(scores.map((score) => score.trim())).size).toBeGreaterThan(1);
-  await shot(page, 'example-bangkok-customers');
+  for (const example of examples) {
+    await page.goto('/');
+    await page.getByRole('button', { name: example.name }).click();
+    await expect(page.getByTestId('cost-avoided')).toHaveText(example.cost);
+    await page.getByRole('button', { name: 'Test this idea' }).click();
+    await expect(page.getByTestId('persona-card').first()).toBeVisible({ timeout: 40_000 });
+    await expect(page.getByTestId('taste-graph').first()).toBeVisible();
+    const scores = await page.getByTestId('persona-score').allTextContents();
+    expect(new Set(scores.map((score) => score.trim())).size).toBeGreaterThan(1);
+    const summary = page.getByTestId('customer-summary');
+    await expect(summary).toBeVisible();
+    const summaryText = await summary.innerText();
+    const pills = await page.locator('[data-testid="persona-card"] .lab-pill').allTextContents();
+    const curious = pills.some((pill) => /curious/i.test(pill));
+    const passing = pills.some((pill) => /would pass/i.test(pill));
+    const buying = pills.some((pill) => /would buy/i.test(pill));
+    if (curious) expect(summaryText).toMatch(/curious/i);
+    if (passing) expect(summaryText).toMatch(/would pass/i);
+    if (!passing) expect(summaryText).not.toMatch(/would pass/i);
+    if (buying) expect(summaryText).toMatch(/would buy/i);
+    await expect(page.locator('.lab-log')).not.toContainText(/No Qloo entity for/i);
+    const stub = await page.getByTestId('feature-stub').boundingBox();
+    const action = await page.getByRole('button', { name: 'Let the Agent fix it' }).boundingBox();
+    expect(stub && action && stub.y + stub.height < action.y - 8).toBe(true);
+    await page.getByTestId('customer-summary').evaluate((node) => node.scrollIntoView({ block: 'center' }));
+    await shot(page, `${example.file}-customers`);
+  }
   expect(errors.join('\n')).not.toMatch(/409|Conflict|same key/);
 });
 
