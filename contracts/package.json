@@ -1,0 +1,16 @@
+{
+  "name": "@tastedraft/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared TasteDraft types for the server and the frontend.",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  }
+}

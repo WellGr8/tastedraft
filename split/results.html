@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TasteDraft · Results</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&amp;display=swap">
+<link rel="stylesheet" href="results.css">
+</head>
+<body>
+<div class="page" id="page" data-phase="loading">
+<header class="bar">
+<div class="brand"><i aria-hidden="true"></i>TasteDraft</div>
+<p class="kicker">Agents, but with taste</p>
+<button type="button" class="demo" id="demo" disabled>Demo mode</button>
+</header>
+<p class="caption" id="caption" aria-live="polite">Loading the default brief.</p>
+
+<div class="story">
+<section class="card" id="score-card" aria-label="Cultural resonance"></section>
+<section class="card" id="agent-card" aria-label="Agent shortlist"></section>
+<section class="card wide" id="diff-card" aria-label="Version 1 and Version 2"></section>
+<section class="card wide" id="time-card" aria-label="Version timeline"></section>
+</div>
+<p class="honesty" id="honesty"></p>
+</div>
+<script src="results.js"></script>
+</body>
+</html>

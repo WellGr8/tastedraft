@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="th"><head>
+<meta charset="utf-8">
+<title>TasteDraft</title>
+<script src="618483ad-56f7-4ba4-a18c-0a3659ddd983"></script>
+<meta name="hz:slide-selector" content="[data-canvas-width]"><meta name="hz:canvas-width" content="1440"><meta name="hz:canvas-height" content="900"></head>
+<body>
+<x-dc>
+<helmet>
+<style>@@FONTS_CSS@@</style>
+<style>@@STYLES_CSS@@</style>
+</helmet>
+<div class="byb-root" data-canvas-width="1440" data-canvas-height="900" data-document-role="page" data-label="Flow · Input → Result">
+<div class="byb-blob-a" style="position:absolute;top:-140px;right:-100px;width:520px;height:520px;border-radius:50%;background:#8FA2FF;filter:blur(100px);opacity:.16"></div>
+<div class="byb-blob-b" style="position:absolute;top:120px;left:-160px;width:460px;height:460px;border-radius:50%;background:#B9A2FF;filter:blur(100px);opacity:.14"></div>
+<div class="byb-blob-b" style="position:absolute;bottom:-200px;right:10%;width:560px;height:560px;border-radius:50%;background:#9CC4FF;filter:blur(110px);opacity:.16"></div>
+
+<header class="byb-header">
+<span class="byb-bl byb-bl1" aria-hidden="true"></span><span class="byb-bl byb-bl2" aria-hidden="true"></span><span class="byb-bl byb-bl3" aria-hidden="true"></span><span class="byb-tint" aria-hidden="true"></span>
+<button type="button" class="byb-logo" sc-camel-on-click="{{goInput}}"><i></i>TasteDraft</button>
+<div style="display:flex;align-items:center;gap:8px">
+<sc-if value="{{isResult}}" hint-placeholder-val="{{ false }}"><button type="button" class="byb-pill byb-qsw" role="switch" aria-checked="{{qOn}}" aria-label="{{evidenceSwitchLabel}}" sc-camel-on-click="{{headToggle}}"><span class="byb-qk {{swCls}}"><i></i></span>{{swLabel}}</button></sc-if>
+<button type="button" class="byb-pill" aria-label="Switch language to English" style="min-height:44px;min-width:60px;padding:0 20px;border-radius:999px;font-family:inherit;font-size:14px;font-weight:500;cursor:pointer">EN</button>
+</div>
+</header>
+
+<div class="byb-main">
+<div class="byb-col">
+
+<!-- ================= PHASE 1 · INPUT ================= -->
+<sc-if value="{{isInput}}" hint-placeholder-val="{{ true }}">
+<div class="byb-hero byb-rise">
+<h1 class="byb-h1"><span>ก่อนคุณสร้าง</span><span class="byb-grad">อะไรสักอย่าง</span></h1>
+<p class="byb-sub"><strong>Agent</strong> จะชน idea ของคุณกับโลกวัฒนธรรมของคนจริง<br>ด้วยหลักฐานทางวัฒนธรรม แล้วบอกว่าควรปรับตรงไหน</p>
+</div>
+<div class="byb-glass byb-modal byb-rise" style="animation-delay:200ms">
+<div class="byb-group">
+<label for="idea" class="byb-label">Idea ที่คุณกำลังสร้าง</label>
+<textarea id="idea" class="byb-field byb-text" rows="3" placeholder="คุณกำลังจะสร้างอะไร และอยากให้ใครรู้สึกยังไงกับมัน?" value="{{idea}}" sc-camel-on-input="{{onIdea}}"></textarea>
+</div>
+<div class="byb-two">
+<fieldset class="byb-group">
+<legend class="byb-label" style="margin-bottom:12px">กลุ่มเป้าหมาย · อายุ</legend>
+<div class="byb-seg">
+<sc-for list="{{ages}}" as="a" hint-placeholder-count="4">
+<label><input type="radio" name="age" checked="{{a.checked}}" sc-camel-on-change="{{a.pick}}"><span>{{a.label}}</span></label>
+</sc-for>
+</div>
+</fieldset>
+<div class="byb-group">
+<label for="city" class="byb-label">Location · เมือง</label>
+<div class="byb-selectwrap">
+<sc-raw-select id="city" class="byb-field byb-select" sc-camel-on-change="{{onCity}}">
+<sc-for list="{{cities}}" as="c" hint-placeholder-count="7"><option value="{{c.name}}" selected="{{c.sel}}">{{c.name}}</option></sc-for>
+</sc-raw-select>
+<svg class="byb-chev" width="18" height="18" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
+</div>
+</div>
+</div>
+<div class="byb-group">
+<label for="interests" class="byb-label">ความสนใจของกลุ่มนี้ <span style="font-weight:400;letter-spacing:0;text-transform:none;color:#4A5273">· ไม่บังคับ</span></label>
+<input id="interests" class="byb-field byb-line" type="text" value="{{interests}}" sc-camel-on-input="{{onInterests}}" placeholder="คนกลุ่มนี้ใช้เวลาว่างไปกับอะไรบ้าง?">
+</div>
+<div class="byb-group">
+<span class="byb-label">Cultural references <span style="font-weight:400;letter-spacing:0;text-transform:none;color:#4A5273">· 3–8 รายการ ไม่บังคับ</span></span>
+<p class="byb-help">แบรนด์ ศิลปิน หนัง หรือสถานที่ที่ idea ของคุณอ้างอิงถึง</p>
+<div class="byb-chips">
+<sc-for list="{{refs}}" as="r" hint-placeholder-count="5">
+<span class="{{r.cls}}">{{r.name}}<button type="button" aria-label="ลบ {{r.name}}" sc-camel-on-click="{{r.remove}}"><svg width="12" height="12" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></span>
+</sc-for>
+</div>
+<div class="byb-addrow">
+<input class="byb-field byb-line" type="text" aria-label="เพิ่ม reference" placeholder="มีแบรนด์ ศิลปิน หรือหนังที่ idea นี้ให้ความรู้สึกเหมือนไหม?" sc-camel-on-input="{{onRefDraft}}">
+<button type="button" class="byb-addbtn" sc-camel-on-click="{{addRef}}">เพิ่ม</button>
+</div>
+</div>
+<fieldset class="byb-group">
+<legend class="byb-label" style="margin-bottom:12px">Positioning <span style="font-weight:400;letter-spacing:0;text-transform:none;color:#4A5273">· ไม่บังคับ</span></legend>
+<div class="byb-seg">
+<sc-for list="{{poss}}" as="p" hint-placeholder-count="4">
+<label><input type="radio" name="pos" checked="{{p.checked}}" sc-camel-on-change="{{p.pick}}"><span>{{p.label}}</span></label>
+</sc-for>
+</div>
+</fieldset>
+<div class="byb-cta" style="padding-top:6px">
+<span class="byb-ring"><button type="button" class="byb-primary" sc-camel-on-click="{{startTest}}"><span>TEST CONCEPT</span><svg class="byb-arrow" width="20" height="20" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg></button></span>
+</div>
+</div>
+<sc-if value="{{hasFixNote}}" hint-placeholder-val="{{ false }}">
+<div class="byb-state is-warn" role="status"><p>{{fixNote}}</p></div>
+</sc-if>
+</sc-if>
+
+<!-- ================= PHASE 2 · ANALYSIS ================= -->
+<sc-if value="{{isAnalyze}}" hint-placeholder-val="{{ false }}">
+<div class="byb-glass byb-an byb-rise" role="status" aria-live="polite" aria-busy="{{analyzeBusy}}">
+<div style="display:flex;flex-direction:column;gap:10px">
+<p class="byb-over">{{anOver}}</p>
+<h2 class="byb-h2">{{anTitle}}</h2>
+</div>
+<ul class="byb-steps">
+<sc-for list="{{steps}}" as="s" hint-placeholder-count="5">
+<li class="{{s.cls}}"><span class="byb-sd"><sc-if value="{{s.done}}" hint-placeholder-val="{{ true }}"><svg width="14" height="14" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></sc-if><sc-if value="{{s.active}}" hint-placeholder-val="{{ false }}"><i></i></sc-if><sc-if value="{{s.fail}}" hint-placeholder-val="{{ false }}"><svg width="12" height="12" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></sc-if></span><span>{{s.text}}</span></li>
+</sc-for>
+</ul>
+<div class="byb-bar" aria-hidden="true"><i style="{{barStyle}}"></i></div>
+<sc-if value="{{hasAnalyzeDetail}}" hint-placeholder-val="{{ false }}"><p class="byb-note">{{analyzeDetail}}</p></sc-if>
+<sc-if value="{{hasAnalyzeError}}" hint-placeholder-val="{{ false }}">
+<div class="byb-state is-error" role="alert">
+<p>{{analyzeError}}</p>
+<sc-if value="{{analyzeHint}}" hint-placeholder-val="{{ false }}"><p class="byb-note">{{analyzeHint}}</p></sc-if>
+<div class="byb-state-acts">
+<button type="button" class="byb-solid" sc-camel-on-click="{{retryAnalysis}}">ลองใหม่</button>
+<sc-if value="{{canFixRef}}" hint-placeholder-val="{{ false }}"><button type="button" class="byb-quiet" sc-camel-on-click="{{fixReference}}">แก้ reference</button></sc-if>
+<sc-if value="{{showBack}}" hint-placeholder-val="{{ false }}"><button type="button" class="byb-quiet" sc-camel-on-click="{{goInput}}">กลับไปแก้</button></sc-if>
+</div>
+</div>
+</sc-if>
+<div class="byb-qtag"><span class="byb-avatar" style="width:24px;height:24px" aria-hidden="true"><svg width="12" height="12" sc-camel-view-box="0 0 24 24" fill="currentColor"><path d="M12 2l2.2 6.8L21 11l-6.8 2.2L12 20l-2.2-6.8L3 11l6.8-2.2z"></path></svg></span>{{evidenceBadge}}</div>
+</div>
+</sc-if>
+
+
+<!-- ================= PHASE 3 · WORKSPACE ================= -->
+<sc-if value="{{isResult}}" hint-placeholder-val="{{ false }}">
+<sc-if value="{{busy}}" hint-placeholder-val="{{ false }}"><div class="ws-busy" role="status" aria-live="polite"><div class="chip">{{busyText}}<span class="byb-dots" aria-hidden="true"><span></span><span></span><span></span></span></div></div></sc-if>
+
+<div class="ws {{wsCls}}">
+<sc-if value="{{showResultError}}" hint-placeholder-val="{{ false }}">
+<div class="byb-state is-error" role="alert">
+<p>{{resultError}}</p>
+<sc-if value="{{analyzeHint}}" hint-placeholder-val="{{ false }}"><p class="byb-note">{{analyzeHint}}</p></sc-if>
+<div class="byb-state-acts">
+<button type="button" class="byb-solid" sc-camel-on-click="{{retryAnalysis}}">ลองใหม่</button>
+<sc-if value="{{canFixRef}}" hint-placeholder-val="{{ false }}"><button type="button" class="byb-quiet" sc-camel-on-click="{{fixReference}}">แก้ reference</button></sc-if>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{isStale}}" hint-placeholder-val="{{ false }}">
+<div class="byb-state is-warn" role="status">
+<p>ผลบนจอนี้เป็นของ brief ก่อนหน้า</p>
+<p class="byb-note">{{staleNote}}</p>
+<sc-if value="{{staleRetry}}" hint-placeholder-val="{{ false }}"><div class="byb-state-acts"><button type="button" class="byb-solid" sc-camel-on-click="{{retryAnalysis}}">ประเมินใหม่</button></div></sc-if>
+</div>
+</sc-if>
+<sc-if value="{{hasUnresolved}}" hint-placeholder-val="{{ false }}">
+<div class="byb-state is-warn" role="status">
+<p>ไม่พบ cultural entity: {{unresolvedLabel}}</p>
+<p class="byb-note">แก้ชื่อ reference แล้วทดสอบใหม่ ผลนี้ยังใช้รายการที่หาไม่เจอไม่ได้</p>
+<div class="byb-state-acts"><button type="button" class="byb-solid" sc-camel-on-click="{{fixReference}}">แก้ reference</button></div>
+</div>
+</sc-if>
+
+<!-- Concept header + taste playlist -->
+<header class="ws-head byb-rise">
+<div class="ws-top">
+<p class="byb-over">Concept · {{verLabel}}</p>
+<div class="ws-ver" role="group" aria-label="เวอร์ชัน">
+<button type="button" class="{{v1Cls}}" sc-camel-on-click="{{setV1}}">V1</button>
+<button type="button" class="{{v2Cls}}" disabled="{{noV2}}" sc-camel-on-click="{{setV2}}">V2</button>
+</div>
+</div>
+<h1 class="ws-title">{{idea}}</h1>
+<div class="ws-meta">
+<button type="button" class="byb-tbtn" sc-camel-on-click="{{openBrief}}">{{age}}</button><span class="sep">·</span>
+<button type="button" class="byb-tbtn" sc-camel-on-click="{{openBrief}}">{{city}}</button><span class="sep">·</span>
+<button type="button" class="byb-tbtn" sc-camel-on-click="{{openBrief}}">{{pos}}</button>
+<button type="button" class="byb-tbtn" sc-camel-on-click="{{openBrief}}" aria-label="แก้ concept"><svg width="16" height="16" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg>แก้ไข</button>
+</div>
+<div class="pl" aria-label="Taste playlist">
+<div class="pl-cards">
+<sc-for list="{{plChips}}" as="c" hint-placeholder-count="5"><figure class="{{c.cls}}"><span class="{{c.shape}}" style="{{c.coverStyle}}"><b>{{c.initial}}</b><sc-if value="{{c.hasImage}}" hint-placeholder-val="{{ false }}"><img alt="" sc-camel-src="{{c.image}}"></sc-if></span><figcaption><span class="n">{{c.name}}</span><span class="t">{{c.type}}</span></figcaption></figure></sc-for>
+</div>
+<button type="button" class="byb-tbtn" sc-camel-on-click="{{openRefs}}"><svg width="16" height="16" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V6l10-2v12"></path><circle cx="6.5" cy="18" r="2.5"></circle><circle cx="16.5" cy="16" r="2.5"></circle></svg>จัดการ taste playlist</button>
+</div>
+<sc-if value="{{isV2}}" hint-placeholder-val="{{ false }}"><sc-if value="{{hasChanges}}" hint-placeholder-val="{{ false }}"><p class="ws-changes"><sc-for list="{{changes}}" as="c" hint-placeholder-count="2"><span class="byb-del">{{c.before}}</span> <span class="byb-ins">{{c.after}}</span><sc-if value="{{c.dot}}" hint-placeholder-val="{{ false }}"> · </sc-if></sc-for></p></sc-if></sc-if>
+</header>
+
+<section class="td-story" id="td-story" aria-label="Provenance, agent, and versions"></section>
+
+<!-- The 10-second story -->
+<nav class="byb-rail" aria-label="เส้นทางของผลลัพธ์">
+<a class="byb-rn" href="#sec-evidence"><i></i>Evidence</a><span class="byb-rl"></span>
+<a class="byb-rn" href="#sec-score"><i></i>Resonance</a><span class="byb-rl"></span>
+<a class="byb-rn" href="#sec-friction"><i></i>Friction</a><span class="byb-rl"></span>
+<a class="byb-rn" href="#sec-agent"><i></i>Agent</a><span class="byb-rl"></span>
+<a class="byb-rn is-v2" href="#sec-agent"><i></i>Version 2</a>
+</nav>
+
+<!-- 1 · Evidence, open by default -->
+<section class="ws-ev" id="sec-evidence" aria-label="Cultural evidence">
+<div class="byb-who"><span class="byb-avatar" aria-hidden="true"><svg width="16" height="16" sc-camel-view-box="0 0 24 24" fill="currentColor"><path d="M12 2l2.2 6.8L21 11l-6.8 2.2L12 20l-2.2-6.8L3 11l6.8-2.2z"></path></svg></span><p class="byb-over">Cultural evidence · {{evidenceBadge}}</p></div>
+<p class="byb-prose" style="font-size:19px"><sc-for list="{{inference}}" as="s" hint-placeholder-count="6"><span class="{{s.cls}}" style="{{s.style}}">{{s.text}}</span></sc-for></p>
+<div>
+<sc-for list="{{signals}}" as="g" hint-placeholder-count="4">
+<button type="button" class="ws-sr" sc-camel-on-click="{{g.open}}" aria-label="ดูหลักฐาน {{g.name}}"><span class="byb-sdom">{{g.domain}}</span><span class="byb-sname">{{g.name}}</span><span class="byb-str"><span class="{{g.pipsCls}}"><i class="{{g.p1}}"></i><i class="{{g.p2}}"></i><i class="{{g.p3}}"></i></span>{{g.level}}</span><svg width="16" height="16" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+</sc-for>
+</div>
+<button type="button" class="byb-tbtn" style="align-self:flex-start;margin-left:-12px" aria-expanded="{{evOpen}}" sc-camel-on-click="{{toggleEv}}">{{mapBtn}}</button>
+<sc-if value="{{evOpen}}" hint-placeholder-val="{{ false }}">
+<div class="byb-mapwrap" style="border-top:0;padding-top:0">
+<div class="byb-mapbox">
+<div class="byb-map" role="img" aria-label="แผนที่ย่อ {{city}} แสดงย่านที่สัญญาณหนาแน่น">
+<sc-for list="{{hexes}}" as="h" hint-placeholder-count="30"><div class="byb-hex" style="{{h.style}}"></div></sc-for>
+<sc-if value="{{hasMin}}" hint-placeholder-val="{{ true }}"><span class="byb-pin" aria-hidden="true" style="{{pinMin}}">{{distMin}}</span></sc-if>
+<sc-if value="{{hasLux}}" hint-placeholder-val="{{ true }}"><span class="byb-pin" aria-hidden="true" style="{{pinLux}}">{{distLux}}</span></sc-if>
+</div>
+<p class="byb-note" style="text-align:center">ยิ่งสีเข้ม สัญญาณยิ่งหนาแน่น</p>
+</div>
+<p class="byb-mcap"><sc-for list="{{mapCap}}" as="s" hint-placeholder-count="6"><span class="{{s.cls}}" style="{{s.style}}">{{s.text}}</span></sc-for></p>
+</div>
+</sc-if>
+</section>
+
+<!-- 2 · Resonance -->
+<section class="ws-score" id="sec-score" aria-label="Cultural resonance">
+<div class="ws-big"><span class="{{scoreCls}}">{{scoreText}}</span><span class="byb-bd">/ 100</span></div>
+<div class="ws-side">
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="{{bandCls}}">{{bandLabel}}</span><sc-if value="{{isV2}}" hint-placeholder-val="{{ false }}"><span class="ws-gain">{{gainLabel}} จาก V1</span></sc-if></div>
+<p class="byb-note"><b style="color:#0A0F2E;font-weight:600">Evidence {{evLabel}}</b> · {{evNote}}</p>
+</div>
+<p class="ws-sent">{{scoreSentence}}</p>
+<sc-if value="{{isLimited}}" hint-placeholder-val="{{ false }}"><p class="byb-limit" style="flex:1 1 100%">Limited cultural evidence · เพิ่ม references ให้ถึง 3 รายการขึ้นไปเพื่อผลที่แม่นขึ้น</p></sc-if>
+<sc-if value="{{isAmbiguous}}" hint-placeholder-val="{{ false }}"><p class="byb-limit" style="flex:1 1 100%">หลักฐานกำกวม · {{ambiguousNote}}<sc-if value="{{canEditEvidence}}" hint-placeholder-val="{{ false }}"> <button type="button" class="byb-tbtn" sc-camel-on-click="{{fixReference}}">แก้ reference</button></sc-if></p></sc-if>
+<p class="byb-note" title="{{derivedTitle}}" style="font-size:12px;opacity:.8;cursor:help;flex:1 1 100%">{{derivedNote}} ⓘ</p>
+</section>
+
+<!-- 3 · Fit / Friction -->
+<section class="ws-fc" id="sec-friction" aria-label="เข้ากันและขัด">
+<div class="ws-col g">
+<h3>What fits · เข้ากัน</h3>
+<ul class="byb-list">
+<sc-for list="{{fits}}" as="f" hint-placeholder-count="3">
+<li class="byb-li"><svg class="byb-ic" style="color:#0C5F38" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="currentColor" fill-opacity="0.14" stroke="none"></circle><path d="M7.5 12.5l3 3 6-6.5"></path></svg><span>{{f.text}}<sc-if value="{{f.isNew}}" hint-placeholder-val="{{ false }}"><span class="ws-new">ใหม่</span></sc-if></span></li>
+</sc-for>
+</ul>
+</div>
+<div class="ws-col r">
+<h3>Cultural friction · ขัด</h3>
+<div class="byb-list">
+<sc-for list="{{frictions}}" as="k" hint-placeholder-count="2">
+<div class="byb-why">
+<button type="button" class="byb-whyb" aria-expanded="{{k.open}}" sc-camel-on-click="{{k.toggle}}">
+<span class="t"><svg class="byb-ic" style="color:#A02B28" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="currentColor" fill-opacity="0.14" stroke="none"></circle><path d="M8.5 8.5l7 7M15.5 8.5l-7 7"></path></svg>{{k.text}}</span>
+<span style="display:inline-flex;align-items:center;gap:10px"><span class="byb-wtag">WHY</span><svg class="{{k.chevCls}}" width="18" height="18" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></span>
+</button>
+<sc-if value="{{k.open}}" hint-placeholder-val="{{ false }}"><p class="byb-wtext">{{k.why}}</p></sc-if>
+</div>
+</sc-for>
+</div>
+</div>
+</section>
+
+<!-- 4 · Agent: the centre of the flow -->
+<section class="ws-agent2" id="sec-agent" aria-label="Agent">
+<div class="byb-aw"><span class="byb-avatar" style="width:34px;height:34px" aria-hidden="true"><svg width="17" height="17" sc-camel-view-box="0 0 24 24" fill="currentColor"><path d="M12 2l2.2 6.8L21 11l-6.8 2.2L12 20l-2.2-6.8L3 11l6.8-2.2z"></path></svg></span>Agent</div>
+<p class="byb-lead">{{agentLead}}</p>
+<sc-if value="{{showProposalPreview}}" hint-placeholder-val="{{ true }}">
+<div class="byb-crit">
+<sc-for list="{{props}}" as="p" hint-placeholder-count="2">
+<div class="ag-row"><span class="byb-cbefore">{{p.before}}</span><svg class="byb-darrow" width="22" height="22" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg><span class="byb-cafter">{{p.after}}</span></div>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{applied}}" hint-placeholder-val="{{ false }}">
+<div class="ag-vs">
+<div class="ag-n"><span class="v">V1</span><span class="n">{{score1}}</span></div>
+<svg class="byb-darrow" width="30" height="30" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>
+<div class="ag-n is-new"><span class="v">V2</span><span class="n">{{scoreV2Shown}}</span></div>
+<span class="ag-gain">{{gainLabel}}</span>
+</div>
+</sc-if>
+<div class="byb-cta" style="align-items:flex-start">
+<sc-if value="{{showAgentBtn}}" hint-placeholder-val="{{ true }}"><span class="byb-ring" data-busy="{{busy}}"><button type="button" class="byb-primary is-light" sc-camel-on-click="{{agentAction}}" aria-busy="{{busy}}"><span>{{agentBtn}}</span><svg class="byb-arrow" width="20" height="20" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg></button></span></sc-if>
+<p class="byb-hint" style="text-align:left">{{agentHint}}</p>
+</div>
+</section>
+
+<!-- Progressive disclosure -->
+<div>
+<div class="ws-fold">
+<button type="button" class="ws-foldb" aria-expanded="{{whyOpen}}" sc-camel-on-click="{{toggleWhy}}"><span>{{whyTitle}}<small>คะแนนคำนวณด้วยโมเดล deterministic น้ำหนักตั้งค่าได้จาก backend</small></span><svg class="{{whyChev}}" width="20" height="20" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+<sc-if value="{{whyOpen}}" hint-placeholder-val="{{ false }}">
+<div class="ws-foldc">
+<sc-if value="{{isLimited}}" hint-placeholder-val="{{ false }}"><p class="byb-note" style="margin-bottom:12px">{{whyLimitNote}}</p></sc-if>
+<div class="byb-led" style="padding-bottom:0">
+<div class="byb-lr is-h"><span></span><span class="n" style="text-align:right">V1</span><span class="n" style="text-align:right">{{v2Head}}</span></div>
+<sc-for list="{{ledger}}" as="l" hint-placeholder-count="5"><div class="byb-lr"><span>{{l.label}}</span><span class="n">{{l.v1}}</span><span class="n">{{l.v2}}</span></div></sc-for>
+<div class="byb-lr is-t"><span>Cultural resonance</span><span class="n">{{score1}}</span><span class="n">{{ledgerV2}}</span></div>
+</div>
+</div>
+</sc-if>
+</div>
+
+<div class="ws-fold" id="sec-evidence-compare">
+<button type="button" class="ws-foldb" aria-expanded="{{qFold}}" sc-camel-on-click="{{toggleQ}}"><span>{{foldTitle}}<small>Same input, different evidence · demo</small></span><svg class="{{qChev}}" width="20" height="20" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+<sc-if value="{{qFold}}" hint-placeholder-val="{{ false }}">
+<div class="ws-foldc">
+<div class="byb-tog" role="group" aria-label="{{evidenceSwitchLabel}}">
+<button type="button" class="{{offCls}}" sc-camel-on-click="{{setOff}}">{{offLabel}}</button>
+<button type="button" class="{{onCls}}" sc-camel-on-click="{{setOn}}">{{onLabel}}</button>
+</div>
+<sc-if value="{{qOff}}" hint-placeholder-val="{{ false }}">
+<div class="byb-qp is-off">
+<p class="byb-over">Generic LLM reasoning</p>
+<p class="byb-wi">{{genericQuote}}</p>
+<p class="byb-note">ไม่มีแหล่งอ้างอิง ไม่มีย่าน ไม่มีคะแนนที่ตรวจสอบได้</p>
+</div>
+</sc-if>
+<sc-if value="{{qOn}}" hint-placeholder-val="{{ true }}">
+<div class="byb-qp is-on">
+<p class="byb-over">{{evidencePanel}}</p>
+<p class="byb-wi">{{groundedQuote}}</p>
+</div>
+</sc-if>
+<div>
+<sc-for list="{{qdiff}}" as="d" hint-placeholder-count="4">
+<div class="byb-diffr"><span class="k">{{d.k}}</span><span class="o">{{d.off}}</span><svg class="a" width="18" height="18" sc-camel-view-box="0 0 24 24" fill="none" stroke="#4A5273" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg><span class="w">{{d.on}}</span></div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+</div>
+</div>
+
+<div class="ws-foot"><button type="button" class="byb-ghost" sc-camel-on-click="{{goInput}}">New idea</button></div>
+</div>
+
+<!-- Now Playing: the current concept stays visible while scrolling -->
+<div class="np" role="region" aria-label="Concept ปัจจุบัน">
+<i class="np-cv" style="{{npCover}}">{{npInitial}}</i>
+<div class="np-tx"><span class="np-t">{{idea}}</span><span class="np-m">{{verLabel}} · {{age}} · {{city}}</span></div>
+<div class="np-sc"><span class="np-n">{{scoreText}}</span><span class="{{bandCls}}">{{bandLabel}}</span></div>
+<div class="ws-ver np-ver" role="group" aria-label="เวอร์ชัน"><button type="button" class="{{v1Cls}}" sc-camel-on-click="{{setV1}}">V1</button><button type="button" class="{{v2Cls}}" disabled="{{noV2}}" sc-camel-on-click="{{setV2}}">V2</button></div>
+<button type="button" class="np-go" sc-camel-on-click="{{goAgent}}" aria-label="ไปที่ Agent"><svg width="16" height="16" sc-camel-view-box="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.2 6.8L21 11l-6.8 2.2L12 20l-2.2-6.8L3 11l6.8-2.2z"></path></svg><span>Agent</span></button>
+</div>
+
+<!-- Modal (single shell, one focused task at a time) -->
+<sc-if value="{{modal}}" hint-placeholder-val="{{ false }}">
+<div class="mdl-back" sc-camel-on-click="{{backdrop}}">
+<div class="mdl" role="dialog" aria-modal="true" aria-labelledby="mdl-t" id="mdl">
+<div class="mdl-h">
+<div><h2 id="mdl-t">{{mTitle}}</h2><p>{{mDesc}}</p></div>
+<button type="button" class="mdl-x" aria-label="ปิด" sc-camel-on-click="{{requestClose}}"><svg width="20" height="20" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+</div>
+
+<div class="mdl-b">
+<sc-if value="{{mBrief}}" hint-placeholder-val="{{ false }}">
+<div class="byb-group"><label for="m-idea" class="byb-label">Idea</label><textarea id="m-idea" class="byb-field byb-text" rows="3" value="{{dIdea}}" sc-camel-on-input="{{onDIdea}}"></textarea></div>
+<fieldset class="byb-group"><legend class="byb-label" style="margin-bottom:12px">อายุ</legend>
+<div class="byb-seg"><sc-for list="{{dAges}}" as="a" hint-placeholder-count="4"><label><input type="radio" name="m-age" checked="{{a.checked}}" sc-camel-on-change="{{a.pick}}"><span>{{a.label}}</span></label></sc-for></div></fieldset>
+<div class="byb-group"><label for="m-city" class="byb-label">เมือง</label>
+<div class="byb-selectwrap"><sc-raw-select id="m-city" class="byb-field byb-select" sc-camel-on-change="{{onDCity}}"><sc-for list="{{dCities}}" as="c" hint-placeholder-count="7"><option value="{{c.name}}" selected="{{c.sel}}">{{c.name}}</option></sc-for></sc-raw-select><svg class="byb-chev" width="18" height="18" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></div></div>
+<fieldset class="byb-group"><legend class="byb-label" style="margin-bottom:12px">Positioning</legend>
+<div class="byb-seg"><sc-for list="{{dPoss}}" as="p" hint-placeholder-count="4"><label><input type="radio" name="m-pos" checked="{{p.checked}}" sc-camel-on-change="{{p.pick}}"><span>{{p.label}}</span></label></sc-for></div></fieldset>
+</sc-if>
+
+<sc-if value="{{mRefs}}" hint-placeholder-val="{{ false }}">
+<div class="pl-list"><sc-for list="{{dRefs}}" as="r" hint-placeholder-count="5"><div class="pl-row {{r.rowCls}}"><span class="{{r.shape}} pl-cv" style="{{r.coverStyle}}"><b>{{r.initial}}</b><sc-if value="{{r.hasImage}}" hint-placeholder-val="{{ false }}"><img alt="" sc-camel-src="{{r.image}}"></sc-if></span><span class="pl-nm">{{r.name}}<small>{{r.type}}</small></span><button type="button" class="byb-qk {{r.swCls}}" role="switch" aria-checked="{{r.on}}" aria-label="ใช้ {{r.name}} เป็นหลักฐาน" sc-camel-on-click="{{r.toggle}}"><i></i></button><button type="button" class="pl-rm" aria-label="ลบ {{r.name}}" sc-camel-on-click="{{r.remove}}"><svg width="14" height="14" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div></sc-for></div>
+<div class="byb-addrow"><input class="byb-field byb-line" type="text" aria-label="เพิ่ม reference" placeholder="แบรนด์ ศิลปิน หนัง หรือสถานที่" value="{{dRefDraft}}" sc-camel-on-input="{{onDRefDraft}}"><button type="button" class="byb-addbtn" sc-camel-on-click="{{addDRef}}">เพิ่ม</button></div>
+<p class="byb-note">{{dRefHint}}</p>
+</sc-if>
+
+<sc-if value="{{mProposal}}" hint-placeholder-val="{{ false }}">
+<div><sc-for list="{{props}}" as="p" hint-placeholder-count="2">
+<div class="prop"><div class="ba"><span class="bf">{{p.before}}</span><svg width="18" height="18" sc-camel-view-box="0 0 24 24" fill="none" stroke="#4A5273" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg><span class="af">{{p.after}}</span></div><p>{{p.why}}</p><p class="ev"><b>หลักฐาน</b> · {{p.evidence}}</p></div>
+</sc-for></div>
+<p class="byb-note">เมื่อ Apply แล้ว Agent จะแก้ concept และรันการประเมินเดิมซ้ำ เพื่อสร้าง Version 2 ส่วน V1 ยังอยู่ให้เทียบ</p>
+</sc-if>
+
+<sc-if value="{{mCompare}}" hint-placeholder-val="{{ false }}">
+<div class="byb-cmp">
+<div class="byb-cmr is-h"><span></span><span style="text-align:right">V1</span><span></span><span style="text-align:right">V2</span><span style="text-align:right">Δ</span></div>
+<sc-for list="{{cmp}}" as="r" hint-placeholder-count="4"><div class="byb-cmr"><span>{{r.label}}</span><span class="n">{{r.v1}}</span><svg width="16" height="16" sc-camel-view-box="0 0 24 24" fill="none" stroke="#4A5273" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg><span class="n">{{r.v2}}</span><span class="d">{{r.delta}}</span></div></sc-for>
+</div>
+<div><p class="byb-over" style="margin-bottom:10px">Why did it change?</p><sc-for list="{{whyChanged}}" as="w" hint-placeholder-count="2"><p class="byb-wi" style="margin-bottom:10px">{{w.text}}</p></sc-for></div>
+</sc-if>
+
+<sc-if value="{{mEvidence}}" hint-placeholder-val="{{ false }}">
+<div class="prop" style="border-top:0;padding-top:0"><div class="ba"><span class="byb-sdom">{{ev.domain}}</span><span style="font-weight:600">{{ev.name}}</span><span class="byb-str">{{ev.level}}</span></div>
+<p>{{ev.meaning}}</p>
+<p class="ev"><b>ใช้คำนวณ</b> · {{ev.feeds}}</p>
+<p class="ev"><b>มาจาก references</b> · {{ev.refs}}</p></div>
+<p class="byb-note">{{evidenceModalNote}}</p>
+</sc-if>
+</div>
+
+<sc-if value="{{confirmDiscard}}" hint-placeholder-val="{{ false }}"><div class="mdl-warn" role="alert"><span>ยังไม่ได้บันทึกการแก้ไข ต้องการทิ้งไหม</span><span><button type="button" class="byb-quiet" sc-camel-on-click="{{keepEditing}}">กลับไปแก้</button><button type="button" class="byb-quiet" sc-camel-on-click="{{discard}}">ทิ้ง</button></span></div></sc-if>
+
+<div class="mdl-f">
+<sc-if value="{{mHasQuiet}}" hint-placeholder-val="{{ true }}"><button type="button" class="byb-quiet" sc-camel-on-click="{{mQuietAction}}">{{mQuiet}}</button></sc-if>
+<button type="button" class="byb-solid" sc-camel-on-click="{{mPrimary}}" disabled="{{mDisabled}}">{{mPrimaryLabel}}</button>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{toast}}" hint-placeholder-val="{{ false }}"><div class="ws-toast" role="status" aria-live="polite"><svg width="18" height="18" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>{{toast}}</div></sc-if>
+
+</sc-if>
+
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script="" data-props="{&quot;refImages&quot;:{&quot;editor&quot;:null,&quot;default&quot;:{&quot;Comme des Garçons&quot;:&quot;https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Comme_des_Garcons_logo.svg/500px-Comme_des_Garcons_logo.svg.png&quot;,&quot;Muji&quot;:&quot;https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/MUJI_logo.svg/500px-MUJI_logo.svg.png&quot;,&quot;Aphex Twin&quot;:&quot;https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Aphex_Twin%2C_2008.jpg/500px-Aphex_Twin%2C_2008.jpg&quot;,&quot;Lost in Translation&quot;:&quot;https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/New_York_Bar_Unplugged%2C_Park_Hyatt_Tokyo_%288376387540%29.jpg/500px-New_York_Bar_Unplugged%2C_Park_Hyatt_Tokyo_%288376387540%29.jpg&quot;,&quot;Silver Lake&quot;:&quot;https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Know_Your_City_No.101_Silver_Lake_Reservoir.jpg/500px-Know_Your_City_No.101_Silver_Lake_Reservoir.jpg&quot;}},&quot;apiBase&quot;:{&quot;editor&quot;:&quot;string&quot;,&quot;default&quot;:&quot;&quot;,&quot;section&quot;:&quot;API&quot;},&quot;phase&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;input&quot;,&quot;analyzing&quot;,&quot;result&quot;],&quot;default&quot;:&quot;input&quot;,&quot;section&quot;:&quot;Flow&quot;},&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900}}">@@SCRIPT_JS@@</script>
+
+
+</body></html>

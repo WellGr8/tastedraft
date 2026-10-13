@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "results": {
+    "tags": [
+      {
+        "id": "urn:tag:genre:music:electronic",
+        "name": "Electronic",
+        "type": "urn:tag:genre:music"
+      }
+    ]
+  }
+}

@@ -1,0 +1,253 @@
+{
+  "captions": [
+    "Default brief. Japanese minimalist streetwear, ages 18–25, Los Angeles, Premium. Version 1 scores 71.",
+    "The ledger is anchor 24, cross 20, local 15, audience 17, friction −5. Each row names the Qloo input that contributed.",
+    "The agent writes counterfactuals as Qloo parameter diffs. The fixed accessible-premium and pre-order pair is not offered.",
+    "Six diffs are scored again by the deterministic engine. The model only writes the reason.",
+    "Ranked by that measured lift. The shortlist is price +9, positioning +5, and age +3.",
+    "Approving filter.price_level.max 3 → 2 re-scores to 80. Version 1 stays 71 beside it."
+  ],
+  "considered": 6,
+  "frictionCount": 6,
+  "honesty": "Sample graph, rendered in the Qloo explainability shape. A live key replaces the weights. The engine, not the model, sets every point and every predicted lift.",
+  "v1": {
+    "total": 71,
+    "rows": [
+      {
+        "id": "anchor",
+        "label": "Anchor affinity",
+        "points": 24,
+        "provenance": "from Qloo explainability: input Comme des Garçons contributed 0.94"
+      },
+      {
+        "id": "cross",
+        "label": "Cross-domain fit",
+        "points": 20,
+        "provenance": "from Qloo explainability: input Aphex Twin contributed 0.86"
+      },
+      {
+        "id": "local",
+        "label": "Local fit",
+        "points": 15,
+        "provenance": "from Qloo explainability: input Silver Lake contributed 0.82"
+      },
+      {
+        "id": "audience",
+        "label": "Audience fit",
+        "points": 17,
+        "provenance": "from Qloo explainability: input 24_and_younger contributed 0.88"
+      },
+      {
+        "id": "friction",
+        "label": "Cultural friction",
+        "points": -5,
+        "provenance": "from Qloo explainability: input premium contributed 0.12"
+      }
+    ],
+    "fields": [
+      {
+        "label": "Price level",
+        "value": "3"
+      },
+      {
+        "label": "Age",
+        "value": "18–25"
+      },
+      {
+        "label": "Gender",
+        "value": "Not set"
+      },
+      {
+        "label": "Location",
+        "value": "Silver Lake, Los Angeles"
+      },
+      {
+        "label": "Channel",
+        "value": "limited runs"
+      },
+      {
+        "label": "Positioning",
+        "value": "Premium"
+      },
+      {
+        "label": "References",
+        "value": "Comme des Garçons, Muji, Aphex Twin, Lost in Translation, Silver Lake"
+      }
+    ]
+  },
+  "v2": {
+    "total": 80,
+    "delta": 9,
+    "rows": [
+      {
+        "id": "anchor",
+        "label": "Anchor affinity",
+        "points": 24,
+        "provenance": "from Qloo explainability: input Comme des Garçons contributed 0.94"
+      },
+      {
+        "id": "cross",
+        "label": "Cross-domain fit",
+        "points": 20,
+        "provenance": "from Qloo explainability: input Aphex Twin contributed 0.86"
+      },
+      {
+        "id": "local",
+        "label": "Local fit",
+        "points": 17,
+        "provenance": "from Qloo explainability: input Silver Lake contributed 0.82"
+      },
+      {
+        "id": "audience",
+        "label": "Audience fit",
+        "points": 22,
+        "provenance": "from Qloo explainability: input 24_and_younger contributed 0.88"
+      },
+      {
+        "id": "friction",
+        "label": "Cultural friction",
+        "points": -3,
+        "provenance": "from Qloo explainability: input premium contributed 0.08"
+      }
+    ],
+    "fields": [
+      {
+        "label": "Price level",
+        "value": "2"
+      },
+      {
+        "label": "Age",
+        "value": "18–25"
+      },
+      {
+        "label": "Gender",
+        "value": "Not set"
+      },
+      {
+        "label": "Location",
+        "value": "Silver Lake, Los Angeles"
+      },
+      {
+        "label": "Channel",
+        "value": "limited runs"
+      },
+      {
+        "label": "Positioning",
+        "value": "Premium"
+      },
+      {
+        "label": "References",
+        "value": "Comme des Garçons, Muji, Aphex Twin, Lost in Translation, Silver Lake"
+      }
+    ]
+  },
+  "diff": [
+    {
+      "label": "Price level",
+      "before": "3",
+      "after": "2",
+      "changed": true
+    },
+    {
+      "label": "Age",
+      "before": "18–25",
+      "after": "18–25",
+      "changed": false
+    },
+    {
+      "label": "Gender",
+      "before": "Not set",
+      "after": "Not set",
+      "changed": false
+    },
+    {
+      "label": "Location",
+      "before": "Silver Lake, Los Angeles",
+      "after": "Silver Lake, Los Angeles",
+      "changed": false
+    },
+    {
+      "label": "Channel",
+      "before": "limited runs",
+      "after": "limited runs",
+      "changed": false
+    },
+    {
+      "label": "Positioning",
+      "before": "Premium",
+      "after": "Premium",
+      "changed": false
+    },
+    {
+      "label": "References",
+      "before": "Comme des Garçons, Muji, Aphex Twin, Lost in Translation, Silver Lake",
+      "after": "Comme des Garçons, Muji, Aphex Twin, Lost in Translation, Silver Lake",
+      "changed": false
+    }
+  ],
+  "shortlist": [
+    {
+      "id": "price-level",
+      "param": "filter.price_level.max",
+      "from": "3",
+      "to": "2",
+      "why": "The price evidence conflicts with this audience, so the Qloo price filter should move to the level that evidence can support.",
+      "evidenceRefs": [
+        "friction.price",
+        "audience.age"
+      ],
+      "predictedDelta": 9
+    },
+    {
+      "id": "positioning",
+      "param": "signal.interests.tags",
+      "from": "premium",
+      "to": "independent",
+      "why": "Premium positioning fights the indie place in the evidence. The interest tag should move toward independent.",
+      "evidenceRefs": [
+        "friction.positioning",
+        "ref.silver-lake"
+      ],
+      "predictedDelta": 5
+    },
+    {
+      "id": "audience-age",
+      "param": "signal.demographics.age",
+      "from": "24_and_younger",
+      "to": "30_to_34",
+      "why": "The current age band is a tighter fit against this price than the next band. The demographic signal should follow that evidence.",
+      "evidenceRefs": [
+        "audience.age"
+      ],
+      "predictedDelta": 3
+    }
+  ],
+  "approved": {
+    "id": "price-level",
+    "param": "filter.price_level.max",
+    "from": "3",
+    "to": "2",
+    "why": "The price evidence conflicts with this audience, so the Qloo price filter should move to the level that evidence can support.",
+    "evidenceRefs": [
+      "friction.price",
+      "audience.age"
+    ],
+    "predictedDelta": 9
+  },
+  "timeline": [
+    {
+      "id": "v1",
+      "label": "Version 1",
+      "title": "Default brief",
+      "score": 71,
+      "note": "Premium · 18–25 · Los Angeles"
+    },
+    {
+      "id": "v2",
+      "label": "Version 2",
+      "title": "filter.price_level.max 3 → 2",
+      "score": 80,
+      "note": "The price evidence conflicts with this audience, so the Qloo price filter should move to the level that evidence can support."
+    }
+  ]
+}

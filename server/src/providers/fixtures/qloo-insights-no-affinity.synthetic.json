@@ -1,0 +1,18 @@
+{
+  "success": true,
+  "results": {
+    "entities": [
+      {
+        "name": "Aphex Twin",
+        "entity_id": "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE",
+        "type": "urn:entity",
+        "subtype": "urn:entity:artist",
+        "properties": {
+          "description": "Synthetic fixture with popularity and no query.affinity.",
+          "popularity": 0.99
+        }
+      }
+    ],
+    "duration": 1
+  }
+}

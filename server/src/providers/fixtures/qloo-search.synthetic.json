@@ -1,0 +1,20 @@
+{
+  "success": true,
+  "results": [
+    {
+      "name": "Aphex Twin",
+      "entity_id": "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE",
+      "type": "urn:entity",
+      "subtype": "urn:entity:artist",
+      "properties": {
+        "description": "Synthetic fixture. Not a live Qloo response.",
+        "image": { "url": "https://example.invalid/aphex.jpg" }
+      }
+    },
+    {
+      "name": "Aphex Twin SoundCloud demos",
+      "entity_id": "BBBBBBBB-BBBB-CCCC-DDDD-EEEEEEEEEEEE",
+      "subtype": "urn:entity:artist"
+    }
+  ]
+}

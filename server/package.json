@@ -1,0 +1,30 @@
+{
+  "name": "tastedraft-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TasteDraft API: deterministic resonance engine, open-data and Qloo evidence, and a score-free brief interpreter.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "dev": "node --disable-warning=ExperimentalWarning --import tsx --watch src/index.ts",
+    "prestart": "node ../split/build.mjs",
+    "start": "node --disable-warning=ExperimentalWarning --import tsx src/index.ts",
+    "test": "node --disable-warning=ExperimentalWarning --import tsx --test --test-reporter spec \"src/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
+    "build:web": "node ../split/build.mjs",
+    "postinstall": "node scripts/link-contract-deps.mjs"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.6",
+    "@tastedraft/contracts": "file:../contracts",
+    "hono": "^4.10.3",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

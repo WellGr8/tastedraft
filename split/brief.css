@@ -1,0 +1,201 @@
+/* Input-screen cards, autocomplete, and spellcheck. Matches the glass form. */
+.byb-chips.td-cards,
+#td-location-cards.td-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+.byb-chip.td-card,
+.td-loc-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: auto;
+  min-width: 0;
+  min-height: 68px;
+  margin: 0;
+  padding: 8px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 2px 8px rgba(30, 34, 70, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  font-weight: 600;
+  color: #0A0F2E;
+}
+.byb-chip.td-card button,
+.td-loc-card > button {
+  margin-left: auto;
+  flex: none;
+}
+.td-thumb {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px rgba(30, 34, 70, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.td-card.is-circle .td-thumb { border-radius: 50%; }
+.td-thumb b {
+  font-size: 16px;
+  font-weight: 650;
+  color: #2F3656;
+  line-height: 1;
+}
+.td-thumb img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  background: #fff;
+}
+.td-card.is-logo .td-thumb img {
+  object-fit: contain;
+  padding: 5px;
+  box-sizing: border-box;
+}
+.td-card-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+.td-card-name {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.td-card-meta {
+  font-size: 12px;
+  font-weight: 500;
+  color: #4A5273;
+  line-height: 1.35;
+}
+.td-card-city {
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #2F2FA0;
+}
+.td-locations { margin-top: -8px; }
+.td-empty {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #4A5273;
+}
+.td-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.td-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 6px 0 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 2px 8px rgba(30, 34, 70, 0.08);
+  font-size: 14px;
+  font-weight: 550;
+  color: #0A0F2E;
+}
+.td-tag small {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #4A5273;
+}
+.td-tag button {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(30, 34, 70, 0.07);
+  color: #2F3656;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.td-spell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.td-spell p {
+  margin: 0;
+  font-size: 13px;
+  color: #4A5273;
+}
+.td-spell button {
+  border: 0;
+  background: #fff;
+  color: #0A0F2E;
+  border-radius: 999px;
+  min-height: 36px;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 550;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(30, 34, 70, 0.08);
+}
+.td-spell button:hover { background: #f4f6ff; }
+.td-pop {
+  position: fixed;
+  z-index: 80;
+  box-sizing: border-box;
+  max-height: min(320px, 46vh);
+  overflow: auto;
+  padding: 6px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 18px 50px rgba(30, 34, 70, 0.18), 0 0 0 1px rgba(30, 34, 70, 0.06);
+}
+.td-opt {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: #0A0F2E;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.td-opt .td-thumb {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+}
+.td-opt.is-on,
+.td-opt:hover { background: rgba(79, 107, 255, 0.12); }
+@media (max-width: 420px) {
+  .byb-chips.td-cards,
+  #td-location-cards.td-cards { grid-template-columns: 1fr; }
+  .td-card-name { white-space: normal; }
+}

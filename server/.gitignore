@@ -1,0 +1,9 @@
+node_modules/
+data/
+# QlooClient live-response cache. Never commit these bodies.
+data/qloo-cache/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+dist/

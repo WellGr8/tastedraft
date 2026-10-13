@@ -1,0 +1,3 @@
+# QlooClient disk cache. Live response bodies stay on the server.
+server/data/qloo-cache/
+.qloo-cache/

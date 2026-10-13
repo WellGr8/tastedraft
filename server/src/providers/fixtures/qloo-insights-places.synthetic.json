@@ -1,0 +1,15 @@
+{
+  "success": true,
+  "results": {
+    "entities": [
+      {
+        "name": "Silver Lake",
+        "entity_id": "CCCCCCCC-BBBB-CCCC-DDDD-EEEEEEEEEEEE",
+        "type": "urn:entity",
+        "subtype": "urn:entity:place",
+        "properties": { "description": "Synthetic place recommendation." }
+      }
+    ],
+    "duration": 1
+  }
+}
