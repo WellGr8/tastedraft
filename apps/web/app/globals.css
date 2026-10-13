@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./prototype.css";
+@import "./lab.css";
 
 @theme inline {
   --font-sans: "IBM Plex Sans Thai", ui-sans-serif, system-ui, sans-serif;

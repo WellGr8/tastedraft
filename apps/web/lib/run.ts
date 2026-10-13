@@ -6,8 +6,22 @@ import { STARTER_REFERENCES, STARTER_TAGS } from '@/lib/defaults';
 import { scoreLive } from '@/lib/engine-preview';
 import { plainEvidence, plainHypothesis, plainToken, showName, traceSummary } from '@/lib/labels';
 import type { Persona } from '@/lib/personas';
+import { anchorRefs, voiceFor } from '@/lib/voice';
 
-export async function readRunEvents(id: string, onStep: (step: Step) => void | Promise<void>): Promise<RunSnapshot> {
+export interface RunProgress {
+  calls: number;
+  budget: number;
+  shown: number;
+  of: number;
+  label: string;
+  step: number;
+}
+
+export async function readRunEvents(
+  id: string,
+  onStep: (step: Step) => void | Promise<void>,
+  onProgress?: (progress: RunProgress) => void | Promise<void>,
+): Promise<RunSnapshot> {
   const response = await fetch(`${apiBase()}/api/runs/${encodeURIComponent(id)}/events`);
   if (!response.ok || !response.body) throw new Error('The run stream did not open');
   const reader = response.body.getReader();
@@ -27,8 +41,19 @@ export async function readRunEvents(id: string, onStep: (step: Step) => void | P
         .map((line) => line.slice(5).trim())
         .join('\n');
       if (!data) continue;
-      const event = JSON.parse(data) as { type?: string; step?: Step; run?: unknown };
+      const event = JSON.parse(data) as { type?: string; step?: Step; run?: unknown; label?: string; calls?: number; budget?: number; shown?: number; of?: number; stepIndex?: number };
       if (event.type === 'step' && event.step) await onStep(event.step);
+      if (event.type === 'progress' && onProgress && typeof event.label === 'string') {
+        const progress = event as { calls?: number; budget?: number; shown?: number; of?: number; label: string; step?: number };
+        await onProgress({
+          calls: progress.calls ?? 0,
+          budget: progress.budget ?? 0,
+          shown: progress.shown ?? 0,
+          of: progress.of ?? 0,
+          label: progress.label,
+          step: progress.step ?? 0,
+        });
+      }
       if (event.type === 'state') state = RunSnapshotSchema.parse(event.run);
     }
   }
@@ -207,7 +232,7 @@ export async function personasOf(run: RunSnapshot, brief: BriefV2): Promise<Pers
             age: row.age ?? brief.age,
             city: brief.city,
             pos: brief.positioning,
-            refs: brief.references.map((item) => item.name),
+            refs: anchorRefs(anchors),
             posture,
             scarcity,
           })
@@ -231,7 +256,7 @@ export async function personasOf(run: RunSnapshot, brief: BriefV2): Promise<Pers
       evidenceStrength: run.evidenceStrength,
       rejects: !measuring && fit > 0 && fit < 70,
       rejectWhy: null,
-      interview: row.quote,
+      interview: measuring || fit <= 0 ? 'Still measuring what this person actually likes.' : voiceFor(anchors, fit),
       evidence: measuring
         ? [{ label: 'Taste', detail: 'still measuring' }]
         : [

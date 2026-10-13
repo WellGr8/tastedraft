@@ -15,6 +15,9 @@ export const POSITIONS = ['Independent', 'Premium', 'Mass', 'Luxury'] as const;
 export const DEFAULT_IDEA =
   'Japanese minimalist streetwear with an underground electronic identity, sold at a premium price in limited runs';
 
+export const TOUR_IDEA =
+  'An indie artist launching a Tokyo tour + merch drop: positioning, merch price, which neighborhoods';
+
 const IMG = {
   comme:
     'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Comme_des_Garcons_logo.svg/500px-Comme_des_Garcons_logo.svg.png',
@@ -40,6 +43,26 @@ export const STARTER_REFERENCES: Entity[] = [
     city: 'Los Angeles',
     geo: { lat: 34.0869, lng: -118.2702 },
   },
+];
+
+export const TOUR_REFERENCES: Entity[] = [
+  { id: 'aphex-twin', name: 'Aphex Twin', type: 'urn:entity:artist', source: 'sample', image: IMG.aphex },
+  { id: 'boards-of-canada', name: 'Boards of Canada', type: 'urn:entity:artist', source: 'sample' },
+  {
+    id: 'shimokitazawa',
+    name: 'Shimokitazawa',
+    type: 'urn:entity:place',
+    source: 'sample',
+    city: 'Tokyo',
+    geo: { lat: 35.6614, lng: 139.6676 },
+  },
+  { id: 'lost-in-translation', name: 'Lost in Translation', type: 'urn:entity:movie', source: 'sample', image: IMG.lost },
+  { id: 'muji', name: 'Muji', type: 'urn:entity:brand', source: 'sample', image: IMG.muji },
+];
+
+export const TOUR_TAGS: Tag[] = [
+  { id: 'tag-electronic', name: 'Electronic', type: 'urn:tag' },
+  { id: 'tag-live', name: 'Live music', type: 'urn:tag' },
 ];
 
 export const STARTER_TAGS: Tag[] = [
@@ -74,6 +97,19 @@ export interface DraftState {
   references: Entity[];
   locations: Entity[];
   interests: Tag[];
+}
+
+export function tourDraft(): DraftState {
+  const place = TOUR_REFERENCES[2]!;
+  return {
+    idea: TOUR_IDEA,
+    age: AGES[0],
+    city: 'Tokyo',
+    positioning: 'Premium',
+    references: TOUR_REFERENCES.map((entity) => ({ ...entity })),
+    locations: [{ ...place }],
+    interests: TOUR_TAGS.map((tag) => ({ ...tag })),
+  };
 }
 
 export function defaultDraft(): DraftState {

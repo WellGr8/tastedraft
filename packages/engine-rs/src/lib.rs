@@ -5,6 +5,7 @@
 
 mod agent;
 mod api;
+mod features;
 mod insights;
 mod ledger;
 mod mock;

@@ -11,6 +11,7 @@ import { createLlmClient } from '../llm/client.ts';
 import { loadMapLayers } from '../providers/qloo/heatmap.ts';
 import { createSearchRoutes } from './search.ts';
 import { createPersonaRoutes } from './persona.ts';
+import { createFeatureRoutes } from '../features/routes.ts';
 import { CreateBody, PatchBody, SimulationBody } from './schemas.ts';
 import { BriefV2Schema } from '@tastedraft/contracts';
 import { z } from 'zod';
@@ -105,6 +106,7 @@ export function createRoutes(orchestrator: Orchestrator): Hono {
   const api = new Hono();
   api.route('/', createSearchRoutes());
   api.route('/', createPersonaRoutes());
+  api.route('/', createFeatureRoutes());
 
   api.get('/api/health', (c) => c.json({ ok: true, service: 'tastedraft' }));
 

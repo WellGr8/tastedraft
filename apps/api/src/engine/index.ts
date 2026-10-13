@@ -15,6 +15,16 @@ export type { AgeBand, CityName, Positioning } from './constants.ts';
 export { provideEvidence, hasLimitedLanguage, hasPremiumLanguage, readFacets } from './sample-evidence.ts';
 export type { EvidenceInput } from './sample-evidence.ts';
 export { scoreInsightMeasurements } from './insights-score.ts';
+export {
+  DEMOGRAPHIC_AGE_ORDER,
+  MIND_CHANGE_POINTS,
+  demographicAgeBucket,
+  demographicGender,
+  demographicMismatch,
+  estimateAvoidedCost,
+  personaMindChange,
+} from './features.ts';
+export type { AffinityMove, CostAssumptions, MindChange, MismatchScore, SkewRow } from './features.ts';
 export type { DimensionInput, InsightScore, InsightScoreInput, MeasuredAffinity, MeasuredGroup } from './insights-score.ts';
 export {
   FRICTION_FACTOR,

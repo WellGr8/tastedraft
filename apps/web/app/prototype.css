@@ -104,10 +104,12 @@ body{margin:0;font-family:'IBM Plex Sans Thai',-apple-system,system-ui,sans-seri
 .byb-step.is-done{color:#1B2140}
 .byb-sd{flex:none;width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;border:1.5px solid rgba(30,34,70,0.18);color:transparent;transition:all 400ms ease}
 .byb-step.is-done .byb-sd{background:#DDF0E4;border-color:transparent;color:#0C5F38;animation:bybPop 500ms ease both}
-.byb-step.is-on .byb-sd{border-color:#5B7BFF;box-shadow:0 0 0 5px rgba(91,110,255,0.16)}
-.byb-step.is-on .byb-sd i{width:8px;height:8px;border-radius:50%;background:#4B3AA8;animation:bybBreathe 1100ms ease-in-out infinite}
-.byb-bar{height:3px;border-radius:3px;background:rgba(30,34,70,0.08);overflow:hidden}
+.byb-step.is-on .byb-sd{border-color:transparent;background:conic-gradient(#5B7BFF 0 90deg,rgba(91,123,255,.22) 90deg 360deg);box-shadow:0 0 0 5px rgba(91,110,255,0.16);animation:tdSpin .8s linear infinite}
+.byb-step.is-on .byb-sd i{width:12px;height:12px;border-radius:50%;background:#fff;animation:none}
+.byb-bar{position:relative;height:3px;border-radius:3px;background:rgba(30,34,70,0.08);overflow:hidden}
 .byb-bar i{display:block;height:100%;background:linear-gradient(90deg,#5B7BFF,#8B5CFF);transition:width 700ms ease}
+.byb-bar.is-busy i{min-width:14%}
+.byb-bar.is-busy::after{content:"";position:absolute;top:0;bottom:0;left:0;width:38%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.95),transparent);animation:tdSlide 1.15s ease-in-out infinite}
 .byb-qtag{display:inline-flex;align-items:center;gap:10px;font-size:12px;font-weight:600;letter-spacing:0.14em;color:#2F3656;text-transform:uppercase}
 
 /* Result */
@@ -586,8 +588,17 @@ button.byb-qk{border:0;padding:0;cursor:pointer}
 .td-heatrow{display:flex;flex-direction:column;gap:4px;min-width:0}
 .td-heatrow span{font-size:13px;font-weight:600;color:#0A0F2E;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .td-heatrow i{display:block;height:8px;max-width:100%;border-radius:999px;background:linear-gradient(90deg,#2F3FD6,#8B5CFF)}
-.td-skel{display:block;width:64px;height:64px;border-radius:10px;background:linear-gradient(90deg,rgba(30,34,70,.06),rgba(30,34,70,.14),rgba(30,34,70,.06))}
+.td-skel{display:block;width:64px;height:64px;border-radius:10px;background:linear-gradient(90deg,rgba(30,34,70,.07) 0%,rgba(30,34,70,.16) 40%,rgba(255,255,255,.8) 50%,rgba(30,34,70,.16) 60%,rgba(30,34,70,.07) 100%);background-size:220% 100%}
+[data-testid="analysis-screen"] .td-skel{animation:tdShimmer 1.25s linear infinite}
 .td-skel-av{width:36px;height:36px;border-radius:50%}
+[data-testid="analysis-screen"] .td-skel-av:nth-child(2){animation-delay:.12s}
+[data-testid="analysis-screen"] .td-skel-av:nth-child(3){animation-delay:.24s}
+[data-testid="analysis-screen"] .td-skel-av:nth-child(4){animation-delay:.36s}
+.td-live{margin:0;display:flex;align-items:center;gap:10px;font-size:16px;font-weight:600;line-height:1.45;color:#0A0F2E}
+.td-elapsed{margin:-18px 0 0;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#4A5273}
+@keyframes tdSpin{to{transform:rotate(360deg)}}
+@keyframes tdSlide{from{transform:translateX(-120%)}to{transform:translateX(320%)}}
+@keyframes tdShimmer{from{background-position:100% 0}to{background-position:-100% 0}}
 .td-loopout{display:flex;flex-direction:column;gap:10px;padding:4px 2px 8px}
 .td-looppeople{display:flex;gap:8px;min-height:36px}
 .td-quotes{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
@@ -678,6 +689,11 @@ html{scroll-padding-top:104px;scroll-padding-bottom:128px}
 }
 @media (prefers-reduced-motion:reduce){
 .td-persona,.ws-score{transition:none}
+.byb-step.is-on .byb-sd{animation:none;background:#5B7BFF}
+.byb-step.is-on .byb-sd i{animation:none}
+.td-skel{animation:none;background:rgba(30,34,70,.12)}
+.byb-bar.is-busy::after{animation:none;opacity:0}
+.byb-bar i{transition:none}
 }
 
 /* Keep the column inside the viewport. The age/city grid and cover row were

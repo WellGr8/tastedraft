@@ -453,27 +453,73 @@ export function InputPhase({
   );
 }
 
+function useElapsed(): number {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    const started = Date.now();
+    const tick = () => setSeconds(Math.floor((Date.now() - started) / 1000));
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  return seconds;
+}
+
+function useReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(() => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const apply = () => setReduced(media.matches);
+    apply();
+    media.addEventListener('change', apply);
+    return () => media.removeEventListener('change', apply);
+  }, []);
+  return reduced;
+}
+
+function formatElapsed(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  return `${minutes}:${rest.toString().padStart(2, '0')}`;
+}
+
 export function AnalysisPhase({
-  labels,
   city,
   personas,
   proposal,
+  step = 0,
+  status,
+  calls = 0,
+  total = 0,
 }: {
-  labels: readonly string[];
   city: string;
   personas: Persona[];
   proposal: ProposalView | null;
+  step?: number;
+  status?: string;
+  calls?: number;
+  total?: number;
 }) {
-  const width = Math.max(8, Math.min(100, Math.round((labels.length / AGENT_STEPS.length) * 100)));
+  const elapsed = useElapsed();
+  const reduced = useReducedMotion();
+  const liveStatus = status?.trim() || `Asking Qloo for ${city} tastes…`;
+  const fraction = total > 0 ? Math.min(1, calls / total) : 0;
+  const width = Math.max(reduced ? 8 : 14, Math.round(fraction * 100));
   return (
-    <div className="byb-glass byb-an byb-rise" data-testid="analysis-screen" role="status" aria-live="polite">
+    <div className="byb-glass byb-an byb-rise" data-testid="analysis-screen" role="status" aria-live="polite" aria-busy="true" data-motion={reduced ? 'reduce' : 'ok'}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <p className="byb-over">Agent loop</p>
         <h2 className="byb-h2">Testing your idea against the culture of {city}</h2>
       </div>
-      <AgentSteps labels={labels} />
+      <AgentSteps step={Math.min(step, AGENT_STEPS.length - 1)} />
+      <p className="td-live" data-testid="analysis-status">
+        {liveStatus}
+      </p>
+      <p className="td-elapsed" data-testid="analysis-elapsed">
+        Elapsed {formatElapsed(elapsed)}
+      </p>
       <LoopOutput personas={personas} proposal={proposal} />
-      <div className="byb-bar" aria-hidden="true">
+      <div className={reduced ? 'byb-bar' : 'byb-bar is-busy'} data-testid="analysis-bar" aria-hidden="true">
         <i style={{ width: `${width}%` }} />
       </div>
       <div className="byb-qtag">
@@ -561,6 +607,8 @@ export function ResultPhase({
   ledgerOpen,
   frictionOpen,
   dismissed,
+  canDecide = true,
+  decisions,
   onView,
   onToggleLedger,
   onToggleFriction,
@@ -601,6 +649,10 @@ export function ResultPhase({
   ledgerOpen: boolean;
   frictionOpen: number | null;
   dismissed: boolean;
+  /** False once the server run is no longer waiting for a decision. */
+  canDecide?: boolean;
+  /** Open proposals from the latest snapshot. Falls back to Version 1 when omitted. */
+  decisions?: ProposalView[];
   onView: (version: 1 | 2) => void;
   onToggleLedger: () => void;
   onToggleFriction: (index: number) => void;
@@ -633,7 +685,8 @@ export function ResultPhase({
   const frictions = (current.frictions ?? []).length ? current.frictions : v1.frictions;
   const signals = (current.signals ?? []).length ? current.signals : v1.signals;
   const rows = ledgerRows(current, live, draft, controls, diverged && view === 1);
-  const proposals = dismissed ? [] : v1.proposals;
+  const proposals = dismissed || canDecide === false ? [] : (decisions ?? v1.proposals);
+  const reviewing = proposals.length > 0 && !v2;
   const gain = v1.score != null && v2?.score != null ? v2.score - v1.score : 0;
 
   return (
@@ -904,7 +957,7 @@ export function ResultPhase({
             {plainStopReason(stop)}
           </p>
         ) : null}
-        {pending ? (
+        {pending && canDecide ? (
           <div className="prop" data-testid="target-proposal">
             <div className="ba">
               <span className="bf">{pending.before}</span>
@@ -929,7 +982,7 @@ export function ResultPhase({
                 <Arrow />
               </button>
             </span>
-          ) : v2 || proposals.length ? (
+          ) : v2 || reviewing ? (
             <span className="byb-ring">
               <button type="button" className="byb-primary is-light" onClick={onOpenProposal}>
                 <span>{v2 ? 'Compare V1 and V2' : 'Review proposal'}</span>
@@ -937,13 +990,17 @@ export function ResultPhase({
               </button>
             </span>
           ) : null}
-          {stop && (v2 || proposals.length) ? (
+          {stop && v2 ? (
             <button type="button" className="byb-quiet" onClick={onOpenProposal}>
-              {v2 ? 'Compare V1 and V2' : 'Review proposal'}
+              Compare V1 and V2
             </button>
           ) : null}
           <p className="byb-hint" style={{ textAlign: 'left' }}>
-            {v2 ? 'The comparison keeps Version 1 beside the approved change.' : 'Nothing changes until you approve. Version 2 is scored only after that.'}
+            {v2
+              ? 'The comparison keeps Version 1 beside the approved change.'
+              : canDecide
+                ? 'Nothing changes until you approve. Version 2 is scored only after that.'
+                : 'This version is the latest result.'}
           </p>
         </div>
         <form

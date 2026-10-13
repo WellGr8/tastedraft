@@ -58,6 +58,12 @@ export function createApp(options: AppOptions = {}): Hono {
   });
   const app = new Hono();
   app.use('*', cors());
+  app.use('*', async (c, next) => {
+    await next();
+    const current = c.res.headers.get('content-type');
+    if (!current || !/^application\/json\b/i.test(current) || /charset=/i.test(current)) return;
+    c.res.headers.set('content-type', `${current}; charset=utf-8`);
+  });
   app.route('/', createRoutes(orchestrator));
   // Team D wiring: agent routes and the results demo. Owned code lives in server/src/agent and split/results*.
   mountAgent(app);

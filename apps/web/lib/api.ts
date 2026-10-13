@@ -177,9 +177,12 @@ const MapPayloadSchema = z.object({
 });
 
 export class ApiError extends Error {
-  constructor(message: string) {
+  readonly status: number;
+
+  constructor(message: string, status = 0) {
     super(message);
     this.name = 'ApiError';
+    this.status = status;
   }
 }
 
@@ -189,7 +192,7 @@ async function readBody(res: Response): Promise<unknown> {
   try {
     return JSON.parse(text) as unknown;
   } catch {
-    throw new ApiError('The API returned a response that was not JSON');
+    throw new ApiError('The API returned a response that was not JSON', res.status);
   }
 }
 
@@ -216,10 +219,10 @@ export class TasteDraftClient {
         },
       });
     } catch {
-      throw new ApiError('The API is not reachable. Start it with npm run dev.');
+      throw new ApiError('The API is not reachable. Start it with npm run dev.', 0);
     }
     const body = await readBody(res);
-    if (!res.ok && !allowStatus.includes(res.status)) throw new ApiError(errorMessage(body, res.status));
+    if (!res.ok && !allowStatus.includes(res.status)) throw new ApiError(errorMessage(body, res.status), res.status);
     return body;
   }
 
@@ -332,11 +335,11 @@ export class TasteDraftClient {
         signal,
       });
     } catch {
-      throw new ApiError('The API is not reachable. Start it with npm run dev.');
+      throw new ApiError('The API is not reachable. Start it with npm run dev.', 0);
     }
     if (!res.ok) {
       const payload = await readBody(res);
-      throw new ApiError(errorMessage(payload, res.status));
+      throw new ApiError(errorMessage(payload, res.status), res.status);
     }
     return res;
   }

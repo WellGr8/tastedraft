@@ -1,0 +1,16 @@
+{
+  "v": 1,
+  "entities": [
+    { "id": "ev:recorded-aphex", "name": "Aphex Twin", "ref": "aphex-twin" },
+    { "id": "ev:recorded-boards", "name": "Boards of Canada", "ref": "boards-of-canada" },
+    { "id": "ev:recorded-muji", "name": "Muji", "ref": "muji" }
+  ],
+  "tags": [
+    { "id": "ev:recorded-live", "name": "live music", "ref": "tag-live" }
+  ],
+  "cells": [
+    { "id": "cell-shimokitazawa", "lat": 35.6614, "lng": 139.6676, "weight": 0.84, "label": "Shimokitazawa" },
+    { "id": "cell-koenji", "lat": 35.7056, "lng": 139.6496, "weight": 0.71, "label": "Koenji" },
+    { "id": "cell-shibuya", "lat": 35.6595, "lng": 139.7004, "weight": 0.66, "label": "Shibuya" }
+  ]
+}

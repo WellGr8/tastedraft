@@ -8,11 +8,11 @@ import { defaultBriefV2 } from '../agent/model.ts';
 import { evidenceKey } from '../engine/score.ts';
 import { createApp } from '../app.ts';
 import { QlooClient } from '../providers/qloo/client.ts';
-import { AgentRunner } from './runner.ts';
+import { AgentRunner, liveProgress } from './runner.ts';
 import { RunStore } from './store.ts';
 import { keepCited, narrate, offlineClaim } from './narrate.ts';
 import { QlooGateway } from './gateway.ts';
-import { readFixtureText } from './record.ts';
+import { readFixtureText, readTourFixtureText } from './record.ts';
 
 const roots: string[] = [];
 
@@ -158,6 +158,7 @@ describe('agent runner', () => {
     assert.ok(run.links.some((link) => link.cells.length >= 1 && (link.entities.length > 0 || link.tags.length > 0)));
     assert.equal(run.evidenceStrength, 'HIGH');
     assert.equal(run.status, 'awaiting_approval');
+    assert.equal(run.simulation?.mode, 'mock');
     assert.ok(run.steps.some((step) => step.label === 'Build personas from Qloo'));
     for (const persona of run.personas) {
       assert.equal(persona.quoteLabel, 'Simulated persona response');
@@ -182,7 +183,9 @@ describe('agent runner', () => {
     assert.equal(next.status, 'stopped');
     assert.ok(next.stopReason && STOP_REASONS.includes(next.stopReason));
     assert.ok(next.steps.some((step) => step.label === 'Re-interview each persona'));
-    assert.ok(next.report.includes(next.stopReason ?? ''));
+    assert.equal(next.simulation?.mode, 'mock');
+    assert.equal(/Qloo calls|approved_target|insufficient_evidence|no_meaningful_improvement|max_rounds_or_budget/.test(next.report), false);
+    assert.match(next.report, /move the score|clears the target|used its questions|cultural evidence/);
   });
 
   it('offers the scored proposal after the budget is spent, then stops', async () => {
@@ -237,6 +240,7 @@ describe('agent runner', () => {
     brief.constraints = ['limited runs'];
     const run = await agent.start(brief);
     assert.equal(run.status, 'awaiting_approval');
+    assert.equal(run.simulation?.mode, 'live');
     assert.ok(run.proposals.length >= 1);
     assert.ok((run.proposals[0]?.predictedDelta ?? 0) > 0);
     assert.equal(run.report.includes('1. Build personas'), false);
@@ -325,7 +329,167 @@ describe('agent runner', () => {
     assert.ok(run.districts.some((cell) => cell.label === '35.66, 139.70'));
     assert.ok(run.evidence.some((row) => row.source === 'recorded' && row.kind === 'tag'));
     assert.equal(run.score, 71);
+    assert.equal(run.simulation?.mode, 'sample');
     const recordings = join(dir, 'recordings');
     assert.equal(existsSync(recordings) && readdirSync(recordings).length > 0, false);
+  });
+
+  it('plays back the Tokyo tour recording when live Qloo calls fail', async () => {
+    const fixture = readTourFixtureText();
+    assert.equal(/affinity|hack_|"results"|"image"/.test(fixture), false);
+    const dir = tempDir();
+    const client = new QlooClient({
+      apiKey: 'test-key',
+      retries: 0,
+      minIntervalMs: 0,
+      cacheDir: join(dir, 'cache'),
+      fetchImpl: async () => new Response(JSON.stringify({ success: false }), { status: 400, headers: { 'content-type': 'application/json' } }),
+    });
+    const agent = new AgentRunner({
+      store: new RunStore(join(dir, 'runs.sqlite')),
+      client,
+      recordingsDir: join(dir, 'recordings'),
+      llm: { mode: 'offline', async complete() { throw new Error('offline'); } },
+    });
+    const base = defaultBriefV2();
+    const run = await agent.start({
+      ...base,
+      idea: 'An indie artist launching a Tokyo tour + merch drop: positioning, merch price, which neighborhoods',
+      city: 'Tokyo',
+    });
+    assert.equal(run.grounding, 'recorded');
+    assert.match(run.report, /Recorded run/);
+    assert.ok(run.districts.some((cell) => cell.label === 'Shimokitazawa'));
+    assert.equal(typeof run.score, 'number');
+    assert.notEqual(run.score, null);
+  });
+
+  it('publishes call counts before the persona fan-out finishes', async () => {
+    let release: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let hits = 0;
+    const dir = tempDir();
+    const store = new RunStore(join(dir, 'runs.sqlite'));
+    const client = new QlooClient({
+      apiKey: 'test-key',
+      retries: 0,
+      minIntervalMs: 0,
+      cacheDir: join(dir, 'cache'),
+      fetchImpl: async () => {
+        hits += 1;
+        if (hits === 1) await gate;
+        return new Response(JSON.stringify({ success: true, results: { entities: [] } }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      },
+    });
+    const agent = new AgentRunner({
+      store,
+      client,
+      recordingsDir: join(dir, 'recordings'),
+      llm: { mode: 'offline', async complete() { throw new Error('offline'); } },
+    });
+    const brief = defaultBriefV2();
+    brief.city = 'Tokyo';
+    const id = agent.create(brief);
+    const pending = agent.kick(id);
+    let seen = 0;
+    for (let i = 0; i < 50 && seen < 1; i += 1) {
+      seen = store.read(id)?.snapshot.qlooCalls ?? 0;
+      if (seen < 1) await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    try {
+      const mid = store.read(id);
+      assert.ok(mid);
+      assert.ok(seen >= 1);
+      assert.equal(mid.snapshot.status, 'running');
+      assert.match(liveProgress(mid).label, /Asking Qloo for Tokyo tastes… \d+\/\d+ calls/);
+    } finally {
+      release?.();
+      await pending;
+    }
+  });
+
+  it('conflicts when approve or dismiss runs after the run has stopped', async () => {
+    const agent = runnerIn(tempDir(), 1);
+    const run = await agent.start(defaultBriefV2());
+    const price = run.proposals.find((proposal) => proposal.changes.some((change) => change.param === 'filter.price_level.max'));
+    assert.ok(price);
+    const stopped = await agent.approve(run.id, price.id);
+    assert.equal(stopped.status, 'stopped');
+    assert.deepEqual(stopped.proposals, []);
+    assert.equal(stopped.applied.some((proposal) => proposal.id === price.id), true);
+    const conflicted = (error: unknown) => {
+      assert.equal(error instanceof Error && 'status' in error ? (error as { status: number }).status : 0, 409);
+      assert.match(error instanceof Error ? error.message : '', /not waiting for approval/);
+      return true;
+    };
+    await assert.rejects(() => agent.approve(run.id, price.id), conflicted);
+    await assert.rejects(() => agent.dismiss(run.id, price.id), conflicted);
+    const fresh = agent.store.snapshot(run.id);
+    assert.equal(fresh?.status, 'stopped');
+    assert.equal(fresh?.version, stopped.version);
+    assert.deepEqual(fresh?.proposals.map((proposal) => proposal.id), []);
+    assert.equal(fresh?.applied.some((proposal) => proposal.id === price.id), true);
+  });
+
+  it('dismisses an open proposal, then conflicts once nothing is left to decide', async () => {
+    const agent = runnerIn(tempDir());
+    const run = await agent.start(defaultBriefV2());
+    assert.equal(run.status, 'awaiting_approval');
+    let current = run;
+    const first = current.proposals[0];
+    assert.ok(first);
+    current = await agent.dismiss(run.id, first.id);
+    assert.equal(current.proposals.some((proposal) => proposal.id === first.id), false);
+    while (current.status === 'awaiting_approval' && current.proposals[0]) {
+      current = await agent.dismiss(run.id, current.proposals[0].id);
+    }
+    assert.equal(current.status, 'stopped');
+    await assert.rejects(() => agent.dismiss(run.id, first.id), (error: unknown) => {
+      assert.equal(error instanceof Error && 'status' in error ? (error as { status: number }).status : 0, 409);
+      return true;
+    });
+  });
+
+  it('serves json as utf-8 and round-trips unicode through sqlite', async () => {
+    const dir = tempDir();
+    const store = new RunStore(join(dir, 'runs.sqlite'));
+    const agent = new AgentRunner({
+      store,
+      client: new QlooClient({ apiKey: '', retries: 0, minIntervalMs: 0 }),
+      llm: { mode: 'offline', async complete() { throw new Error('offline'); } },
+    });
+    const brief = defaultBriefV2();
+    brief.city = 'München';
+    brief.idea = 'A label that wouldn’t drop Stüssy';
+    brief.age = '18–25';
+    const id = agent.create(brief);
+    const record = store.read(id);
+    assert.ok(record);
+    assert.equal(record.brief.city, 'München');
+    assert.equal(record.brief.idea, 'A label that wouldn’t drop Stüssy');
+    assert.equal(record.brief.age, '18–25');
+    assert.match(liveProgress(record).label, /Asking Qloo for München tastes… 0\/\d+ calls/);
+    const app = createApp({
+      env: { QLOO_API_KEY: '', EVIDENCE_PROVIDER: 'sample' },
+      runsPath: join(dir, 'http-runs.sqlite'),
+      databasePath: join(dir, 'projects.sqlite'),
+    });
+    const created = await app.request('/api/runs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ brief }),
+    });
+    assert.equal(created.status, 201);
+    assert.match(created.headers.get('content-type') ?? '', /application\/json;\s*charset=utf-8/i);
+    const { id: httpId } = (await created.json()) as { id: string };
+    const got = await app.request(`/api/runs/${httpId}`);
+    assert.match(got.headers.get('content-type') ?? '', /application\/json;\s*charset=utf-8/i);
+    const body = (await got.json()) as { id: string };
+    assert.equal(body.id, httpId);
   });
 });

@@ -4,7 +4,7 @@ Probed against `https://hackathon.api.qloo.com` with `X-Api-Key`. Calls are GET.
 
 `/search` results are a JSON array on `results` and often omit `success`. Entity type is `types[]` (for example `urn:entity:brand`). Images are `properties.image.url` on `images.qloo.com`. Entity ids are UUIDs.
 
-`/v2/insights` results are `results.entities[]` with `subtype`, `query.affinity` (0–1), and the same image field. `feature.explainability=true` returns `query.explainability` as an object keyed by signal name, not an array. Each entry is `{ entity_id, score }`.
+`/v2/insights` results are `results.entities[]` with `subtype`, `query.affinity` (0–1), and the same image field. `feature.explainability=true` returns `query.explainability` as an object keyed by signal name. Each value is an array of `{ entity_id, score }`. The parser also accepts a top-level array of those objects. Videogame insights use `urn:entity:videogame`. `urn:entity:video_game` returns HTTP 400.
 
 Demographics are modifiers. `signal.demographics.age` or `signal.demographics.gender` alone returns HTTP 400 (`at least one valid signal or filter is required`). They succeed when paired with `signal.location.query` or `filter.location.query`.
 

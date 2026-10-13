@@ -95,64 +95,28 @@ export const InsightSignalSchema = z
   .strict();
 export type InsightSignal = z.infer<typeof InsightSignalSchema>;
 
-/** One input's share of a result, from `feature.explainability`. Weights are 0–1. */
-export const ExplainabilityContributionSchema = z
-  .object({
-    input: z.string().min(1),
-    weight: z.number().min(0).max(1),
-    target: z.string().min(1),
-  })
-  .strict();
-export type ExplainabilityContribution = z.infer<typeof ExplainabilityContributionSchema>;
+import {
+  ExplainabilityContributionSchema,
+  LEDGER_ROW_IDS,
+  LedgerRowSchema,
+  ProvenanceSchema,
+  ScoreLedgerSchema,
+} from './ledger.ts';
 
-/** Where a ledger row's number came from. */
-export const ProvenanceSchema = z
-  .object({
-    source: z.string().min(1),
-    detail: z.string().min(1),
-    evidenceRefs: z.array(z.string().min(1)),
-  })
-  .strict();
-export type Provenance = z.infer<typeof ProvenanceSchema>;
-
-export const LEDGER_ROW_IDS = ['anchor', 'cross', 'local', 'audience', 'friction'] as const;
-export type LedgerRowId = (typeof LEDGER_ROW_IDS)[number];
-
-/**
- * One weighted row. `points` is null when the dimension was not measured.
- * Friction points are signed (already negative) when present.
- */
-export const LedgerRowSchema = z
-  .object({
-    id: z.enum(LEDGER_ROW_IDS),
-    subscore: z.number().nullable(),
-    weight: z.number(),
-    points: z.number().nullable(),
-    provenance: ProvenanceSchema,
-  })
-  .strict();
-export type LedgerRow = z.infer<typeof LedgerRowSchema>;
-
-export const ScoreLedgerSchema = z
-  .object({
-    rows: z.array(LedgerRowSchema),
-    total: z.number().nullable(),
-  })
-  .strict()
-  .superRefine((ledger, ctx) => {
-    const seen = new Set<string>();
-    for (const row of ledger.rows) {
-      if (seen.has(row.id)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `Duplicate ledger row "${row.id}"`,
-          path: ['rows'],
-        });
-      }
-      seen.add(row.id);
-    }
-  });
-export type ScoreLedger = z.infer<typeof ScoreLedgerSchema>;
+export {
+  ExplainabilityContributionSchema,
+  LEDGER_ROW_IDS,
+  LedgerRowSchema,
+  ProvenanceSchema,
+  ScoreLedgerSchema,
+};
+export type {
+  ExplainabilityContribution,
+  LedgerRow,
+  LedgerRowId,
+  Provenance,
+  ScoreLedger,
+} from './ledger.ts';
 
 /**
  * A change to one Qloo query parameter.
@@ -452,8 +416,75 @@ export const RunSnapshotSchema = z
   .strict();
 export type RunSnapshot = z.infer<typeof RunSnapshotSchema>;
 
+export {
+  ACTIVATION_KINDS,
+  ActivationPlanRequestSchema,
+  ActivationPlanResultSchema,
+  BIAS_TRENDS,
+  CompetitorBenchmarkRequestSchema,
+  CompetitorBenchmarkResultSchema,
+  DEFAULT_FEATURE_BUDGET,
+  DemographicFitRequestSchema,
+  DemographicFitResultSchema,
+  ESTIMATE_LABEL,
+  FEATURE_NAMES,
+  FeatureEntitySchema,
+  FeatureMetaSchema,
+  FeaturePersonaSchema,
+  FeatureSseEventSchema,
+  IMPACT_DISCLAIMER,
+  ImpactRequestSchema,
+  ImpactResultSchema,
+  MAX_FEATURE_BUDGET,
+  NeighborhoodFitRequestSchema,
+  NeighborhoodFitResultSchema,
+  NicheFinderRequestSchema,
+  NicheFinderResultSchema,
+  PersonaChatRequestSchema,
+  PersonaChatResultSchema,
+  QLOO_DEMOGRAPHIC_AGES,
+  ReinterviewRequestSchema,
+  ReinterviewResultSchema,
+} from './features.ts';
+export type {
+  ActivationPlanRequest,
+  ActivationPlanResult,
+  BiasTrend,
+  CompetitorBenchmarkRequest,
+  CompetitorBenchmarkResult,
+  DemographicFitRequest,
+  DemographicFitResult,
+  FeatureEntity,
+  FeatureMeta,
+  FeatureName,
+  FeaturePersona,
+  FeatureSseEvent,
+  ImpactRequest,
+  ImpactResult,
+  NeighborhoodFitRequest,
+  NeighborhoodFitResult,
+  NicheFinderRequest,
+  NicheFinderResult,
+  PersonaChatRequest,
+  PersonaChatResult,
+  QlooDemographicAge,
+  ReinterviewRequest,
+  ReinterviewResult,
+} from './features.ts';
+
 export const SseEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('step'), step: StepSchema }).strict(),
+  z
+    .object({
+      type: z.literal('progress'),
+      calls: z.number().int().nonnegative(),
+      budget: z.number().int().positive(),
+      shown: z.number().int().nonnegative(),
+      of: z.number().int().positive(),
+      label: z.string().min(1),
+      step: z.number().int().min(0).max(5),
+    })
+    .strict(),
   z.object({ type: z.literal('state'), run: RunSnapshotSchema }).strict(),
 ]);
 export type SseEvent = z.infer<typeof SseEventSchema>;

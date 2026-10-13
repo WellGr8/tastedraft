@@ -49,8 +49,8 @@ const LABEL_URN: Record<string, string> = {
   podcast: 'urn:entity:podcast',
   tv_show: 'urn:entity:tv_show',
   'tv show': 'urn:entity:tv_show',
-  videogame: 'urn:entity:video_game',
-  video_game: 'urn:entity:video_game',
+  videogame: 'urn:entity:videogame',
+  video_game: 'urn:entity:videogame',
   restaurant: 'urn:entity:place',
 };
 
@@ -61,7 +61,7 @@ const CATEGORY_CUES: ReadonlyArray<{ re: RegExp; types: readonly string[] }> = [
   { re: /\bfilm\b|\bmovie\b|cinema|หนัง/i, types: ['urn:entity:movie'] },
   { re: /podcast/i, types: ['urn:entity:podcast'] },
   { re: /\bbook\b|\bnovel\b/i, types: ['urn:entity:book'] },
-  { re: /video game|videogame|\bgame\b/i, types: ['urn:entity:video_game'] },
+  { re: /video game|videogame|\bgame\b/i, types: ['urn:entity:videogame'] },
   { re: /hotel|destination|neighborhood|district|ย่าน/i, types: ['urn:entity:destination', 'urn:entity:place'] },
 ];
 
@@ -115,6 +115,8 @@ export function qlooGender(gender: string | undefined): string | null {
 
 export function toEntityUrn(type: string): string | null {
   const raw = type.trim();
+  // The hackathon host returns HTTP 400 for `urn:entity:video_game`. The working type is `videogame`.
+  if (raw === 'urn:entity:video_game') return 'urn:entity:videogame';
   if (raw.startsWith('urn:entity:')) return raw;
   return LABEL_URN[raw.toLowerCase()] ?? null;
 }
@@ -256,7 +258,7 @@ function contributionWeight(item: Record<string, unknown>): number | null {
   return raw;
 }
 
-function readContributions(row: Record<string, unknown>, target: string): ExplainabilityContribution[] {
+export function readContributions(row: Record<string, unknown>, target: string): ExplainabilityContribution[] {
   const query = isRecord(row.query) ? row.query : undefined;
   const raw = query?.explainability ?? row.explainability;
   const out: ExplainabilityContribution[] = [];

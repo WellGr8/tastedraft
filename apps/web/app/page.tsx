@@ -1,10 +1,10 @@
 import { Suspense } from 'react';
-import { TasteDraft } from '@/components/taste-draft';
+import { LabApp } from '@/components/lab-app';
 
 export default function Page() {
   return (
-    <Suspense fallback={<div className="td-canvas min-h-screen" />}>
-      <TasteDraft />
+    <Suspense fallback={<div className="lab-boot" />}>
+      <LabApp />
     </Suspense>
   );
 }

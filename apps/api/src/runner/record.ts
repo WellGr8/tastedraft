@@ -23,6 +23,12 @@ export interface DerivedRecording {
 }
 
 const FIXTURE = fileURLToPath(new URL('./recordings/derived.json', import.meta.url));
+const TOUR_FIXTURE = fileURLToPath(new URL('./recordings/tokyo-tour.json', import.meta.url));
+
+/** The music demo. Live Qloo failures play this recording instead of the streetwear fixture. */
+export function isTourBrief(brief: BriefV2): boolean {
+  return brief.city.trim().toLowerCase() === 'tokyo' && /tour/i.test(brief.idea) && /merch/i.test(brief.idea);
+}
 
 export function recordingsDir(): string {
   return join(process.cwd(), 'data', 'recordings');
@@ -83,8 +89,9 @@ export function loadRecording(brief: BriefV2, dir = recordingsDir()): DerivedRec
     const parsed = parseRecording(readFileSync(path, 'utf8'));
     if (parsed) return parsed;
   }
-  if (!existsSync(FIXTURE)) return null;
-  return parseRecording(readFileSync(FIXTURE, 'utf8'));
+  const fixture = isTourBrief(brief) && existsSync(TOUR_FIXTURE) ? TOUR_FIXTURE : FIXTURE;
+  if (!existsSync(fixture)) return null;
+  return parseRecording(readFileSync(fixture, 'utf8'));
 }
 
 export function evidenceFromRecording(recording: DerivedRecording, strength: EvidenceStrengthName): Evidence[] {
@@ -100,4 +107,8 @@ export function evidenceFromRecording(recording: DerivedRecording, strength: Evi
 
 export function readFixtureText(): string {
   return readFileSync(FIXTURE, 'utf8');
+}
+
+export function readTourFixtureText(): string {
+  return readFileSync(TOUR_FIXTURE, 'utf8');
 }

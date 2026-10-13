@@ -26,7 +26,7 @@ import {
 } from '@/lib/api';
 import { STARTER_REFERENCES, STARTER_TAGS, defaultDraft, withImage, type DraftState } from '@/lib/defaults';
 import { scoreLive, type LiveScore } from '@/lib/engine-preview';
-import { askFromRun, decisionTrace, EMPTY_TRACE, namesOnRun, personasOf, readRunEvents, simulationOf, viewOf, type DecisionTrace, type EvidenceAsk } from '@/lib/run';
+import { askFromRun, decisionTrace, EMPTY_TRACE, namesOnRun, personasOf, readRunEvents, simulationOf, viewOf, type DecisionTrace, type EvidenceAsk, type RunProgress } from '@/lib/run';
 import { placeLabel, plainStopReason } from '@/lib/labels';
 import type { RunSnapshot } from '@tastedraft/contracts';
 import { bandOf } from '@/lib/hex';
@@ -126,6 +126,7 @@ export function TasteDraft() {
   const [ledgerOpen, setLedgerOpen] = useState(false);
   const [frictionOpen, setFrictionOpen] = useState<number | null>(null);
   const [barParked, setBarParked] = useState(false);
+  const [progress, setProgress] = useState<RunProgress | null>(null);
 
   const brief = useMemo(() => {
     try {
@@ -134,6 +135,11 @@ export function TasteDraft() {
       return null;
     }
   }, [draft, controls]);
+
+  const openProposals = useMemo(() => {
+    if (!lastRun || lastRun.status !== 'awaiting_approval') return [];
+    return simulationOf(lastRun).proposals;
+  }, [lastRun]);
 
   useEffect(() => {
     if (!brief) return;
@@ -278,9 +284,38 @@ export function TasteDraft() {
     }
     setV2(simulation);
     setView(2);
-    if (simulation.score != null) setTimeline((items) => [...items, simulation.score as number]);
+    if (simulation.score != null) {
+      const score = simulation.score;
+      setTimeline((items) => (items[items.length - 1] === score ? items : [...items, score]));
+    }
     setReinterviewed(true);
     setPendingId(run.status === 'awaiting_approval' ? (simulation.proposals[0]?.id ?? null) : null);
+  }
+
+  function noteStep(kind: string) {
+    const index =
+      kind === 'personas'
+        ? 0
+        : kind === 'interview' || kind === 'reinterview'
+          ? 1
+          : kind === 'frictions'
+            ? 2
+            : kind === 'evidence' || kind === 'broaden' || kind === 'ask' || kind === 'gate'
+              ? 3
+              : kind === 'simulate'
+                ? 4
+                : kind === 'rank' || kind === 'propose'
+                  ? 5
+                  : -1;
+    if (index < 0) return;
+    setProgress((current) => ({
+      calls: current?.calls ?? 0,
+      budget: current?.budget ?? 0,
+      shown: current?.shown ?? 0,
+      of: current?.of ?? 0,
+      label: current?.label ?? '',
+      step: Math.max(current?.step ?? 0, index),
+    }));
   }
 
   async function startTest(override?: { draft: DraftState; controls: ProfileControls }) {
@@ -302,6 +337,7 @@ export function TasteDraft() {
     setAsk(null);
     setRunId(null);
     setLabels([]);
+    setProgress(null);
     setTrace(EMPTY_TRACE);
     setPhase('analyzing');
     setModal(null);
@@ -328,6 +364,7 @@ export function TasteDraft() {
       setRunId(created.id);
       const run = await readRunEvents(created.id, async (step) => {
         setLabels((current) => (current.includes(step.label) ? current : [...current, step.label]));
+        noteStep(step.kind);
         if (step.kind === 'personas' || step.kind === 'interview') {
           const snap = await client.getRun(created.id);
           setPersonas(await personasOf(snap, resolvedBrief));
@@ -336,6 +373,8 @@ export function TasteDraft() {
           const snap = await client.getRun(created.id);
           setLoopProposal(simulationOf(snap).proposals[0] ?? null);
         }
+      }, (next) => {
+        setProgress((current) => ({ ...next, step: Math.max(current?.step ?? 0, next.step) }));
       });
       await new Promise((resolve) => setTimeout(resolve, 3500));
       if (run.status === 'awaiting_input') {
@@ -416,7 +455,7 @@ export function TasteDraft() {
       }
       if (run.score == null) throw new Error(plainStopReason(run.stopReason) || 'This run stopped before it could recommend a change.');
       setAsk(null);
-      acceptRun(run, toProfileBrief(nextDraft, controls), true);
+      acceptRun(run, toProfileBrief(nextDraft, controls), run.version <= 1);
       setPhase('result');
     } catch (err) {
       setPhase('input');
@@ -499,14 +538,42 @@ export function TasteDraft() {
     return { before, after: result.simulation.score, afterBrief };
   }
 
+  function decisionBrief(): BriefV2 {
+    return v1Brief ?? brief ?? toProfileBrief(draft, controls);
+  }
+
+  async function resyncDecision(note: string) {
+    if (!runId) {
+      setError(note);
+      return;
+    }
+    try {
+      const run = await client.getRun(runId);
+      acceptRun(run, decisionBrief(), run.version <= 1);
+      setModal(null);
+      setDismissed(run.status !== 'awaiting_approval');
+      setPendingId(run.status === 'awaiting_approval' ? (run.proposals[0]?.id ?? null) : null);
+      if (run.score != null || run.status === 'stopped' || run.status === 'awaiting_approval') setPhase('result');
+      setError(note);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : note);
+    }
+  }
+
+  function movedOn(err: unknown): boolean {
+    return err instanceof ApiError && (err.status === 409 || err.status === 404);
+  }
+
   async function approveProposal(proposal: ProposalView) {
     if (runId) {
       remember();
       const run = await client.approveRun(runId, proposal.id);
       syncPrice(proposal);
-      acceptRun(run, v1Brief ?? brief ?? toProfileBrief(draft, controls), false);
+      acceptRun(run, decisionBrief(), run.version <= 1);
       setAppliedIds((ids) => [...ids, proposal.id]);
       setModal(null);
+      setDismissed(run.status !== 'awaiting_approval');
+      setPendingId(run.status === 'awaiting_approval' ? (run.proposals[0]?.id ?? null) : null);
       return { before: v1?.score ?? null, after: run.score };
     }
     const scored = await approveServer(proposal.id);
@@ -520,25 +587,46 @@ export function TasteDraft() {
     return scored;
   }
 
-  async function approveFromModal() {
-    const proposal = v1?.proposals[0];
+  async function decide(action: 'approve' | 'dismiss', proposal: ProposalView | undefined) {
     if (!proposal || busy) return;
     setBusy(true);
     setError('');
     try {
-      await approveProposal(proposal);
+      if (action === 'approve') {
+        await approveProposal(proposal);
+      } else if (runId) {
+        const run = await client.dismissRun(runId, proposal.id);
+        acceptRun(run, decisionBrief(), run.version <= 1);
+        setDismissed(run.status !== 'awaiting_approval' || run.proposals.length === 0);
+        setPendingId(run.status === 'awaiting_approval' ? (run.proposals[0]?.id ?? null) : null);
+        setModal(null);
+      } else {
+        await client.dismiss(proposal.id);
+        setDismissed(true);
+        setModal(null);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Approve failed');
+      const note = movedOn(err)
+        ? 'This run already moved on. Showing the latest result.'
+        : err instanceof Error
+          ? err.message
+          : 'That decision did not apply.';
+      await resyncDecision(note);
     } finally {
       setBusy(false);
     }
   }
 
-  function chase(pool = (v2 ?? v1)?.proposals ?? [], ids = appliedIds) {
+  function chase(pool = openProposals.length ? openProposals : ((v2 ?? v1)?.proposals ?? []), ids = appliedIds) {
     const goal = Number(target);
     const current = (v2 ?? v1)?.score ?? null;
     const strength = (v2 ?? v1)?.evidenceStrength;
     if (current == null || !Number.isFinite(goal)) return;
+    if (lastRun && lastRun.status !== 'awaiting_approval') {
+      setPendingId(null);
+      setStopReason(lastRun.stopReason ?? 'This run is not waiting for a decision.');
+      return;
+    }
     if (current >= goal) {
       setStopReason(`The score is ${current}, which meets the target.`);
       setPendingId(null);
@@ -586,28 +674,6 @@ export function TasteDraft() {
     const reply = await chatWithPersona(chatPersona, message, fetch, apiBase());
     setPersonaSay(reply.say);
     setPersonaChips(reply.evidence);
-  }
-
-  async function rejectFromModal() {
-    const proposal = v1?.proposals[0];
-    if (!proposal) {
-      setModal(null);
-      return;
-    }
-    try {
-      if (runId && brief) {
-        const run = await client.dismissRun(runId, proposal.id);
-        acceptRun(run, v1Brief ?? brief, run.version <= 1);
-        setDismissed(run.proposals.length === 0);
-      } else {
-        await client.dismiss(proposal.id);
-        setDismissed(true);
-      }
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Reject failed');
-      return;
-    }
-    setModal(null);
   }
 
   async function approve(id: string) {
@@ -669,7 +735,11 @@ export function TasteDraft() {
         ),
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Approve failed');
+      if (movedOn(err)) {
+        await resyncDecision('This run already moved on. Showing the latest result.');
+      } else {
+        setError(err instanceof Error ? err.message : 'Approve failed');
+      }
     } finally {
       setChatBusy(false);
     }
@@ -687,7 +757,11 @@ export function TasteDraft() {
           await client.dismiss(id);
         }
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : 'Dismiss failed');
+        if (movedOn(err)) {
+          await resyncDecision('This run already moved on. Showing the latest result.');
+        } else {
+          setError(err instanceof ApiError ? err.message : 'Dismiss failed');
+        }
         return;
       }
     }
@@ -804,11 +878,15 @@ export function TasteDraft() {
   }
 
   function openAgentAction() {
+    if (lastRun?.status === 'awaiting_approval' && openProposals.length && !v2) {
+      setModal('proposal');
+      return;
+    }
     if (v2) {
       setModal('compare');
       return;
     }
-    setModal('proposal');
+    if (openProposals.length) setModal('proposal');
   }
 
   const savedScore = view === 2 && v2?.score != null ? v2.score : v1?.score ?? null;
@@ -951,7 +1029,17 @@ export function TasteDraft() {
           onExample={() => tryExample()}
         />
       ) : null}
-      {phase === 'analyzing' ? <AnalysisPhase labels={labels} city={draft.city} personas={personas} proposal={loopProposal} /> : null}
+      {phase === 'analyzing' ? (
+        <AnalysisPhase
+          city={draft.city}
+          personas={personas}
+          proposal={loopProposal}
+          step={progress?.step ?? 0}
+          status={progress?.label}
+          calls={progress?.shown ?? 0}
+          total={progress?.of ?? 0}
+        />
+      ) : null}
       {phase === 'result' && v1 ? (
         <ResultPhase
           draft={draft}
@@ -968,12 +1056,18 @@ export function TasteDraft() {
           trace={trace}
           target={target}
           stop={stopReason}
-          pending={(v2 ?? v1).proposals.find((item) => item.id === pendingId) ?? null}
+          pending={
+            !lastRun || lastRun.status === 'awaiting_approval'
+              ? (openProposals.find((item) => item.id === pendingId) ?? (v2 ?? v1).proposals.find((item) => item.id === pendingId) ?? null)
+              : null
+          }
           personaNote={personaNote}
           reinterviewed={reinterviewed}
           ledgerOpen={ledgerOpen}
           frictionOpen={frictionOpen}
           dismissed={dismissed}
+          canDecide={!lastRun || lastRun.status === 'awaiting_approval'}
+          decisions={lastRun ? openProposals : undefined}
           onView={setView}
           onToggleLedger={() => setLedgerOpen((open) => !open)}
           onToggleFriction={(index) => setFrictionOpen((current) => (current === index ? null : index))}
@@ -992,19 +1086,17 @@ export function TasteDraft() {
           onWhyQloo={() => void toggleWhy()}
           onLaunch={() => setPhase('report')}
           onApprovePending={() => {
-            if (busy) return;
-            const pool = [...(v2?.proposals ?? []), ...(v1?.proposals ?? [])];
-            const proposal = pool.find((item) => item.id === pendingId);
-            if (!proposal) return;
-            setBusy(true);
-            setError('');
-            void approveProposal(proposal)
-              .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Approve failed'))
-              .finally(() => setBusy(false));
+            const proposal = openProposals.find((item) => item.id === pendingId) ?? (v2 ?? v1)?.proposals.find((item) => item.id === pendingId);
+            void decide('approve', proposal);
           }}
           onRejectPending={() => {
-            setPendingId(null);
-            setStopReason(`Stopped. The concept stays at ${(v2 ?? v1)?.score ?? '—'}.`);
+            const proposal = openProposals.find((item) => item.id === pendingId);
+            if (!proposal || !runId) {
+              setPendingId(null);
+              setStopReason(`Stopped. The concept stays at ${(v2 ?? v1)?.score ?? '—'}.`);
+              return;
+            }
+            void decide('dismiss', proposal);
           }}
         />
       ) : null}
@@ -1022,12 +1114,12 @@ export function TasteDraft() {
           onBack={() => setPhase('result')}
         />
       ) : null}
-      {modal === 'proposal' && v1 ? (
+      {modal === 'proposal' && openProposals.length ? (
         <ProposalModal
-          proposals={dismissed ? [] : v1.proposals}
+          proposals={openProposals}
           busy={busy}
-          onApprove={() => void approveFromModal()}
-          onReject={() => void rejectFromModal()}
+          onApprove={() => void decide('approve', openProposals[0])}
+          onReject={() => void decide('dismiss', openProposals[0])}
           onClose={() => setModal(null)}
         />
       ) : null}

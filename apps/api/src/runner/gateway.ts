@@ -15,6 +15,8 @@ export interface GatewayOptions {
   backoffMs?: number;
   attempts?: number;
   sleep?: (ms: number) => Promise<void>;
+  /** Fired after a call is counted, before the response returns. */
+  onProgress?: (calls: number) => void;
 }
 
 type Caller = {
@@ -68,6 +70,7 @@ export class QlooGateway implements Caller {
   private readonly backoffMs: number;
   private readonly attempts: number;
   private readonly sleep: (ms: number) => Promise<void>;
+  private readonly onProgress: ((calls: number) => void) | undefined;
   private readonly limit: <T>(fn: () => Promise<T>) => Promise<T>;
   private readonly inflight = new Map<string, Promise<QlooResult>>();
 
@@ -81,6 +84,7 @@ export class QlooGateway implements Caller {
     this.backoffMs = options.backoffMs ?? 200;
     this.attempts = options.attempts ?? 3;
     this.sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
+    this.onProgress = options.onProgress;
     this.limit = pLimit(options.concurrency ?? 4);
   }
 
@@ -114,6 +118,7 @@ export class QlooGateway implements Caller {
       if (attempt > 0) await this.sleep(this.backoffMs * 2 ** (attempt - 1));
       if (this.calls >= this.budget) return this.exhausted();
       this.calls += 1;
+      this.onProgress?.(this.calls);
       last = await fn();
       if (!retryable(last)) return last;
     }

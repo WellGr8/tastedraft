@@ -39,7 +39,7 @@ export const QLOO_DOCUMENTED = {
     'urn:entity:place',
     'urn:entity:podcast',
     'urn:entity:tv_show',
-    'urn:entity:video_game',
+    'urn:entity:videogame',
   ],
 } as const;
 

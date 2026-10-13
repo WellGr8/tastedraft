@@ -40,7 +40,7 @@ import { conflict, notFound } from '../errors.ts';
 import { qlooAge } from '../providers/qloo/insights.ts';
 import { parseHeatCells } from '../providers/qloo/heatmap.ts';
 import { buildPersona } from '../providers/qloo/persona.ts';
-import { QlooClient, type QlooInsightsParams } from '../providers/qloo/client.ts';
+import { QlooClient, type QlooInsightsParams, type QlooResult } from '../providers/qloo/client.ts';
 import { QlooGateway } from './gateway.ts';
 import {
   askFor,
@@ -375,7 +375,7 @@ export class AgentRunner {
         friction: scored.points.friction,
       },
       evidenceStrength: record.snapshot.evidenceStrength,
-      mode: 'sample',
+      mode: simulationMode(record, gateway),
     };
     await this.step(record, 'simulate', 'Simulate options with the engine', `Engine total ${scored.total}.`);
     const detected = detectFrictions(record.brief, scored);
@@ -433,7 +433,26 @@ export class AgentRunner {
   }
 
   private async personas(record: RunRecord, gateway: QlooGateway): Promise<Persona[]> {
-    const built = await buildPersona(gateway, {
+    const reserve = Math.min(12, Math.floor(record.snapshot.budget / 3));
+    const cap = Math.max(0, record.snapshot.budget - reserve);
+    let reserved = gateway.calls;
+    const limited = {
+      mode: gateway.mode,
+      insights: (params: QlooInsightsParams): Promise<QlooResult> => {
+        if (reserved >= cap) {
+          return Promise.resolve({
+            ok: false,
+            mode: gateway.mode,
+            url: 'budget',
+            timedOut: false,
+            message: 'Persona calls held so evidence and re-interview can run',
+          });
+        }
+        reserved += 1;
+        return gateway.insights(params);
+      },
+    };
+    const built = await buildPersona(limited, {
       brief: record.brief,
       location: record.brief.city,
       audiences: audiencesFor(record.brief),
@@ -653,7 +672,19 @@ export class AgentRunner {
       budget: record.snapshot.budget,
       already: record.snapshot.qlooCalls,
       sleep: this.options.sleep,
+      onProgress: (calls) => this.publishCalls(record, calls),
     });
+  }
+
+  /** Persist the call count so a live SSE reader can show progress before the phase finishes. */
+  private publishCalls(record: RunRecord, calls: number): void {
+    if (calls === record.snapshot.qlooCalls) return;
+    record.snapshot.qlooCalls = calls;
+    try {
+      this.options.store.save(record);
+    } catch {
+      // A progress write must not fail the run. The next step still saves the count.
+    }
   }
 
   private noteCalls(record: RunRecord, gateway: QlooGateway): void {
@@ -810,16 +841,42 @@ function frictionsFrom(brief: BriefV2, scored: EngineScore): Friction[] {
   }));
 }
 
+function simulationMode(record: RunRecord, gateway: QlooGateway): 'live' | 'mock' | 'sample' {
+  if (record.snapshot.grounding !== 'qloo') return 'sample';
+  if (gateway.mode === 'live') return 'live';
+  if (gateway.mode === 'mock') return 'mock';
+  return 'sample';
+}
+
 function renderReport(snapshot: RunSnapshot): string {
   const head = snapshot.stopReason
-    ? `${plainStopReason(snapshot.stopReason)} (${snapshot.stopReason})`
+    ? plainStopReason(snapshot.stopReason)
     : snapshot.status === 'awaiting_input'
       ? 'Need one more detail before this can be scored.'
       : snapshot.status === 'awaiting_approval'
         ? 'Waiting for approval.'
         : 'Running.';
   const label = snapshot.grounding === 'recorded' ? 'Recorded run.' : snapshot.grounding === 'llm-only' ? 'LLM-only. No Qloo evidence.' : '';
-  return [label, head, `Round ${snapshot.round}. Qloo calls ${snapshot.qlooCalls} of ${snapshot.budget}.`].filter(Boolean).join('\n');
+  return [label, head].filter(Boolean).join('\n');
+}
+
+/** Live line for the analysis card. Persona work is counted against its own fan-out. */
+export function liveProgress(record: RunRecord): { calls: number; budget: number; shown: number; of: number; label: string; step: number } {
+  const city = record.brief.city.trim() || 'this city';
+  const calls = record.snapshot.qlooCalls;
+  const budget = record.snapshot.budget;
+  const phase = record.phase;
+  const step = phase === 'personas' ? 0 : phase === 'interview' ? 1 : phase === 'frictions' ? 2 : phase === 'evidence' || phase === 'gate' ? 3 : phase === 'simulate' || phase === 'reinterview' ? 4 : 5;
+  if (phase === 'personas') {
+    return { calls, budget, shown: calls, of: budget, label: `Asking Qloo for ${city} tastes… ${calls}/${budget} calls`, step };
+  }
+  if (phase === 'evidence' || phase === 'gate') {
+    return { calls, budget, shown: calls, of: budget, label: `Searching Qloo for ${city}… ${calls}/${budget} calls`, step };
+  }
+  if (phase === 'interview' || phase === 'frictions') {
+    return { calls, budget, shown: calls, of: budget, label: `Reading ${city} tastes… ${calls}/${budget} calls`, step };
+  }
+  return { calls, budget, shown: calls, of: budget, label: `Scoring ${city}… ${calls}/${budget} calls`, step };
 }
 
 function pushEvidence(record: RunRecord, row: Evidence): void {

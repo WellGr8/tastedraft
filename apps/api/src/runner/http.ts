@@ -10,7 +10,7 @@ import { streamSSE } from 'hono/streaming';
 import { z } from 'zod';
 import { createLlmClient } from '../llm/client.ts';
 import { notFound } from '../errors.ts';
-import { AgentRunner } from './runner.ts';
+import { AgentRunner, liveProgress } from './runner.ts';
 import { RunStore } from './store.ts';
 
 const CreateBody = z.object({
@@ -63,6 +63,7 @@ export function mountRuns(app: Hono, options: RunHttpOptions = {}): AgentRunner 
     const header = c.req.header('Last-Event-ID');
     const parsed = header == null || header === '' ? -1 : Number(header);
     let cursor = Number.isFinite(parsed) ? parsed : -1;
+    let announced = -1;
     return streamSSE(c, async (stream) => {
       const started = Date.now();
       while (Date.now() - started < 90_000) {
@@ -72,10 +73,19 @@ export function mountRuns(app: Hono, options: RunHttpOptions = {}): AgentRunner 
           await stream.writeSSE({ id: String(step.seq), event: 'step', data: JSON.stringify(payload) });
           cursor = step.seq;
         }
-        const run = store.snapshot(id);
+        const record = store.read(id);
+        if (record && record.snapshot.status === 'running') {
+          const progress = liveProgress(record);
+          if (progress.calls !== announced) {
+            announced = progress.calls;
+            const payload = SseEventSchema.parse({ type: 'progress', ...progress });
+            await stream.writeSSE({ event: 'progress', data: JSON.stringify(payload) });
+          }
+        }
+        const run = record?.snapshot;
         if (!run || run.status !== 'running') {
           if (run) {
-            const payload = SseEventSchema.parse({ type: 'state', run });
+            const payload = SseEventSchema.parse({ type: 'state', run: store.snapshot(id) ?? run });
             await stream.writeSSE({ event: 'state', data: JSON.stringify(payload) });
           }
           break;

@@ -293,8 +293,16 @@ fn qloo_gender(gender: Option<&str>) -> Option<String> {
     }
 }
 
+#[cfg(test)]
+pub(crate) fn entity_urn_for_test(kind: &str) -> Option<String> {
+    to_entity_urn(kind)
+}
+
 fn to_entity_urn(kind: &str) -> Option<String> {
     let raw = kind.trim();
+    if raw == "urn:entity:video_game" {
+        return Some("urn:entity:videogame".to_string());
+    }
     if raw.starts_with("urn:entity:") {
         return Some(raw.to_string());
     }
@@ -308,7 +316,7 @@ fn to_entity_urn(kind: &str) -> Option<String> {
         "book" => "urn:entity:book",
         "podcast" => "urn:entity:podcast",
         "tv_show" | "tv show" => "urn:entity:tv_show",
-        "videogame" | "video_game" => "urn:entity:video_game",
+        "videogame" | "video_game" => "urn:entity:videogame",
         _ => return None,
     };
     Some(mapped.to_string())
@@ -324,7 +332,7 @@ fn category_cues() -> &'static [(Regex, &'static [&'static str])] {
             (Regex::new(r"(?i)\bfilm\b|\bmovie\b|cinema|หนัง").unwrap(), &["urn:entity:movie"]),
             (Regex::new(r"(?i)podcast").unwrap(), &["urn:entity:podcast"]),
             (Regex::new(r"(?i)\bbook\b|\bnovel\b").unwrap(), &["urn:entity:book"]),
-            (Regex::new(r"(?i)video game|videogame|\bgame\b").unwrap(), &["urn:entity:video_game"]),
+            (Regex::new(r"(?i)video game|videogame|\bgame\b").unwrap(), &["urn:entity:videogame"]),
             (Regex::new(r"(?i)hotel|destination|neighborhood|district|ย่าน").unwrap(), &["urn:entity:destination", "urn:entity:place"]),
         ]
     })
