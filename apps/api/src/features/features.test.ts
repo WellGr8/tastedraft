@@ -403,8 +403,9 @@ describe('feature routes', () => {
     assert.equal(res.status, 200);
     assert.equal(res.json.label, PERSONA_RESPONSE_LABEL);
     assert.equal(res.json.source, 'template');
-    assert.match(String(res.json.message), /Simulated persona response/);
-    assert.match(String(res.json.message), new RegExp(REF));
+    assert.match(String(res.json.message), /Glossier/);
+    assert.doesNotMatch(String(res.json.message), /Simulated persona response/);
+    assert.doesNotMatch(String(res.json.message), new RegExp(REF, 'i'));
     const stream = await api.request('/api/features/persona-chat/stream', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },

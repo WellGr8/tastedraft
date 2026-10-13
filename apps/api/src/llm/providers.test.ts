@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  chatCompletionsUrl,
   createLlmClient,
   OPENROUTER_FALLBACK_MODEL,
   OPENROUTER_MODEL,
@@ -9,7 +10,7 @@ import {
   redactSecrets,
   resolveLlmProvider,
 } from './client.ts';
-import { capPersonaMessage, draftPersonaReply, PERSONA_LABEL, PERSONA_MAX_CHARS } from './persona.ts';
+import { capPersonaMessage, draftPersonaReply, PERSONA_MAX_CHARS } from './persona.ts';
 import type { PersonaChatRequest } from '@tastedraft/contracts';
 
 const ANCHOR = '11111111-1111-1111-1111-111111111111';
@@ -35,6 +36,32 @@ describe('LLM providers', () => {
     assert.equal(resolveLlmProvider({ LLM_BASE_URL: 'https://api.anthropic.com' }), 'anthropic');
     assert.equal(resolveLlmProvider({ LLM_BASE_URL: 'https://api.openai.com/v1' }), 'openai');
     assert.throws(() => resolveLlmProvider({ LLM_PROVIDER: 'local' }), /openrouter/);
+  });
+
+  it('posts OpenRouter at LLM_BASE_URL and retries without JSON mode after a 400', async () => {
+    const seen: string[] = [];
+    let calls = 0;
+    const fetchImpl: typeof fetch = async (url) => {
+      seen.push(String(url));
+      calls += 1;
+      if (calls === 1) return new Response('{"error":"json"}', { status: 400 });
+      return new Response(JSON.stringify({ choices: [{ message: { content: '{"ok":true}' } }] }), { status: 200 });
+    };
+    const llm = createLlmClient(
+      {
+        LLM_PROVIDER: 'openrouter',
+        LLM_BASE_URL: 'https://openrouter.example/api/v1/chat/completions',
+        LLM_API_KEY: 'sk-or-v1-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+      },
+      fetchImpl,
+    );
+    assert.equal(chatCompletionsUrl('https://openrouter.ai/api/v1'), 'https://openrouter.ai/api/v1/chat/completions');
+    assert.equal(chatCompletionsUrl('https://openrouter.example/api/v1/chat/completions'), 'https://openrouter.example/api/v1/chat/completions');
+    assert.equal(await llm.complete([{ role: 'user', content: 'hi' }]), '{"ok":true}');
+    assert.deepEqual(seen, [
+      'https://openrouter.example/api/v1/chat/completions',
+      'https://openrouter.example/api/v1/chat/completions',
+    ]);
   });
 
   it('posts OpenRouter chat completions with a cheap model and a cheaper fallback', async () => {
@@ -130,13 +157,33 @@ describe('LLM providers', () => {
       },
     }, request());
     assert.equal(draft.source, 'template');
-    assert.match(draft.message, new RegExp(`^${PERSONA_LABEL}`));
+    assert.doesNotMatch(draft.message, /Simulated persona response/);
+    assert.doesNotMatch(draft.message, new RegExp(ANCHOR, 'i'));
     assert.match(draft.message, /Billie Eilish/);
     assert.match(draft.warning ?? '', /unavailable/);
   });
 });
 
 describe('persona grounding', () => {
+  it('accepts an alias citation and keeps raw ids out of the prompt', async () => {
+    let prompt = '';
+    const llm = {
+      mode: 'live' as const,
+      async complete(messages: Array<{ content: string }>) {
+        prompt = messages.map((message) => message.content).join('\n');
+        return JSON.stringify({
+          message: 'I would go because Billie Eilish is already my taste.',
+          citationIds: ['a1'],
+        });
+      },
+    };
+    const draft = await draftPersonaReply(llm, request());
+    assert.equal(draft.source, 'llm');
+    assert.equal(draft.citations[0]?.id, ANCHOR);
+    assert.doesNotMatch(prompt, new RegExp(ANCHOR, 'i'));
+    assert.doesNotMatch(draft.message, /Simulated persona response/);
+  });
+
   it('keeps a short reply that names a real anchor and drops invented citations', async () => {
     const llm = {
       mode: 'live' as const,
@@ -152,7 +199,8 @@ describe('persona grounding', () => {
     assert.equal(draft.source, 'llm');
     assert.equal(draft.citations.length, 1);
     assert.equal(draft.citations[0]?.id, ANCHOR);
-    assert.match(draft.message, new RegExp(`^${PERSONA_LABEL}`));
+    assert.match(draft.message, /Billie Eilish/);
+    assert.doesNotMatch(draft.message, /Simulated persona response/);
   });
 
   it('accepts JSON wrapped in a fence', async () => {
@@ -164,7 +212,8 @@ describe('persona grounding', () => {
     };
     const draft = await draftPersonaReply(llm, request());
     assert.equal(draft.source, 'llm');
-    assert.match(draft.message, /^Simulated persona response/);
+    assert.match(draft.message, /Billie Eilish/);
+    assert.doesNotMatch(draft.message, /[0-9a-f]{8}-[0-9a-f]{4}-/i);
     assert.equal(draft.citations[0]?.name, 'Billie Eilish');
   });
 
@@ -190,16 +239,17 @@ describe('persona grounding', () => {
     for (const llm of [invented, unnamed]) {
       const draft = await draftPersonaReply(llm, request());
       assert.equal(draft.source, 'template');
-      assert.match(draft.message, new RegExp(ANCHOR));
+      assert.match(draft.message, /Billie Eilish/);
+      assert.doesNotMatch(draft.message, new RegExp(ANCHOR, 'i'));
       assert.match(draft.warning ?? '', /grounded/);
     }
   });
 
   it('caps a long grounded reply', () => {
-    const long = `${PERSONA_LABEL}. ${'Billie Eilish '.repeat(80)}`;
+    const long = `${'Billie Eilish '.repeat(80)}`;
     const capped = capPersonaMessage(long);
     assert.ok(capped.length <= PERSONA_MAX_CHARS);
-    assert.match(capped, new RegExp(`^${PERSONA_LABEL}`));
+    assert.doesNotMatch(capped, /Simulated persona response/);
     assert.match(capped, /…$/);
   });
 });

@@ -6,6 +6,7 @@ import {
   type RunSnapshot,
 } from '@tastedraft/contracts';
 import { scoreLive, type LiveScore } from './engine-preview.ts';
+import { playbackDistricts } from './places.ts';
 
 /** Place labels and weights from apps/api/src/runner/recordings/tokyo-tour.json. */
 export const RECORDED_AREAS = [
@@ -16,11 +17,11 @@ export const RECORDED_AREAS = [
 
 export const RECORDED_NOTE = 'Recorded run. Demographic skew was not in this playback.';
 
-const SLICES: Array<{ age: string; indexes: number[] }> = [
-  { age: '18–25', indexes: [0, 1] },
-  { age: '26–35', indexes: [1, 2] },
-  { age: '36–45', indexes: [2, 3] },
-  { age: '46+', indexes: [3, 4] },
+const SLICES: Array<{ age: string; gender: 'female' | 'male'; indexes: number[] }> = [
+  { age: '18–25', gender: 'female', indexes: [0, 1] },
+  { age: '26–35', gender: 'male', indexes: [1, 2] },
+  { age: '36–45', gender: 'female', indexes: [2, 3] },
+  { age: '46+', gender: 'male', indexes: [3, 0] },
 ];
 
 function posture(price: number): string | null {
@@ -83,7 +84,7 @@ export function recordedSnapshot(brief: BriefV2, before: number, delta: number):
     })),
     {
       id: 'ev:recorded-live-music',
-      name: 'live music',
+      name: brief.interests[0]?.name ?? 'launch',
       kind: 'tag' as const,
       ref: 'tag-live',
       strength,
@@ -91,10 +92,11 @@ export function recordedSnapshot(brief: BriefV2, before: number, delta: number):
       source: 'recorded',
     },
   ];
-  const cells = RECORDED_AREAS.map((area) => ({
-    id: `cell-${area.label.toLowerCase()}`,
-    lat: area.label === 'Koenji' ? 35.7056 : area.label === 'Shibuya' ? 35.6595 : 35.6614,
-    lng: area.label === 'Koenji' ? 139.6496 : area.label === 'Shibuya' ? 139.7004 : 139.6676,
+  const playback = playbackDistricts(brief.city);
+  const cells = playback.map((area) => ({
+    id: `cell-${area.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+    lat: area.lat,
+    lng: area.lng,
     weight: area.weight,
     label: area.label,
   }));
@@ -112,13 +114,20 @@ export function recordedSnapshot(brief: BriefV2, before: number, delta: number):
         ...(entity.image ? { image: entity.image } : {}),
       }));
     if (!anchors.length) return [];
+    const taste = anchors.map((entity) => ({
+      name: entity.name,
+      type: entity.type,
+      affinity: null,
+    }));
     return [
       {
-        id: `recorded-${brief.city}-${slice.age}`.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-        label: `${brief.city} ${slice.age}`,
+        id: `recorded-${brief.city}-${slice.age}-${slice.gender}`.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        label: `${brief.city} ${slice.age} ${slice.gender}`,
         location: brief.city,
         age: slice.age,
+        gender: slice.gender,
         anchors,
+        ...(taste.length ? { taste } : {}),
         quote: 'Simulated persona response',
         quoteLabel: PERSONA_RESPONSE_LABEL,
       },
@@ -130,7 +139,7 @@ export function recordedSnapshot(brief: BriefV2, before: number, delta: number):
           {
             id: 'recorded-merch-price',
             changes: [{ param: 'filter.price_level.max', from: String(from), to: String(to) }],
-            why: 'Drop the merch price one level. The engine scores that higher for this audience.',
+            why: 'Lower the price one level. The engine scores that higher for this audience.',
             evidenceRefs: [firstEvidence],
             predictedDelta: delta,
           },
@@ -151,7 +160,7 @@ export function recordedSnapshot(brief: BriefV2, before: number, delta: number):
     frictions: [
       {
         id: 'friction-price',
-        hypothesis: 'Premium merch price',
+        hypothesis: 'Premium price',
         label: FRICTION_LABEL,
         evidenceRefs: [firstEvidence],
         confidence: strength,
@@ -172,8 +181,8 @@ export function recordedSnapshot(brief: BriefV2, before: number, delta: number):
         id: 'rec-1',
         seq: 1,
         kind: 'score',
-        label: 'Recorded run. Scoring this tour on the engine.',
-        detail: 'Playback of the Tokyo tour recording.',
+        label: 'Recorded run. Scoring this launch on the engine.',
+        detail: 'Playback. Affinities were not measured on this pass.',
       },
     ],
     report: 'Recorded run.',

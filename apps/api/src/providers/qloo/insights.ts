@@ -62,6 +62,10 @@ const CATEGORY_CUES: ReadonlyArray<{ re: RegExp; types: readonly string[] }> = [
   { re: /podcast/i, types: ['urn:entity:podcast'] },
   { re: /\bbook\b|\bnovel\b/i, types: ['urn:entity:book'] },
   { re: /video game|videogame|\bgame\b/i, types: ['urn:entity:videogame'] },
+  { re: /k-?drama|tv\s*show|tv\s*series/i, types: ['urn:entity:tv_show'] },
+  { re: /\bcaf[eé]\b|\bcoffee\b|espresso/i, types: ['urn:entity:place', 'urn:entity:brand'] },
+  { re: /skincare|beauty brand/i, types: ['urn:entity:brand'] },
+  { re: /\btravel\b|eco\s*tour|\btrips?\b/i, types: ['urn:entity:destination', 'urn:entity:place'] },
   { re: /hotel|destination|neighborhood|district|ย่าน/i, types: ['urn:entity:destination', 'urn:entity:place'] },
 ];
 

@@ -1,8 +1,8 @@
 # TasteDraft
 
-**Agents, but with taste.** A persona-first launch tester for the Qloo Agentic Hackathon 2026.
+**Agents, but with taste.** A taste simulator for any launch. Qloo Agentic Hackathon 2026.
 
-An indie artist can ask, before the on-sale, whether a Tokyo show and a merch drop would find a room. TasteDraft builds simulated customers from Qloo taste data, interviews them, and re-scores the brief in a deterministic engine. The number is a cultural resonance score. It is not a sales forecast. Every persona reply is labeled **Simulated persona response**.
+A cafe, a game, a brand, a trip, or a show can be tested before the spend. TasteDraft reads the idea, maps it to Qloo entity types, builds simulated customers from cross-domain taste, and re-scores the brief in a deterministic engine. The number is a cultural resonance score. It is not a sales forecast. Persona cards say **Simulated**. A template chat reply is labeled as a template, not as a live model.
 
 | | |
 |---|---|
@@ -74,7 +74,7 @@ If a live call does not land, the agent runner plays a derived recording and lab
 
 The default provider is OpenRouter (`LLM_PROVIDER=openrouter`, base `https://openrouter.ai/api/v1`, OpenAI-compatible). The default model is `google/gemini-2.5-flash-lite`, with `meta-llama/llama-3.2-3b-instruct` as a cheaper fallback sent in the `models` array. Gemini 2.0 Flash no longer has OpenRouter endpoints, so it is not the default.
 
-The call allows 120 output tokens and 8 seconds. The reply must start with **Simulated persona response** and must cite an anchor that belongs to that persona. A missing key, a timeout, an ungrounded reply, or an invented entity falls back to a template that names the persona's strongest anchors. The fallback is labeled the same way.
+The call allows 120 output tokens and 8 seconds. Set `LLM_PROVIDER=openrouter` and `LLM_BASE_URL` (default `https://openrouter.ai/api/v1`) with `LLM_API_KEY` for a live reply. The reply has to name one of that persona's anchors. Identifiers stay out of the prompt and the message. A missing key, a timeout, an ungrounded reply, or an invented entity falls back to a template. The screen marks that fallback with a short note.
 
 `LLM_PROVIDER` may also be `xai`, `openai`, or `anthropic`.
 
@@ -94,7 +94,7 @@ Local place fit is high for all four (85–89) and does not separate a sellout f
 ## Honest limits
 
 - The score is not a forecast of tickets, stores, or revenue.
-- Personas are simulated. The label is part of the reply, including the template fallback.
+- Personas are simulated. A template chat reply says so in a short note. The reply does not print Qloo ids.
 - Qloo's graph is current. A 2009 or 2017 brief is still scored on today's affinities.
 - The sample 71 → 80 path does not run on live affinities. Live rows with no affinity stay empty, and evidence stays LIMITED when a dimension is missing or the brief has a single reference.
 - The Tokyo case studies matched 2 of 4 public outcomes under a rule chosen in advance.

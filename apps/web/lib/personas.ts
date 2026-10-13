@@ -18,6 +18,12 @@ export interface PersonaAnchor {
   image?: string | null;
 }
 
+export interface TasteLink {
+  name: string;
+  type: string;
+  affinity: number | null;
+}
+
 export interface EvidenceChip {
   label: string;
   detail: string;
@@ -32,6 +38,7 @@ export interface Persona {
   role: string;
   initials: string;
   anchors: PersonaAnchor[];
+  taste: TasteLink[];
   fit: number;
   measuring: boolean;
   evidenceStrength: string;
@@ -292,6 +299,7 @@ export function normalizePersonaPayload(body: unknown, brief: BriefV2): PersonaB
       role,
       initials: text(item.initials) ?? initialsOf(label),
       anchors,
+      taste: [],
       fit: measuring ? 0 : fit,
       measuring,
       evidenceStrength: measuring ? 'LIMITED' : text(item.evidenceStrength) ?? 'MEDIUM',
@@ -326,6 +334,7 @@ function measuringPersona(brief: BriefV2, plan: { id: string; label: string; age
     role: roleFor(brief.idea, []),
     initials: initialsOf(plan.label),
     anchors: [],
+    taste: [],
     fit: 0,
     measuring: true,
     evidenceStrength: 'LIMITED',

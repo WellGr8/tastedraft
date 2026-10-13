@@ -102,11 +102,16 @@ test('lab walks four steps with live progress and a plain report', async ({ page
   await expect(page.getByTestId('persona-chat')).toBeVisible();
   await page.getByTestId('chat-input').fill('Would you go to this show?');
   await page.getByTestId('chat-send').click();
-  await expect.poll(async () => page.getByText('Simulated persona response').count(), { timeout: 60_000 }).toBeGreaterThanOrEqual(2);
+  await expect.poll(async () => page.locator('.lab-lines p').count(), { timeout: 60_000 }).toBeGreaterThanOrEqual(3);
+  await expect(page.getByTestId('persona-chat')).not.toContainText(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+  const chatText = await page.getByTestId('persona-chat').innerText();
+  expect(/Template reply|would|like|go|show/i.test(chatText)).toBe(true);
   await page.getByRole('button', { name: 'Close' }).click();
   await page.setViewportSize({ width: 1440, height: 900 });
+  await page.getByTestId('heatmap').evaluate((node) => node.scrollIntoView({ block: 'center' }));
   await shot(page, 'step2-1440');
   await page.setViewportSize({ width: 1280, height: 900 });
+  await page.getByTestId('heatmap').evaluate((node) => node.scrollIntoView({ block: 'center' }));
   await shot(page, 'step2-1280');
 
   await page.getByRole('button', { name: 'Let the Agent fix it' }).click();
@@ -129,8 +134,10 @@ test('lab walks four steps with live progress and a plain report', async ({ page
   expect(new Set(afterQuotes).size).toBe(afterQuotes.length);
   await expect(page.getByTestId('analysis-status')).not.toContainText('Asking Qloo');
   await expect(page.getByTestId('analysis-elapsed')).not.toHaveText('Elapsed 0:00');
+  await page.locator('.lab-result .lab-go').evaluate((node) => node.scrollIntoView({ block: 'end' }));
   await shot(page, 'step4-1440');
   await page.setViewportSize({ width: 1280, height: 900 });
+  await page.locator('.lab-result .lab-go').evaluate((node) => node.scrollIntoView({ block: 'end' }));
   await shot(page, 'step4-1280');
   await page.getByTestId('open-report').click();
   await expect(page.getByTestId('launch-report')).toBeVisible();
@@ -142,6 +149,40 @@ test('lab walks four steps with live progress and a plain report', async ({ page
   await page.setViewportSize({ width: 1440, height: 900 });
   await shot(page, 'report-1440');
   expect(errors.join('\n')).not.toMatch(/409|Conflict/);
+});
+
+test('example launches fill the form and reach customers', async ({ page }) => {
+  test.setTimeout(420_000);
+  prepare();
+  const errors = watch(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  await expect(page.getByTestId('launch-kind')).toContainText('Music');
+  await expect(page.getByTestId('impact-compare')).toContainText(/music focus group/i);
+  await shot(page, 'examples-home');
+  const examples = [
+    { name: 'Bangkok coffee shop', idea: /coffee shop in Bangkok/, kind: /Cafe/, city: 'Bangkok', file: 'example-bangkok' },
+    { name: 'Seoul indie game', idea: /video game launch in Seoul/, kind: /Video game/, city: 'Seoul', file: 'example-seoul' },
+    { name: 'NYC skincare', idea: /skincare brand/, kind: /TV series/, city: 'New York', file: 'example-nyc' },
+    { name: 'Lisbon eco tour', idea: /eco travel tour in Lisbon/, kind: /Travel/, city: 'Lisbon', file: 'example-lisbon' },
+    { name: 'Tokyo tour + merch', idea: /Tokyo tour \+ merch/, kind: /Music/, city: 'Tokyo', file: 'example-tokyo' },
+  ];
+  for (const example of examples) {
+    await page.getByRole('button', { name: example.name }).click();
+    await expect(page.locator('#lab-idea')).toHaveValue(example.idea);
+    await expect(page.locator('#lab-city')).toHaveValue(example.city);
+    await expect(page.getByTestId('launch-kind')).toContainText(example.kind);
+    await shot(page, example.file);
+  }
+  await page.getByRole('button', { name: 'Bangkok coffee shop' }).click();
+  await expect(page.getByTestId('cost-avoided')).not.toHaveText('$10,400');
+  await page.getByRole('button', { name: 'Test this idea' }).click();
+  await expect(page.getByTestId('persona-card').first()).toBeVisible({ timeout: 40_000 });
+  await expect(page.getByTestId('taste-graph').first()).toBeVisible();
+  const scores = await page.getByTestId('persona-score').allTextContents();
+  expect(new Set(scores.map((score) => score.trim())).size).toBeGreaterThan(1);
+  await shot(page, 'example-bangkok-customers');
+  expect(errors.join('\n')).not.toMatch(/409|Conflict|same key/);
 });
 
 test('reduced motion keeps the live status without the busy bar', async ({ page }) => {

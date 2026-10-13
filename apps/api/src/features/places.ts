@@ -18,6 +18,9 @@ export const CITY_BOXES: readonly CityBox[] = [
   { name: 'New York', south: 40.49, north: 40.92, west: -74.26, east: -73.7 },
   { name: 'San Francisco', south: 37.7, north: 37.84, west: -122.52, east: -122.35 },
   { name: 'Munich', south: 48.06, north: 48.25, west: 11.36, east: 11.72 },
+  { name: 'Bangkok', south: 13.49, north: 13.96, west: 100.32, east: 100.95 },
+  { name: 'Seoul', south: 37.42, north: 37.7, west: 126.79, east: 127.18 },
+  { name: 'Lisbon', south: 38.69, north: 38.8, west: -9.23, east: -9.09 },
 ];
 
 interface GazetteerPlace {
@@ -47,9 +50,24 @@ const GAZETTEER: readonly GazetteerPlace[] = [
   { name: 'Ikebukuro', lat: 35.7295, lng: 139.7109, city: 'Tokyo' },
   { name: 'Sangenjaya', lat: 35.6434, lng: 139.6698, city: 'Tokyo' },
   { name: 'Silver Lake', lat: 34.0869, lng: -118.2702, city: 'Los Angeles' },
+  { name: 'Echo Park', lat: 34.0782, lng: -118.2606, city: 'Los Angeles' },
+  { name: 'SoHo', lat: 40.7233, lng: -74.003, city: 'New York' },
+  { name: 'Lower East Side', lat: 40.715, lng: -73.9843, city: 'New York' },
+  { name: 'Williamsburg', lat: 40.7081, lng: -73.9571, city: 'New York' },
+  { name: 'Chelsea', lat: 40.7465, lng: -74.0014, city: 'New York' },
+  { name: 'Thonglor', lat: 13.7308, lng: 100.582, city: 'Bangkok' },
+  { name: 'Ari', lat: 13.7796, lng: 100.5446, city: 'Bangkok' },
+  { name: 'Silom', lat: 13.7262, lng: 100.5231, city: 'Bangkok' },
+  { name: 'Hongdae', lat: 37.5563, lng: 126.9236, city: 'Seoul' },
+  { name: 'Seongsu', lat: 37.5446, lng: 127.0559, city: 'Seoul' },
+  { name: 'Itaewon', lat: 37.5345, lng: 126.9946, city: 'Seoul' },
+  { name: 'Alfama', lat: 38.7126, lng: -9.1302, city: 'Lisbon' },
+  { name: 'Bairro Alto', lat: 38.7122, lng: -9.1444, city: 'Lisbon' },
+  { name: 'Príncipe Real', lat: 38.7166, lng: -9.1487, city: 'Lisbon' },
 ];
 
 const COORDINATE_LABEL = /^-?\d{1,3}\.\d+\s*,\s*-?\d{1,3}\.\d+|^area\s+-?\d/i;
+const BLOCK_LABEL = /ch[oō]me|丁目|\bbldg\b|\bbuilding\b|\btower\b/i;
 
 export function cityBox(location: string): CityBox | null {
   const needle = location.trim().toLowerCase();
@@ -83,7 +101,7 @@ function mode(values: readonly string[]): string | undefined {
   return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0];
 }
 
-export function nearestNeighborhood(lat: number, lng: number, location: string, maxKm = 3): string | null {
+export function nearestNeighborhood(lat: number, lng: number, location: string, maxKm = 8): string | null {
   const box = cityBox(location);
   if (!box) return null;
   let best: { name: string; km: number } | null = null;
@@ -104,12 +122,16 @@ export function areaLabel(input: {
   neighborhoods: readonly string[];
   nearbyNames: readonly string[];
 }): string {
-  const neighborhoods = input.neighborhoods.map((label) => label.trim()).filter((label) => label && !isCoordinateLabel(label));
+  const known = nearestNeighborhood(input.lat, input.lng, input.city, 8);
+  if (known) return known;
+  const neighborhoods = input.neighborhoods
+    .map((label) => label.trim())
+    .filter((label) => label && !isCoordinateLabel(label) && !BLOCK_LABEL.test(label));
   const named = mode(neighborhoods);
   if (named) return named;
-  const known = nearestNeighborhood(input.lat, input.lng, input.city, 3);
-  if (known) return known;
-  const place = input.nearbyNames.map((label) => label.trim()).find((label) => label && !isCoordinateLabel(label));
+  const place = input.nearbyNames
+    .map((label) => label.trim())
+    .find((label) => label && !isCoordinateLabel(label) && !BLOCK_LABEL.test(label));
   if (place) return `Near ${place}`;
   const city = input.city.trim();
   return city || 'Nearby';

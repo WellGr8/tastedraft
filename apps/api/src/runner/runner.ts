@@ -12,6 +12,8 @@ import {
   MAX_ROUNDS,
   PERSONA_RESPONSE_LABEL,
   PersonaSchema,
+  extraTasteType,
+  stripEntityIds,
   ProposalSchema,
   RunSnapshotSchema,
   type BriefV2,
@@ -37,7 +39,7 @@ import { detectFrictions, proposeCandidates, rankCandidates, rescueCandidates, s
 import { evidenceKey } from '../engine/score.ts';
 import type { LlmClient } from '../llm/client.ts';
 import { conflict, notFound } from '../errors.ts';
-import { qlooAge } from '../providers/qloo/insights.ts';
+import { qlooAge, qlooGender } from '../providers/qloo/insights.ts';
 import { parseHeatCells } from '../providers/qloo/heatmap.ts';
 import { buildPersona } from '../providers/qloo/persona.ts';
 import { QlooClient, type QlooInsightsParams, type QlooResult } from '../providers/qloo/client.ts';
@@ -454,18 +456,44 @@ export class AgentRunner {
         return gateway.insights(params);
       },
     };
+    const audiences = audiencesFor(record.brief);
     const built = await buildPersona(limited, {
       brief: record.brief,
       location: record.brief.city,
-      audiences: audiencesFor(record.brief),
+      audiences,
     });
+    const extra = extraTasteType(record.brief.idea);
+    const extras = new Map<string, { name: string; type: string; affinity: number | null }>();
+    if (extra) {
+      for (const segment of built.segments.slice(0, 4)) {
+        const age = qlooAge(segment.age ?? record.brief.age) ?? undefined;
+        const gender = qlooGender(segment.gender) ?? undefined;
+        const result = await limited.insights({
+          filter: { type: `urn:entity:${extra}` },
+          signal: {
+            location: { query: record.brief.city },
+            ...(age || gender ? { demographics: { ...(age ? { age } : {}), ...(gender ? { gender } : {}) } } : {}),
+          },
+          take: 1,
+        });
+        const row = firstTaste(result.ok ? result.body : null, extra);
+        if (row) extras.set(segment.id, row);
+      }
+    }
     const used = new Set<string>();
     return built.segments.slice(0, 4).map((segment) => {
+      const taste = [];
+      for (const category of CATEGORIES) {
+        const top = segment.insights[category][0];
+        if (!top?.name) continue;
+        const name = stripEntityIds(top.name);
+        if (name) taste.push({ name, type: category, affinity: top.affinity });
+      }
       const anchors = [];
       for (const category of CATEGORIES) {
         for (const row of segment.insights[category]) {
           if (used.has(row.name)) continue;
-          const anchor = { ...row };
+          const anchor = { ...row, name: stripEntityIds(row.name) || row.name };
           if (anchor.image?.includes('example.invalid')) delete anchor.image;
           used.add(row.name);
           anchors.push(anchor);
@@ -473,6 +501,8 @@ export class AgentRunner {
         }
         if (anchors.length === 3) break;
       }
+      const extraRow = extras.get(segment.id);
+      if (extraRow && !taste.some((link) => link.name === extraRow.name)) taste.push(extraRow);
       const fit = scoreEngine({ ...engineFromBrief(record.brief), age: segment.age ?? record.brief.age }).total;
       const rejects = anchors.length > 0 && fit < 70;
       return PersonaSchema.parse({
@@ -482,6 +512,7 @@ export class AgentRunner {
         ...(segment.age ? { age: segment.age } : {}),
         ...(segment.gender ? { gender: segment.gender } : {}),
         anchors,
+        ...(taste.length ? { taste: taste.slice(0, 6) } : {}),
         quote: quoteFor(anchors, rejects),
         quoteLabel: PERSONA_RESPONSE_LABEL,
       });
@@ -757,31 +788,39 @@ function engineFromBrief(brief: BriefV2) {
 
 function audiencesFor(brief: BriefV2) {
   const age = AGES.includes(brief.age as (typeof AGES)[number]) ? brief.age : AGES[0];
-  const index = AGES.indexOf(age as (typeof AGES)[number]);
-  const stated = brief.gender === 'female' || brief.gender === 'male' ? brief.gender : undefined;
-  const older = AGES[Math.min(AGES.length - 1, index + 1)]!;
-  const younger = AGES[Math.max(0, index - 1)]!;
-  const rows: Array<{ age: string; gender?: 'female' | 'male' }> = [
-    { age, ...(stated ? { gender: stated } : {}) },
-    { age, gender: stated === 'male' ? 'female' : 'female' },
-    { age: older, gender: stated ?? 'male' },
-    { age: younger, gender: stated === 'female' ? 'male' : 'male' },
-  ];
-  const seen = new Set<string>();
-  const out: Array<{ id: string; label: string; age: string; gender?: string }> = [];
-  for (const row of rows) {
-    const key = `${row.age}|${row.gender ?? ''}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    const label = [brief.city, row.age, row.gender].filter(Boolean).join(' ');
-    out.push({
-      id: `persona-${brief.city}-${row.age}-${row.gender ?? 'any'}`.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-      label,
-      age: row.age,
-      ...(row.gender ? { gender: row.gender } : {}),
-    });
-  }
-  return out.slice(0, 4);
+  const start = Math.max(0, AGES.indexOf(age as (typeof AGES)[number]));
+  const ages = [...AGES.slice(start), ...AGES.slice(0, start)];
+  const stated = brief.gender === 'female' || brief.gender === 'male' ? brief.gender : null;
+  return ages.slice(0, 4).map((band, index) => {
+    const gender: 'female' | 'male' = stated
+      ? index % 2 === 0
+        ? stated
+        : stated === 'female'
+          ? 'male'
+          : 'female'
+      : index % 2 === 0
+        ? 'female'
+        : 'male';
+    return {
+      id: `persona-${brief.city}-${band}-${gender}`.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      label: `${brief.city} ${band} ${gender}`,
+      age: band,
+      gender,
+    };
+  });
+}
+
+function firstTaste(body: unknown, type: string): { name: string; type: string; affinity: number | null } | null {
+  if (!body || typeof body !== 'object') return null;
+  const results = (body as { results?: { entities?: unknown } }).results;
+  const list = results && Array.isArray(results.entities) ? results.entities : [];
+  const item = list.find((row) => row && typeof row === 'object' && typeof (row as { name?: unknown }).name === 'string');
+  if (!item || typeof item !== 'object') return null;
+  const name = stripEntityIds(String((item as { name: string }).name));
+  if (!name) return null;
+  const raw = (item as { affinity?: unknown; query?: { affinity?: unknown } }).query?.affinity ?? (item as { affinity?: unknown }).affinity;
+  const affinity = typeof raw === 'number' && raw >= 0 && raw <= 1 ? raw : typeof raw === 'number' && raw > 1 && raw <= 100 ? raw / 100 : null;
+  return { name, type, affinity };
 }
 
 function quoteFor(anchors: readonly { name: string }[], rejects: boolean): string {

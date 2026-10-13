@@ -40,4 +40,17 @@ describe('city boxes', () => {
     assert.equal(near, 'Near Viktualienmarkt');
     assert.doesNotMatch(near, /area\s+\d/i);
   });
+
+  it('groups a chome label to the nearest named district', () => {
+    assert.equal(
+      areaLabel({
+        lat: 35.6598,
+        lng: 139.7006,
+        city: 'Tokyo',
+        neighborhoods: ['Shibuya 1-chome'],
+        nearbyNames: ['NEWoMan Shinjuku'],
+      }),
+      'Shibuya',
+    );
+  });
 });

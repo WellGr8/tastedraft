@@ -6,13 +6,13 @@ TasteDraft
 
 ## Tagline
 
-Test a launch with simulated customers before you spend.
+A taste simulator for any launch.
 
 ## Inspiration
 
-A small artist can sell out a room they have never played, or spend the guarantee and the merch run on a city that does not care. The usual tools for that decision are a group chat and a hope. We wanted an agent that would argue from taste data, show the number it used, and stay obviously simulated so nobody could mistake it for a panel of real fans.
+Most launches are decided with a group chat and a hope: a cafe, a game, a brand, a trip, a show. We wanted an agent that would argue from taste data, show the number it used, and stay obviously simulated so nobody could mistake it for a panel of real customers.
 
-The story we kept on the wall was an indie artist taking a first show, and a merch drop, to Tokyo.
+One of the stories on the wall is still an indie artist taking a first show, and a merch drop, to Tokyo. The same loop now starts from a coffee shop, a game, a skincare brand, or a tour.
 
 ## What it does
 
@@ -22,7 +22,7 @@ A person approves every change. The strongest proposals come back as Qloo parame
 
 With no API keys, a built-in Los Angeles streetwear sample scores 71. Approving the price change from level 3 to 2 scores 80. That path is there so a judge can try the loop immediately. It is a calibrated sample, not a live Qloo measurement.
 
-Persona chat is labeled **Simulated persona response**. The reply has to cite that persona's Qloo anchors. If the model is missing, slow, or ungrounded, a template with the same label takes over.
+Persona chat has to cite that persona's Qloo anchors, without printing their ids. If the model is missing, slow, or ungrounded, a template takes over and the screen says it is a template reply.
 
 ## How we built it
 
@@ -67,7 +67,7 @@ Today's taste graph is the wrong instrument for a historical launch unless you s
 
 ## What's next
 
-The opening screen is the Tokyo tour. The Los Angeles 71 → 80 sample stays on the empty-body API path.
+The opening screen is the Tokyo tour, with one-click examples for a Bangkok cafe, a Seoul game, a New York skincare brand, and a Lisbon trip. The Los Angeles 71 → 80 sample stays on the empty-body API path.
 
 A way to score the subject entity itself, once we have a Qloo call that returns that affinity, instead of leaving the anchor row empty.
 

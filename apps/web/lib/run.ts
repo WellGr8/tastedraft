@@ -5,7 +5,7 @@ import { apiBase, type ProposalView, type SimulationResponse } from '@/lib/api';
 import { STARTER_REFERENCES, STARTER_TAGS, uniqueById } from '@/lib/defaults';
 import { scoreLive } from '@/lib/engine-preview';
 import { plainEvidence, plainHypothesis, plainToken, showName, traceSummary } from '@/lib/labels';
-import type { Persona } from '@/lib/personas';
+import type { Persona, TasteLink } from '@/lib/personas';
 import { anchorRefs, voiceFor } from '@/lib/voice';
 
 export interface RunProgress {
@@ -224,6 +224,9 @@ export async function personasOf(run: RunSnapshot, brief: BriefV2): Promise<Pers
         ...(anchor.image ? { image: anchor.image } : {}),
       })),
     );
+    const taste: TasteLink[] = row.taste?.length
+      ? row.taste.map((link) => ({ name: link.name, type: link.type, affinity: link.affinity }))
+      : anchors.map((anchor) => ({ name: anchor.name, type: anchor.type, affinity: anchor.affinity }));
     const measuring = anchors.length === 0;
     let fit = 0;
     if (!measuring) {
@@ -253,6 +256,7 @@ export async function personasOf(run: RunSnapshot, brief: BriefV2): Promise<Pers
       role: '',
       initials: `${words[0]?.[0] ?? 'P'}${words.length > 1 ? words[words.length - 1]?.[0] ?? '' : ''}`.toUpperCase(),
       anchors,
+      taste,
       fit,
       measuring,
       evidenceStrength: run.evidenceStrength,

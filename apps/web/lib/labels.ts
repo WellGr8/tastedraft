@@ -169,12 +169,37 @@ export function entityMeta(entity: { name: string; type: string; city?: string }
 
 export function typeLabel(type: string): string {
   const lower = type.toLowerCase();
+  if (lower.includes('videogame') || lower.includes('video_game')) return 'Game';
+  if (lower.includes('tv_show') || lower.includes('tv show') || lower.includes('series')) return 'Series';
+  if (lower.includes('podcast')) return 'Podcast';
+  if (lower.includes('book')) return 'Book';
+  if (lower.includes('person')) return 'Person';
   if (lower.includes('brand')) return 'Brand';
   if (lower.includes('artist')) return 'Artist';
   if (lower.includes('movie') || lower.includes('film')) return 'Film';
-  if (lower.includes('place') || lower.includes('destination') || lower.includes('locality')) return 'Place';
+  if (lower.includes('destination')) return 'Destination';
+  if (lower.includes('place') || lower.includes('locality')) return 'Place';
   if (lower.includes('tag')) return 'Tag';
+  if (lower === 'artists') return 'Artist';
+  if (lower === 'brands') return 'Brand';
+  if (lower === 'places') return 'Place';
+  if (lower === 'dining') return 'Dining';
   return 'Reference';
+}
+
+export function tasteVerb(type: string): string {
+  const lower = type.toLowerCase();
+  if (lower.includes('artist')) return 'Listen';
+  if (lower.includes('brand')) return 'Wear';
+  if (lower.includes('dining')) return 'Eat';
+  if (lower.includes('destination')) return 'Visit';
+  if (lower.includes('place')) return 'Go';
+  if (lower.includes('tv') || lower.includes('film') || lower.includes('movie')) return 'Watch';
+  if (lower.includes('book')) return 'Read';
+  if (lower.includes('game')) return 'Play';
+  if (lower.includes('podcast')) return 'Hear';
+  if (lower.includes('person')) return 'Follow';
+  return 'Also';
 }
 
 export function fitOf(type: string): 'logo' | 'circle' | 'cover' {

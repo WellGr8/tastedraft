@@ -17,6 +17,9 @@ const CITY_BOXES: readonly CityBox[] = [
   { name: 'New York', south: 40.49, north: 40.92, west: -74.26, east: -73.7 },
   { name: 'San Francisco', south: 37.7, north: 37.84, west: -122.52, east: -122.35 },
   { name: 'Munich', south: 48.06, north: 48.25, west: 11.36, east: 11.72 },
+  { name: 'Bangkok', south: 13.49, north: 13.96, west: 100.32, east: 100.95 },
+  { name: 'Seoul', south: 37.42, north: 37.7, west: 126.79, east: 127.18 },
+  { name: 'Lisbon', south: 38.69, north: 38.8, west: -9.23, east: -9.09 },
 ];
 
 const GAZETTEER: readonly { name: string; lat: number; lng: number; city: string }[] = [
@@ -39,6 +42,20 @@ const GAZETTEER: readonly { name: string; lat: number; lng: number; city: string
   { name: 'Ikebukuro', lat: 35.7295, lng: 139.7109, city: 'Tokyo' },
   { name: 'Sangenjaya', lat: 35.6434, lng: 139.6698, city: 'Tokyo' },
   { name: 'Silver Lake', lat: 34.0869, lng: -118.2702, city: 'Los Angeles' },
+  { name: 'Echo Park', lat: 34.0782, lng: -118.2606, city: 'Los Angeles' },
+  { name: 'SoHo', lat: 40.7233, lng: -74.003, city: 'New York' },
+  { name: 'Lower East Side', lat: 40.715, lng: -73.9843, city: 'New York' },
+  { name: 'Williamsburg', lat: 40.7081, lng: -73.9571, city: 'New York' },
+  { name: 'Chelsea', lat: 40.7465, lng: -74.0014, city: 'New York' },
+  { name: 'Thonglor', lat: 13.7308, lng: 100.582, city: 'Bangkok' },
+  { name: 'Ari', lat: 13.7796, lng: 100.5446, city: 'Bangkok' },
+  { name: 'Silom', lat: 13.7262, lng: 100.5231, city: 'Bangkok' },
+  { name: 'Hongdae', lat: 37.5563, lng: 126.9236, city: 'Seoul' },
+  { name: 'Seongsu', lat: 37.5446, lng: 127.0559, city: 'Seoul' },
+  { name: 'Itaewon', lat: 37.5345, lng: 126.9946, city: 'Seoul' },
+  { name: 'Alfama', lat: 38.7126, lng: -9.1302, city: 'Lisbon' },
+  { name: 'Bairro Alto', lat: 38.7122, lng: -9.1444, city: 'Lisbon' },
+  { name: 'Príncipe Real', lat: 38.7166, lng: -9.1487, city: 'Lisbon' },
 ];
 
 const COORDINATE_LABEL = /^-?\d{1,3}\.\d+\s*,\s*-?\d{1,3}\.\d+|^area\s+-?\d/i;
@@ -69,22 +86,50 @@ function km(a: { lat: number; lng: number }, b: { lat: number; lng: number }): n
   return 2 * radius * Math.asin(Math.min(1, Math.sqrt(south)));
 }
 
-/** Prefer a real name. A coordinate string becomes the nearest neighborhood, or the city. */
-export function namedArea(label: string, city: string, lat?: number | null, lng?: number | null): string {
-  const text = label.trim();
-  if (text && !isCoordinateLabel(text)) return text;
-  if (typeof lat === 'number' && typeof lng === 'number') {
-    const box = cityBox(city);
-    if (box) {
-      let best: { name: string; km: number } | null = null;
-      for (const place of GAZETTEER) {
-        if (place.city !== box.name) continue;
-        const distance = km({ lat, lng }, place);
-        if (distance > 3) continue;
-        if (!best || distance < best.km) best = { name: place.name, km: distance };
-      }
-      if (best) return best.name;
-    }
+function nearestDistrict(lat: number, lng: number, city: string, maxKm = 8): string | null {
+  const box = cityBox(city);
+  if (!box) return null;
+  let best: { name: string; km: number } | null = null;
+  for (const place of GAZETTEER) {
+    if (place.city !== box.name) continue;
+    const distance = km({ lat, lng }, place);
+    if (distance > maxKm) continue;
+    if (!best || distance < best.km) best = { name: place.name, km: distance };
   }
+  return best?.name ?? null;
+}
+
+/** Snap a pin to the nearest well-known district. Coordinates and block names stay off the map. */
+export function namedArea(label: string, city: string, lat?: number | null, lng?: number | null): string {
+  if (typeof lat === 'number' && typeof lng === 'number') {
+    const nearest = nearestDistrict(lat, lng, city, 8);
+    if (nearest) return nearest;
+  }
+  const text = label.trim();
+  if (text && !isCoordinateLabel(text) && !/ch[oō]me|丁目/i.test(text)) return text;
   return city.trim() || 'Nearby';
+}
+
+/** One pin per district. The stronger weight keeps the coordinate. */
+export function groupDistricts<T extends { label: string; weight: number }>(areas: readonly T[]): T[] {
+  const grouped = new Map<string, T>();
+  for (const area of areas) {
+    const key = area.label.trim().toLowerCase();
+    const current = grouped.get(key);
+    if (!current || area.weight > current.weight) grouped.set(key, area);
+  }
+  return [...grouped.values()];
+}
+
+export function playbackDistricts(city: string): Array<{ label: string; lat: number; lng: number; weight: number }> {
+  if (city.trim().toLowerCase() === 'tokyo') {
+    return [
+      { label: 'Shimokitazawa', lat: 35.6614, lng: 139.6676, weight: 0.84 },
+      { label: 'Koenji', lat: 35.7056, lng: 139.6496, weight: 0.71 },
+      { label: 'Shibuya', lat: 35.6595, lng: 139.7004, weight: 0.66 },
+    ];
+  }
+  const box = cityBox(city);
+  const rows = GAZETTEER.filter((place) => place.city === box?.name).slice(0, 3);
+  return rows.map((place, index) => ({ label: place.name, lat: place.lat, lng: place.lng, weight: [0.7, 0.58, 0.46][index] ?? 0.4 }));
 }

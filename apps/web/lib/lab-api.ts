@@ -499,13 +499,13 @@ export async function loadPersonaChat(
   base = '',
   signal?: AbortSignal,
   onToken?: (text: string) => void,
-): Promise<{ label: string; message: string } | null> {
+): Promise<{ label: string; message: string; source: 'llm' | 'template' } | null> {
   const payload = await postFeature('persona-chat', body, fetchImpl, base, signal, true, (event) => {
     if (event.type === 'token') onToken?.(event.text);
   });
   const parsed = PersonaChatResultSchema.safeParse(payload);
   if (!parsed.success) return null;
-  return { label: parsed.data.label, message: parsed.data.message };
+  return { label: parsed.data.label, message: parsed.data.message, source: parsed.data.source };
 }
 
 export async function loadReinterview(

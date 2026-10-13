@@ -116,7 +116,7 @@ export function createLlmClient(
     async complete(messages, options) {
       const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
       const maxTokens = options?.maxTokens;
-      const response = provider === 'anthropic'
+      let response = provider === 'anthropic'
         ? await postAnthropic({ fetchImpl, baseUrl, apiKey, model, messages, maxTokens, timeoutMs })
         : await postChat({
             fetchImpl,
@@ -128,7 +128,22 @@ export function createLlmClient(
             timeoutMs,
             fallback,
             openRouter: provider === 'openrouter',
+            jsonMode: true,
           });
+      if (!response.ok && response.status === 400 && provider === 'openrouter') {
+        response = await postChat({
+          fetchImpl,
+          baseUrl,
+          apiKey,
+          model,
+          messages,
+          maxTokens,
+          timeoutMs,
+          fallback: null,
+          openRouter: true,
+          jsonMode: false,
+        });
+      }
       if (!response.ok) {
         const body = redactSecrets(await response.text()).slice(0, 180);
         throw new LlmTransportError(`LLM request failed (${response.status}): ${body}`);
@@ -151,13 +166,14 @@ async function postChat(input: {
   timeoutMs: number;
   fallback: string | null;
   openRouter: boolean;
+  jsonMode: boolean;
 }): Promise<Response> {
   const body: Record<string, unknown> = {
     model: input.model,
     temperature: 0,
-    response_format: { type: 'json_object' },
     messages: input.messages,
   };
+  if (input.jsonMode) body.response_format = { type: 'json_object' };
   if (input.maxTokens != null) body.max_tokens = input.maxTokens;
   if (input.fallback) body.models = [input.model, input.fallback];
   const headers: Record<string, string> = {
@@ -165,12 +181,19 @@ async function postChat(input: {
     'Content-Type': 'application/json',
   };
   if (input.openRouter) headers['X-Title'] = 'TasteDraft';
-  return input.fetchImpl(`${input.baseUrl}/chat/completions`, {
+  return input.fetchImpl(chatCompletionsUrl(input.baseUrl), {
     method: 'POST',
     headers,
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(input.timeoutMs),
   });
+}
+
+/** Accept a base that already includes `/chat/completions`. */
+export function chatCompletionsUrl(baseUrl: string): string {
+  const trimmed = baseUrl.replace(/\/+$/, '');
+  if (trimmed.endsWith('/chat/completions')) return trimmed;
+  return `${trimmed}/chat/completions`;
 }
 
 async function postAnthropic(input: {

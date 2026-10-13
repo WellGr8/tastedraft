@@ -65,6 +65,56 @@ export const TOUR_TAGS: Tag[] = [
   { id: 'tag-live', name: 'Live music', type: 'urn:tag' },
 ];
 
+export const COFFEE_IDEA = 'A specialty coffee shop in Bangkok: pour-over, a small pastry case, and a neighborhood regulars bar';
+export const GAME_IDEA = 'An indie video game launch in Seoul: a narrative puzzle, a demo build, and a small merch table';
+export const SKIN_IDEA = 'A K-drama-inspired skincare brand launching in New York: a glass serum, a SoHo pop-up, and a limited first run';
+export const TRAVEL_IDEA = 'An eco travel tour in Lisbon: small groups, tram neighborhoods, and a low-waste stay';
+
+export const COFFEE_REFERENCES: Entity[] = [
+  { id: 'blue-bottle', name: 'Blue Bottle', type: 'urn:entity:brand', source: 'sample' },
+  { id: 'arabica', name: '% Arabica', type: 'urn:entity:brand', source: 'sample' },
+  { id: 'thonglor', name: 'Thonglor', type: 'urn:entity:place', source: 'sample', city: 'Bangkok' },
+  { id: 'nils-frahm', name: 'Nils Frahm', type: 'urn:entity:artist', source: 'sample' },
+];
+
+export const GAME_REFERENCES: Entity[] = [
+  { id: 'celeste', name: 'Celeste', type: 'urn:entity:videogame', source: 'sample' },
+  { id: 'hades', name: 'Hades', type: 'urn:entity:videogame', source: 'sample' },
+  { id: 'hongdae', name: 'Hongdae', type: 'urn:entity:place', source: 'sample', city: 'Seoul' },
+  { id: 'nintendo', name: 'Nintendo', type: 'urn:entity:brand', source: 'sample' },
+];
+
+export const SKIN_REFERENCES: Entity[] = [
+  { id: 'laneige', name: 'Laneige', type: 'urn:entity:brand', source: 'sample' },
+  { id: 'crash-landing', name: 'Crash Landing on You', type: 'urn:entity:tv_show', source: 'sample' },
+  { id: 'soho', name: 'SoHo', type: 'urn:entity:place', source: 'sample', city: 'New York' },
+  { id: 'sulwhasoo', name: 'Sulwhasoo', type: 'urn:entity:brand', source: 'sample' },
+];
+
+export const TRAVEL_REFERENCES: Entity[] = [
+  { id: 'alfama', name: 'Alfama', type: 'urn:entity:destination', source: 'sample', city: 'Lisbon' },
+  { id: 'patagonia', name: 'Patagonia', type: 'urn:entity:brand', source: 'sample' },
+  { id: 'bairro-alto', name: 'Bairro Alto', type: 'urn:entity:place', source: 'sample', city: 'Lisbon' },
+  { id: 'rick-steves', name: 'Rick Steves', type: 'urn:entity:person', source: 'sample' },
+];
+
+export const COFFEE_TAGS: Tag[] = [
+  { id: 'tag-coffee', name: 'Coffee', type: 'urn:tag' },
+  { id: 'tag-neighborhood', name: 'Neighborhood', type: 'urn:tag' },
+];
+export const GAME_TAGS: Tag[] = [
+  { id: 'tag-indie', name: 'Indie', type: 'urn:tag' },
+  { id: 'tag-puzzle', name: 'Puzzle', type: 'urn:tag' },
+];
+export const SKIN_TAGS: Tag[] = [
+  { id: 'tag-skincare', name: 'Skincare', type: 'urn:tag' },
+  { id: 'tag-kdrama', name: 'K-drama', type: 'urn:tag' },
+];
+export const TRAVEL_TAGS: Tag[] = [
+  { id: 'tag-eco', name: 'Eco', type: 'urn:tag' },
+  { id: 'tag-walk', name: 'Walking', type: 'urn:tag' },
+];
+
 export const STARTER_TAGS: Tag[] = [
   { id: 'tag-japanese', name: 'Japanese', type: 'urn:tag' },
   { id: 'tag-minimal', name: 'Minimal', type: 'urn:tag' },

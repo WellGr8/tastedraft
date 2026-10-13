@@ -3,7 +3,7 @@
  * A live model may speak only from this persona's Qloo anchors.
  * Anything else, including a timeout, becomes the template.
  */
-import type { PersonaChatRequest, PersonaChatResult } from '@tastedraft/contracts';
+import { stripEntityIds, type PersonaChatRequest, type PersonaChatResult } from '@tastedraft/contracts';
 import { PERSONA_MAX_TOKENS, PERSONA_TIMEOUT_MS, type LlmClient } from './client.ts';
 
 export const PERSONA_LABEL = 'Simulated persona response';
@@ -18,40 +18,41 @@ export interface PersonaDraft {
   warning?: string;
 }
 
+function readable(value: string): string {
+  return stripEntityIds(value).replace(/^simulated persona response\.?\s*/i, '').trim();
+}
+
 export function templatePersona(request: PersonaChatRequest): PersonaDraft {
   const anchors = [...request.persona.anchors].sort((a, b) => (b.affinity ?? -1) - (a.affinity ?? -1)).slice(0, 3);
   const cited = anchors.map((anchor) => {
-    const affinity = anchor.affinity == null ? '' : `, affinity ${anchor.affinity.toFixed(2)}`;
-    return `${anchor.name} (${anchor.id}${affinity})`;
+    const name = readable(anchor.name) || 'that reference';
+    return anchor.affinity == null ? name : `${name}, affinity ${anchor.affinity.toFixed(2)}`;
   });
   const message = [
-    `${PERSONA_LABEL}.`,
-    `I'm ${request.persona.label} in ${request.persona.location}.`,
-    `You asked: ${request.message.trim()}`,
+    `I'm ${readable(request.persona.label) || 'a simulated customer'} in ${readable(request.persona.location) || 'this city'}.`,
+    `You asked: ${readable(request.message)}`,
     cited.length
-      ? `I would answer from the Qloo anchors I actually have: ${cited.join('; ')}.`
-      : 'I have no Qloo anchors, so I cannot ground an answer.',
-    'Those anchors are the only evidence for this reply.',
+      ? `I would answer from what I already like: ${cited.join('; ')}.`
+      : 'I have no anchors, so I cannot ground an answer.',
   ].join(' ');
   return {
     source: 'template',
     message: capPersonaMessage(message),
     citations: anchors.map((anchor) => ({
       id: anchor.id,
-      name: anchor.name,
+      name: readable(anchor.name) || anchor.name,
       affinity: anchor.affinity ?? null,
     })),
   };
 }
 
 export function capPersonaMessage(text: string): string {
-  const trimmed = text.trim();
-  const labeled = trimmed.startsWith(PERSONA_LABEL) ? trimmed : `${PERSONA_LABEL}. ${trimmed}`;
-  if (labeled.length <= PERSONA_MAX_CHARS) return labeled;
+  const cleaned = readable(text);
+  if (cleaned.length <= PERSONA_MAX_CHARS) return cleaned;
   const room = PERSONA_MAX_CHARS - 1;
-  const slice = labeled.slice(0, room);
+  const slice = cleaned.slice(0, room);
   const cut = slice.lastIndexOf(' ');
-  const stem = (cut > PERSONA_LABEL.length + 2 ? slice.slice(0, cut) : slice).trimEnd();
+  const stem = (cut > 24 ? slice.slice(0, cut) : slice).trimEnd();
   return `${stem}…`;
 }
 
@@ -77,17 +78,31 @@ function parseModelJson(raw: string): { message?: unknown; citationIds?: unknown
   return null;
 }
 
+function anchorAliases(request: PersonaChatRequest) {
+  return request.persona.anchors.slice(0, 8).map((anchor, index) => ({
+    alias: `a${index + 1}`,
+    id: anchor.id,
+    name: readable(anchor.name) || anchor.name,
+    affinity: anchor.affinity ?? null,
+  }));
+}
+
 export function groundPersonaReply(raw: string, request: PersonaChatRequest): PersonaDraft | null {
   const parsed = parseModelJson(raw);
   if (!parsed) return null;
   const text = typeof parsed.message === 'string' ? parsed.message.trim() : '';
   if (!text) return null;
+  const aliases = anchorAliases(request);
+  const byKey = new Map<string, (typeof aliases)[number]>();
+  for (const anchor of aliases) {
+    byKey.set(anchor.alias, anchor);
+    byKey.set(anchor.id, anchor);
+  }
   const ids = Array.isArray(parsed.citationIds) ? parsed.citationIds.filter((id): id is string => typeof id === 'string') : [];
-  const known = new Map(request.persona.anchors.map((anchor) => [anchor.id, anchor]));
-  const citations = ids.filter((id) => known.has(id)).map((id) => {
-    const anchor = known.get(id)!;
-    return { id, name: anchor.name, affinity: anchor.affinity ?? null };
-  });
+  const citations = ids
+    .map((id) => byKey.get(id))
+    .filter((anchor): anchor is (typeof aliases)[number] => Boolean(anchor))
+    .map((anchor) => ({ id: anchor.id, name: anchor.name, affinity: anchor.affinity }));
   if (!citations.length) return null;
   const message = capPersonaMessage(text);
   if (!citations.some((citation) => message.includes(citation.name))) return null;
@@ -103,24 +118,27 @@ export async function draftPersonaReply(llm: LlmClient, request: PersonaChatRequ
         {
           role: 'system',
           content:
-            'You speak as a simulated persona. Return JSON {"message":"...","citationIds":["..."]}. The message must start with "Simulated persona response." Cite only the provided Qloo anchor ids, and use those anchor names in the message. Do not invent entities, scores, or forecasts.',
+            'You speak as a simulated customer. Return JSON {"message":"...","citationIds":["a1"]}. citationIds must be the alias values from the anchor list. Use those anchor names in the message. Do not include identifiers, and do not invent entities or forecasts.',
         },
         {
           role: 'user',
           content: JSON.stringify({
             persona: {
-              label: request.persona.label,
-              location: request.persona.location,
+              label: readable(request.persona.label),
+              location: readable(request.persona.location),
               age: request.persona.age ?? null,
               gender: request.persona.gender ?? null,
             },
-            anchors: request.persona.anchors.map((anchor) => ({
-              id: anchor.id,
+            anchors: anchorAliases(request).map((anchor) => ({
+              alias: anchor.alias,
               name: anchor.name,
-              affinity: anchor.affinity ?? null,
+              affinity: anchor.affinity,
             })),
-            history: request.history ?? [],
-            message: request.message,
+            history: (request.history ?? []).map((turn) => ({
+              role: turn.role,
+              content: readable(turn.content),
+            })),
+            message: readable(request.message),
           }),
         },
       ],

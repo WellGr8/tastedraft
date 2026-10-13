@@ -1,5 +1,25 @@
+import { assumptionsFor, detectLaunch, type LaunchKind } from '@tastedraft/contracts';
 import type { Entity } from '@tastedraft/contracts';
-import { STARTER_REFERENCES, TOUR_IDEA, TOUR_REFERENCES, uniqueById, type DraftState } from './defaults.ts';
+import {
+  COFFEE_IDEA,
+  COFFEE_REFERENCES,
+  COFFEE_TAGS,
+  GAME_IDEA,
+  GAME_REFERENCES,
+  GAME_TAGS,
+  SKIN_IDEA,
+  SKIN_REFERENCES,
+  SKIN_TAGS,
+  STARTER_REFERENCES,
+  TOUR_IDEA,
+  TOUR_REFERENCES,
+  TOUR_TAGS,
+  TRAVEL_IDEA,
+  TRAVEL_REFERENCES,
+  TRAVEL_TAGS,
+  uniqueById,
+  type DraftState,
+} from './defaults.ts';
 import type { ProfileControls } from './profile.ts';
 export interface CostAssumptions {
   focusGroupUsd: number;
@@ -151,38 +171,108 @@ export interface LabLibrary {
   assumptions: CostAssumptions;
 }
 
-export const LAB_EXAMPLES = [
+export interface LabExample {
+  id: string;
+  label: string;
+  idea: string;
+  city: string;
+  age: string;
+  priceLevel: 1 | 2 | 3 | 4;
+  scarcity: 'open' | 'limited' | 'preorder';
+  references: DraftState['references'];
+  tags: DraftState['interests'];
+}
+
+export const LAB_EXAMPLES: LabExample[] = [
   {
     id: 'tokyo-tour',
     label: 'Tokyo tour + merch',
     idea: TOUR_IDEA,
     city: 'Tokyo',
     age: '18–25',
-    priceLevel: 3 as const,
+    priceLevel: 3,
+    scarcity: 'limited',
+    references: TOUR_REFERENCES,
+    tags: TOUR_TAGS,
   },
   {
-    id: 'seoul',
-    label: 'Listening bar in Seoul',
-    idea: 'A small listening bar for electronic records, opening in Seoul',
-    city: 'Seoul',
+    id: 'bangkok-coffee',
+    label: 'Bangkok coffee shop',
+    idea: COFFEE_IDEA,
+    city: 'Bangkok',
     age: '26–35',
-    priceLevel: 2 as const,
+    priceLevel: 2,
+    scarcity: 'open',
+    references: COFFEE_REFERENCES,
+    tags: COFFEE_TAGS,
   },
   {
-    id: 'la',
-    label: 'Night drop in Los Angeles',
-    idea: 'Japanese minimalist streetwear with an underground electronic identity, sold at a premium price in limited runs',
-    city: 'Los Angeles',
+    id: 'seoul-game',
+    label: 'Seoul indie game',
+    idea: GAME_IDEA,
+    city: 'Seoul',
     age: '18–25',
-    priceLevel: 3 as const,
+    priceLevel: 2,
+    scarcity: 'limited',
+    references: GAME_REFERENCES,
+    tags: GAME_TAGS,
   },
-] as const;
+  {
+    id: 'nyc-skin',
+    label: 'NYC skincare',
+    idea: SKIN_IDEA,
+    city: 'New York',
+    age: '26–35',
+    priceLevel: 3,
+    scarcity: 'limited',
+    references: SKIN_REFERENCES,
+    tags: SKIN_TAGS,
+  },
+  {
+    id: 'lisbon-travel',
+    label: 'Lisbon eco tour',
+    idea: TRAVEL_IDEA,
+    city: 'Lisbon',
+    age: '36–45',
+    priceLevel: 3,
+    scarcity: 'open',
+    references: TRAVEL_REFERENCES,
+    tags: TRAVEL_TAGS,
+  },
+];
+
+export function assumptionsForIdea(idea: string) {
+  return assumptionsFor(detectLaunch(idea).kind);
+}
+
+/** Keep a hand-edited cost panel. Swap defaults only when the category changes and the numbers are still the previous defaults. */
+export function nextAssumptions(previousIdea: string, nextIdea: string, current: CostAssumptions): CostAssumptions {
+  const before = assumptionsForIdea(previousIdea);
+  const after = assumptionsForIdea(nextIdea);
+  const untouched =
+    current.focusGroupUsd === before.focusGroupUsd &&
+    current.groups === before.groups &&
+    current.pilotDayUsd === before.pilotDayUsd &&
+    current.pilotDays === before.pilotDays;
+  return untouched ? after : current;
+}
+
+export function launchKind(idea: string): LaunchKind {
+  return detectLaunch(idea).kind;
+}
 
 export function seedLibrary(): LabLibrary {
   return {
     ideas: [],
     chips: uniqueById(
-      [...STARTER_REFERENCES, ...TOUR_REFERENCES]
+      [
+        ...TOUR_REFERENCES,
+        COFFEE_REFERENCES[0]!,
+        GAME_REFERENCES[0]!,
+        SKIN_REFERENCES[0]!,
+        TRAVEL_REFERENCES[0]!,
+        ...STARTER_REFERENCES,
+      ]
         .filter((entity, index, all) => all.findIndex((item) => item.name.toLowerCase() === entity.name.toLowerCase()) === index)
         .map((entity) => ({
           id: entity.id,

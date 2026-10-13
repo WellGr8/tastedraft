@@ -30,7 +30,7 @@ Show the proposal diff and the score after approval, on one image or a before/af
 
 **File:** `04-persona.png`
 
-**Caption:** Persona chat stays labeled “Simulated persona response.” The reply cites that persona’s Qloo anchors, or it falls back to the template.
+**Caption:** Persona chat cites that persona’s anchors and does not print Qloo ids. A template reply is marked with a short note.
 
 Show one reply with the label visible and at least one anchor name in the text.
 

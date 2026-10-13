@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { RunSnapshotSchema, type BriefV2, type RunSnapshot } from '@tastedraft/contracts';
+import { comparisonLine, detectLaunch, RunSnapshotSchema, stripEntityIds, type BriefV2, type RunSnapshot } from '@tastedraft/contracts';
 import { ApiError, TasteDraftClient, apiBase, type ProposalView, type SimulationResponse } from '@/lib/api';
-import { AGES, STARTER_REFERENCES, STARTER_TAGS, TOUR_REFERENCES, TOUR_TAGS, tourDraft, uniqueById, withImage, type DraftState } from '@/lib/defaults';
+import { AGES, tourDraft, uniqueById, withImage, type DraftState } from '@/lib/defaults';
 import { scoreLive } from '@/lib/engine-preview';
 import {
   addChip,
@@ -14,8 +14,9 @@ import {
   formatMoney,
   ideaTitle,
   impactRequest,
-  isTourBrief,
+  assumptionsForIdea,
   neighborhoodPriceNote,
+  nextAssumptions,
   LAB_EXAMPLES,
   loadLibrary,
   previewGap,
@@ -38,22 +39,22 @@ import {
   type LabFeatures,
 } from '@/lib/lab-api';
 import { caseStudySummary, caseStudyViews, type CaseStudyView } from '@/lib/cases';
-import { deltaText, fitOf, plainStopReason, typeLabel } from '@/lib/labels';
-import { insideCity, namedArea } from '@/lib/places';
+import { deltaText, fitOf, plainStopReason, tasteVerb, typeLabel } from '@/lib/labels';
+import { groupDistricts, insideCity, namedArea, playbackDistricts } from '@/lib/places';
 import { chatWithPersona, type Persona } from '@/lib/personas';
 
-function personaLine(label: string, message: string): string {
-  const text = message.trim();
-  if (/^simulated persona response\b/i.test(text)) return text;
-  return `${label}: ${text}`;
+function spoken(message: string): string {
+  return stripEntityIds(message).replace(/^simulated persona response\.?\s*/i, '').trim();
 }
+
+const TEMPLATE_NOTE = 'Template reply. The language model was not used.';
 
 function AreaMap({ city, areas }: { city: string; areas: Array<{ label: string; lat?: number; lng?: number }> }) {
   const points = areas.filter((area): area is { label: string; lat: number; lng: number } => typeof area.lat === 'number' && typeof area.lng === 'number');
   if (!points.length) return null;
   const width = 280;
   const height = 160;
-  const pad = 28;
+  const pad = 36;
   const lats = points.map((point) => point.lat);
   const lngs = points.map((point) => point.lng);
   const minLat = Math.min(...lats);
@@ -70,8 +71,8 @@ function AreaMap({ city, areas }: { city: string; areas: Array<{ label: string; 
       {points.map((point, index) => (
         <g key={`${point.label}-${index}`}>
           <circle cx={x(point.lng)} cy={y(point.lat)} r="5" />
-          <text x={x(point.lng)} y={y(point.lat) - 8} textAnchor="middle">
-            {point.label}
+          <text x={x(point.lng)} y={Math.max(12, y(point.lat) - 8)} textAnchor="middle">
+            {point.label.length > 14 ? `${point.label.slice(0, 13)}…` : point.label}
           </text>
         </g>
       ))}
@@ -90,7 +91,7 @@ import {
   type Scarcity,
 } from '@/lib/profile';
 import { askFromRun, decisionTrace, personasOf, readRunEvents, simulationOf, type RunProgress } from '@/lib/run';
-import { buildRecordedRun, RECORDED_AREAS, RECORDED_NOTE, scoreBrief } from '@/lib/recorded-tour';
+import { buildRecordedRun, RECORDED_NOTE, scoreBrief } from '@/lib/recorded-tour';
 import { sentimentLabel, sentimentOf, voiceFor } from '@/lib/voice';
 
 /**
@@ -245,11 +246,12 @@ export function LabApp() {
   const [over, setOver] = useState(false);
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState<Array<{ id: string; name: string; type: string; image?: string }>>([]);
-  const [lines, setLines] = useState<Array<{ role: 'you' | 'agent'; text: string }>>([]);
+  const [lines, setLines] = useState<Array<{ role: 'you' | 'agent'; text: string; note?: string }>>([]);
   const [composer, setComposer] = useState('');
   const [talking, setTalking] = useState<Persona | null>(null);
   const briefRef = useRef<BriefV2 | null>(null);
   const clock = useRef<number | null>(null);
+  const clockStart = useRef(0);
   const elapsedRef = useRef(0);
   const generation = useRef(0);
   const settled = useRef(false);
@@ -379,10 +381,21 @@ export function LabApp() {
   }, []);
 
   function startClock(keep = false) {
-    const started = Date.now() - (keep ? elapsedRef.current : 0);
-    if (!keep) setElapsed(0);
+    const base = keep ? elapsedRef.current : 0;
+    const started = Date.now() - base;
+    clockStart.current = started;
+    if (!keep) {
+      elapsedRef.current = 0;
+      setElapsed(0);
+    }
     if (clock.current) window.clearInterval(clock.current);
-    clock.current = window.setInterval(() => setElapsed(Date.now() - started), 250);
+    const tick = () => {
+      const next = Date.now() - started;
+      elapsedRef.current = next;
+      setElapsed(next);
+    };
+    tick();
+    clock.current = window.setInterval(tick, 250);
   }
 
   function rememberLabel(label: string) {
@@ -407,6 +420,12 @@ export function LabApp() {
   function stopClock() {
     if (clock.current) window.clearInterval(clock.current);
     clock.current = null;
+    if (clockStart.current) {
+      const next = Date.now() - clockStart.current;
+      elapsedRef.current = next;
+      setElapsed(next);
+      clockStart.current = 0;
+    }
   }
 
   function bump(next: number) {
@@ -506,24 +525,28 @@ export function LabApp() {
       budget: current?.budget ?? 40,
       shown: 1,
       of: 1,
-      label: 'Recorded run. Scoring this tour on the engine.',
+      label: 'Recorded run. Scoring this launch on the engine.',
       step: Math.max(current?.step ?? 0, 1),
     }));
     setLabels((current) =>
-      current.includes('Recorded run. Scoring this tour on the engine.')
+      current.includes('Recorded run. Scoring this launch on the engine.')
         ? current
-        : [...current, 'Recorded run. Scoring this tour on the engine.'],
+        : [...current, 'Recorded run. Scoring this launch on the engine.'],
     );
     try {
       const snapshot = await buildRecordedRun(brief);
       if (!alive(token)) return;
       if (!snapshot) throw new Error('Recorded playback could not be scored.');
+      const playback = playbackDistricts(brief.city);
+      const recordedNote = brief.city.trim().toLowerCase() === 'tokyo'
+        ? RECORDED_NOTE
+        : 'Recorded run. District names are known neighborhoods. The bars are playback, not a live measurement.';
       setFeatures((current) => ({
         ...current,
-        demographicLine: current.skews.length ? current.demographicLine : RECORDED_NOTE,
+        demographicLine: current.skews.length ? current.demographicLine : recordedNote,
         neighborhoods: current.neighborhoods.length
           ? current.neighborhoods
-          : RECORDED_AREAS.map((area) => ({ label: area.label, weight: area.weight, price: area.price, popularity: area.popularity })),
+          : playback.map((area) => ({ label: area.label, weight: area.weight, price: null, popularity: null, lat: area.lat, lng: area.lng })),
       }));
       await finishRun(snapshot, brief);
     } catch (err) {
@@ -567,7 +590,6 @@ export function LabApp() {
     }
     const token = ++generation.current;
     settled.current = false;
-    const tour = isTourBrief(brief.idea, brief.city);
     briefRef.current = brief;
     setBusy(true);
     setError('');
@@ -596,11 +618,9 @@ export function LabApp() {
     startClock();
     startFeatures(brief, token);
     void loadPlaces(brief);
-    const timer = tour
-      ? window.setTimeout(() => {
-          void settleRecorded(brief, token);
-        }, 12_000)
-      : 0;
+    const timer = window.setTimeout(() => {
+      void settleRecorded(brief, token);
+    }, 12_000);
     let liveWon = false;
     try {
       const created = await client.createRun(brief);
@@ -629,8 +649,7 @@ export function LabApp() {
       );
       if (!alive(token) || settled.current) return;
       const useful = run.score != null && run.proposals.some((item) => (item.predictedDelta ?? 0) > 0);
-      const thin = tour && (run.status === 'awaiting_input' || !useful);
-      if (thin) {
+      if (run.status === 'awaiting_input' || !useful) {
         await settleRecorded(brief, token);
         return;
       }
@@ -638,16 +657,9 @@ export function LabApp() {
       if (timer) window.clearTimeout(timer);
       liveWon = true;
       await finishRun(run, brief);
-    } catch (err) {
+    } catch {
       if (!alive(token) || settled.current) return;
-      if (tour) {
-        await settleRecorded(brief, token);
-        return;
-      }
-      setError(err instanceof Error ? err.message : 'The API could not score this concept');
-      setStep(1);
-      stopClock();
-      setBusy(false);
+      await settleRecorded(brief, token);
     } finally {
       if (timer && liveWon) window.clearTimeout(timer);
       if (alive(token) && liveWon) {
@@ -799,15 +811,14 @@ export function LabApp() {
         if (beforeBrief && briefRef.current) queueReinterview(beforeBrief, briefRef.current);
         return;
       }
-      const tour = isTourBrief(draft.idea, draft.city);
       const controller = new AbortController();
-      const timer = tour ? window.setTimeout(() => controller.abort(), 8_000) : 0;
+      const timer = window.setTimeout(() => controller.abort(), 8_000);
       let run: RunSnapshot;
       try {
-        run = await approveRemote(runId, proposal.id, tour ? controller.signal : undefined);
+        run = await approveRemote(runId, proposal.id, controller.signal);
       } catch (err) {
         if (timer) window.clearTimeout(timer);
-        if (tour && err instanceof Error && err.name === 'AbortError') {
+        if (err instanceof Error && err.name === 'AbortError') {
           await approveLocal(proposal);
           if (beforeBrief && briefRef.current) queueReinterview(beforeBrief, briefRef.current);
           return;
@@ -878,7 +889,7 @@ export function LabApp() {
       });
     }
     setDraft(nextDraft);
-    startClock();
+    startClock(true);
     try {
       const result = await client.commandRun(runId, ask.kind === 'city' ? `resume city ${suggestion}` : `resume reference ${suggestion}`);
       const brief = toProfileBrief(nextDraft, controls);
@@ -912,7 +923,7 @@ export function LabApp() {
     setTalking(persona);
     setChatOpen(true);
     const opening = persona.interview.trim();
-    setLines([{ role: 'agent', text: personaLine('Simulated persona response', opening) }]);
+    setLines([{ role: 'agent', text: spoken(opening) }]);
   }
 
   function closeTalk() {
@@ -965,16 +976,17 @@ export function LabApp() {
               },
             )
           : null;
-        const reply = feature ?? { label: 'Simulated persona response', message: (await chatWithPersona(talking, text, fetch, apiBase())).say };
-        const shown = personaLine(reply.label, reply.message);
+        const reply = feature ?? { label: 'Simulated', source: 'template' as const, message: (await chatWithPersona(talking, text, fetch, apiBase())).say };
+        const shown = spoken(reply.message);
+        const note = reply.source === 'template' ? TEMPLATE_NOTE : undefined;
         setLines((current) => {
           const next = current.slice();
           const last = next[next.length - 1];
           if (last?.role === 'agent') {
-            next[next.length - 1] = { role: 'agent', text: shown };
+            next[next.length - 1] = { role: 'agent', text: shown, ...(note ? { note } : {}) };
             return next;
           }
-          return [...current, { role: 'agent', text: shown }];
+          return [...current, { role: 'agent', text: shown, ...(note ? { note } : {}) }];
         });
         return;
       }
@@ -1061,14 +1073,17 @@ export function LabApp() {
     personas.map((persona) => ({ label: persona.label, fit: persona.fit, rejects: persona.rejects, measuring: persona.measuring })),
     v1?.frictions.map((item) => item.text) ?? [],
   );
-  const heat = (features.neighborhoods.length ? features.neighborhoods : places)
-    .map((item) => ({
-      label: namedArea(item.label, draft.city, item.lat, item.lng),
-      weight: item.weight,
-      ...(typeof item.lat === 'number' ? { lat: item.lat } : {}),
-      ...(typeof item.lng === 'number' ? { lng: item.lng } : {}),
-    }))
-    .filter((item) => item.lat == null || item.lng == null || insideCity(item.lat, item.lng, draft.city));
+  const heat = groupDistricts(
+    (features.neighborhoods.length ? features.neighborhoods : places)
+      .map((item) => ({
+        label: namedArea(item.label, draft.city, item.lat, item.lng),
+        weight: item.weight,
+        ...(typeof item.lat === 'number' ? { lat: item.lat } : {}),
+        ...(typeof item.lng === 'number' ? { lng: item.lng } : {}),
+      }))
+      .filter((item) => item.lat == null || item.lng == null || insideCity(item.lat, item.lng, draft.city)),
+  );
+  const launch = detectLaunch(draft.idea);
   const neighborhoods = heat.map((item) => item.label);
   const priceNote = neighborhoodPriceNote(features.priceLine, proposal);
   const customersReady = personas.length > 0 || Boolean(ask);
@@ -1168,7 +1183,7 @@ export function LabApp() {
                 {openStudy === study.id && study.outcomeSummary ? <span>{study.outcomeSummary}</span> : null}
               </button>
             ))}
-            <p className="lab-case-note">Not a sales forecast.</p>
+            <p className="lab-case-note">These four are Tokyo launches. The same pre-registered rule applies to any category. Not a sales forecast.</p>
           </div>
         ) : null}
       </aside>
@@ -1194,12 +1209,12 @@ export function LabApp() {
             <section className="lab-in">
               <div className="lab-hero">
                 <div>
-                  <p className="lab-eyebrow">Music and live entertainment</p>
+                  <p className="lab-eyebrow">Any launch</p>
                   <h1>
                     Test the taste
                     <span>before you spend.</span>
                   </h1>
-                  <p>Four simulated customers. One change you can approve. The number comes from the engine, and it is not a sales forecast.</p>
+                  <p>A cafe, a game, a brand, a trip, or a show. Four simulated customers. One change you can approve. The number comes from the engine, and it is not a sales forecast.</p>
                 </div>
                 <div className="lab-fan" aria-hidden="true">
                   {references.slice(0, 4).map((entity) => (
@@ -1210,7 +1225,12 @@ export function LabApp() {
               <div className="lab-split">
                 <div className="lab-card">
                   <label className="lab-label" htmlFor="lab-idea">Your idea</label>
-                  <textarea id="lab-idea" className="lab-idea-input" value={draft.idea} onChange={(event) => setDraft((current) => ({ ...current, idea: event.target.value }))} />
+                  <textarea id="lab-idea" className="lab-idea-input" value={draft.idea} onChange={(event) => {
+                    const idea = event.target.value;
+                    setLibrary((current) => ({ ...current, assumptions: nextAssumptions(draft.idea, idea, current.assumptions) }));
+                    setDraft((current) => ({ ...current, idea }));
+                  }} />
+                  <p className="lab-fine" data-testid="launch-kind">{launch.label} · {launch.types.join(', ')}</p>
                   <label className="lab-label" htmlFor="lab-city" style={{ marginTop: 12 }}>Market</label>
                   <select id="lab-city" className="lab-select" value={draft.city} onChange={(event) => setDraft((current) => ({ ...current, city: event.target.value }))}>
                     {PROFILE_CITIES.map((city) => (
@@ -1229,6 +1249,7 @@ export function LabApp() {
                     <strong>{formatMoney(shownCost)}</strong>
                     <small className="lab-fine">Estimate, not a forecast</small>
                   </div>
+                  <p className="lab-fine lab-compare" data-testid="impact-compare">{comparisonLine(launch.kind)}</p>
                   <div className="lab-assumptions">
                     <label className="lab-assumption">
                       Focus group $
@@ -1261,9 +1282,8 @@ export function LabApp() {
                       key={example.id}
                       type="button"
                       onClick={() => {
-                        const tour = example.id === 'tokyo-tour';
-                        const references = (tour ? TOUR_REFERENCES : STARTER_REFERENCES).map((entity) => ({ ...entity }));
-                        const place = references.find((entity) => entity.type.includes('place'));
+                        const references = example.references.map((entity) => ({ ...entity }));
+                        const place = references.find((entity) => /place|destination/.test(entity.type));
                         setDraft((current) => ({
                           ...current,
                           idea: example.idea,
@@ -1271,14 +1291,15 @@ export function LabApp() {
                           age: example.age,
                           positioning: positioningForPrice(example.priceLevel),
                           references,
-                          locations: place ? [{ ...place }] : current.locations,
-                          interests: (tour ? TOUR_TAGS : STARTER_TAGS).map((tag) => ({ ...tag })),
+                          locations: place ? [{ ...place }] : [],
+                          interests: example.tags.map((tag) => ({ ...tag })),
                         }));
                         setControls((current) => ({
                           ...current,
                           priceLevel: example.priceLevel,
-                          scarcity: tour ? 'limited' : current.scarcity,
+                          scarcity: example.scarcity,
                         }));
+                        setLibrary((current) => ({ ...current, assumptions: assumptionsForIdea(example.idea) }));
                       }}
                     >
                       {example.label}
@@ -1380,6 +1401,17 @@ export function LabApp() {
                             <Cover key={anchor.id} name={anchor.name} type={anchor.type} image={anchor.image} size={48} />
                           ))}
                         </div>
+                        {persona.taste.length ? (
+                          <ul className="lab-taste" data-testid="taste-graph">
+                            {persona.taste.slice(0, 5).map((link) => (
+                              <li key={`${link.type}-${link.name}`}>
+                                <em>{tasteVerb(link.type)}</em>
+                                <span>{link.name}</span>
+                                {link.affinity != null ? <small>{Math.round(link.affinity * 100)}</small> : null}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
                         <p className="lab-quote" data-testid="persona-quote">{persona.interview}</p>
                         <button type="button" className="lab-quiet" onClick={() => openTalk(persona)}>
                           Talk
@@ -1405,8 +1437,22 @@ export function LabApp() {
                         ))}
                       </div>
                     ) : null}
+                    {personas.some((persona) => persona.taste.length) ? (
+                      <div data-testid="taste-evidence">
+                        {personas.map((persona) => (
+                          <p key={persona.id} className="lab-fine">
+                            {persona.label}: {persona.taste.map((link) => `${tasteVerb(link.type)} ${link.name}${link.affinity == null ? '' : ` ${Math.round(link.affinity * 100)}`}`).join(' · ')}
+                          </p>
+                        ))}
+                        <p className="lab-fine">
+                          {lastRun?.grounding === 'recorded'
+                            ? 'Recorded run. Cross-domain names are from this brief. Affinity was not measured.'
+                            : 'People who like this also show up across these Qloo types.'}
+                        </p>
+                      </div>
+                    ) : null}
                     {features.warnings.filter((warning) => !/budget exhausted/i.test(warning)).slice(0, 3).map((warning) => (
-                      <p key={warning} className="lab-fine">{warning}</p>
+                      <p key={warning} className="lab-fine">{stripEntityIds(warning)}</p>
                     ))}
                   </details>
                   <div className="lab-card lab-heat" data-testid="heatmap">
@@ -1615,7 +1661,10 @@ export function LabApp() {
               </p>
             ) : null}
             {lines.map((line, index) => (
-              <p key={`${line.role}-${index}`} className={line.role === 'you' ? 'is-you' : undefined}>{line.text}</p>
+              <p key={`${line.role}-${index}`} className={line.role === 'you' ? 'is-you' : undefined}>
+                {line.text}
+                {line.note ? <small className="lab-chat-note">{line.note}</small> : null}
+              </p>
             ))}
           </div>
           <form

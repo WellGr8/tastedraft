@@ -1,7 +1,7 @@
 import { BriefV2Schema, type BriefV2, type Entity, type Tag } from '@tastedraft/contracts';
 import { CITIES, type DraftState } from '@/lib/defaults';
 
-export const EXTRA_CITIES = ['Bangkok', 'Tokyo', 'Berlin', 'London', 'Paris', 'Seoul'] as const;
+export const EXTRA_CITIES = ['Bangkok', 'Tokyo', 'Berlin', 'London', 'Paris', 'Seoul', 'Lisbon'] as const;
 export const PROFILE_CITIES = [...CITIES, ...EXTRA_CITIES];
 
 export const MOODS: Tag[] = [

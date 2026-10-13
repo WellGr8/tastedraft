@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { BriefV2Schema } from '@tastedraft/contracts';
+import { assumptionsFor, BriefV2Schema, detectLaunch } from '@tastedraft/contracts';
 import { readFileSync } from 'node:fs';
 import { caseStudySummary, caseStudyViews } from './cases.ts';
 import { STARTER_REFERENCES, TOUR_IDEA, TOUR_REFERENCES, defaultDraft, mergeEntities, uniqueById } from './defaults.ts';
@@ -49,6 +49,18 @@ test('cost avoided is the focus groups plus the pilot days', () => {
   assert.equal(noGroups.focusGroupCost, 0);
   assert.equal(noGroups.roundsAvoided * (noGroups.pilotCost + noGroups.focusGroupCost * noGroups.sampleSize), costAvoided({ ...DEFAULT_ASSUMPTIONS, groups: 0 }));
   assert.equal(impactRequest({ ...DEFAULT_ASSUMPTIONS, groups: 0, pilotDays: 0 }), null);
+});
+
+test('an idea maps to a Qloo category, and music keeps the tour cost', () => {
+  assert.equal(detectLaunch('An indie video game launch in Seoul').kind, 'game');
+  assert.deepEqual(detectLaunch('An indie video game launch in Seoul').types, ['videogame', 'brand', 'podcast']);
+  assert.equal(detectLaunch('A specialty coffee shop in Bangkok').kind, 'cafe');
+  assert.equal(detectLaunch('A K-drama-inspired skincare brand in New York').kind, 'screen');
+  assert.ok(detectLaunch('A K-drama-inspired skincare brand in New York').types.includes('tv_show'));
+  assert.equal(detectLaunch('An eco travel tour in Lisbon').kind, 'travel');
+  assert.equal(detectLaunch(TOUR_IDEA).kind, 'music');
+  assert.deepEqual(assumptionsFor('music'), { focusGroupUsd: 2500, groups: 2, pilotDayUsd: 1800, pilotDays: 3 });
+  assert.equal(detectLaunch('A quiet object').kind, 'general');
 });
 
 test('the tour brief is the music example', () => {

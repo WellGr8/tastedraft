@@ -310,6 +310,16 @@ export const FrictionSchema = z
   .strict();
 export type Friction = z.infer<typeof FrictionSchema>;
 
+/** One cross-domain taste link. Affinity stays null when Qloo did not measure it. */
+export const TasteLinkSchema = z
+  .object({
+    name: z.string().min(1),
+    type: z.string().min(1),
+    affinity: z.number().min(0).max(1).nullable(),
+  })
+  .strict();
+export type TasteLink = z.infer<typeof TasteLinkSchema>;
+
 /** One simulated customer. The quote is not evidence. */
 export const PersonaSchema = z
   .object({
@@ -319,11 +329,25 @@ export const PersonaSchema = z
     age: z.string().min(1).optional(),
     gender: z.string().min(1).optional(),
     anchors: z.array(PersonaInsightSchema).max(3),
+    taste: z.array(TasteLinkSchema).max(6).optional(),
     quote: z.string().min(1),
     quoteLabel: z.literal(PERSONA_RESPONSE_LABEL),
   })
   .strict();
 export type Persona = z.infer<typeof PersonaSchema>;
+
+export {
+  assumptionsFor,
+  comparisonLine,
+  detectLaunch,
+  entityUrn,
+  extraTasteType,
+  stripEntityIds,
+  type LaunchCost,
+  type LaunchKind,
+  type LaunchProfile,
+  type QlooEntityType,
+} from './launch.ts';
 
 export const STOP_REASONS = [
   'approved_target',
