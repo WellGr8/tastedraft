@@ -470,6 +470,19 @@ export {
   ReinterviewRequestSchema,
   ReinterviewResultSchema,
 } from './features.ts';
+export { offlinePersonaMessage, questionKind, replyLanguage } from './persona-reply.ts';
+export {
+  RANK_RULE,
+  caseStudyCallEstimate,
+  leadingAudience,
+  meanRank,
+  optionScore,
+  panelConfidence,
+  rankOptions,
+  realCityHit,
+} from './rank.ts';
+export type { AudienceSkew, LeadingAudience, PanelConfidence, RankOptionInput, RankPolarity, RankedOption } from './rank.ts';
+export type { OfflinePersonaRequest, PersonaReplyKind, PersonaReplyLanguage } from './persona-reply.ts';
 export type {
   ActivationPlanRequest,
   ActivationPlanResult,

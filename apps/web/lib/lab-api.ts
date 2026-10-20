@@ -508,6 +508,34 @@ export async function loadPersonaChat(
   return { label: parsed.data.label, message: parsed.data.message, source: parsed.data.source };
 }
 
+export interface NeighborhoodSignal {
+  heatmap: number | null;
+  popularity: number | null;
+  saturation: number | null;
+  qlooCalls: number;
+}
+
+/** One cached neighborhood read. Mean affinity is the saturation signal. */
+export async function loadNeighborhoodSignal(
+  body: { location: string; anchors?: FeatureEntity[]; age?: string; budget?: number },
+  fetchImpl: typeof fetch = fetch,
+  base = '',
+  signal?: AbortSignal,
+): Promise<NeighborhoodSignal | null> {
+  const payload = await postFeature('neighborhood', { ...body, budget: body.budget ?? 2 }, fetchImpl, base, signal, false);
+  const parsed = NeighborhoodFitResultSchema.safeParse(payload);
+  if (!parsed.success || !parsed.data.areas.length) return null;
+  const mean = (values: number[]) => (values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null);
+  const heatmap = mean(parsed.data.areas.map((area) => area.affinity));
+  const popularity = mean(parsed.data.areas.flatMap((area) => (area.popularityAffinity == null ? [] : [area.popularityAffinity])));
+  return {
+    heatmap,
+    popularity,
+    saturation: heatmap,
+    qlooCalls: parsed.data.qlooCalls,
+  };
+}
+
 export async function loadReinterview(
   body: ReinterviewRequest,
   fetchImpl: typeof fetch = fetch,

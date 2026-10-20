@@ -132,11 +132,10 @@ export async function demographicFit(run: FeatureRun, request: DemographicFitReq
   const gender = demographicGender(request.audience.gender);
   if (!bucket) run.warnings.push(`Age "${request.audience.age}" is not a known bucket. Mismatch treats the target age as unmeasured.`);
   if (request.audience.gender && !gender) run.warnings.push(`Gender "${request.audience.gender}" was not sent.`);
-  const references = [];
-  for (const reference of request.references) {
+  const references = await Promise.all(request.references.map(async (reference) => {
     const resolved = await resolveOne(run, reference, 'demographic-fit');
     if (!resolved) {
-      references.push({
+      return {
         id: reference.id,
         name: reference.name,
         type: entityTypeUrn(reference.type),
@@ -146,8 +145,7 @@ export async function demographicFit(run: FeatureRun, request: DemographicFitReq
         targetValue: null,
         mismatch: 100,
         evidence: [{ id: reference.id, detail: `No demographic skew was measured for ${reference.name}.` }],
-      });
-      continue;
+      };
     }
     const result = await callInsights(run, 'demographic-fit', 'Demographic skew', resolved.name, {
       filter: { type: 'urn:demographics' },
@@ -171,7 +169,7 @@ export async function demographicFit(run: FeatureRun, request: DemographicFitReq
         detail: `${row.dimension} ${row.bucket} skew ${row.value.toFixed(2)}.`,
       })),
     ];
-    references.push({
+    return {
       id: resolved.id,
       name: resolved.name,
       type: resolved.type ?? entityTypeUrn(reference.type),
@@ -181,8 +179,8 @@ export async function demographicFit(run: FeatureRun, request: DemographicFitReq
       targetValue: scored.targetValue,
       mismatch: scored.mismatch,
       evidence,
-    });
-  }
+    };
+  }));
   const measured = references.map((row) => row.mismatch);
   const mismatch = measured.length ? Math.round(measured.reduce((sum, value) => sum + value, 0) / measured.length) : null;
   return DemographicFitResultSchema.parse({
@@ -199,19 +197,17 @@ export async function demographicFit(run: FeatureRun, request: DemographicFitReq
 }
 
 export async function competitorBenchmark(run: FeatureRun, request: CompetitorBenchmarkRequest): Promise<CompetitorBenchmarkResult> {
-  const competitors = [];
-  for (const competitor of request.competitors) {
+  const resolvedCompetitors = await Promise.all(request.competitors.map(async (competitor) => {
     const resolved = await resolveOne(run, competitor, 'competitors');
-    if (resolved) competitors.push(resolved);
-    else run.warnings.push(`Competitor "${competitor.name}" was not resolved.`);
-  }
-  const personas = [];
-  for (const persona of request.personas) {
-    const scored = [];
-    for (const [type, group] of groupByType(competitors)) {
+    if (!resolved) run.warnings.push(`Competitor "${competitor.name}" was not resolved.`);
+    return resolved;
+  }));
+  const competitors = resolvedCompetitors.filter((competitor): competitor is FeatureEntity => Boolean(competitor));
+  const personas = await Promise.all(request.personas.map(async (persona) => {
+    const withAnchors = personaSignal(persona, run.warnings);
+    const blocks = await Promise.all([...groupByType(competitors)].map(async ([type, group]) => {
       const ids = group.map((item) => item.id).filter(isQlooId);
-      if (!ids.length) continue;
-      const withAnchors = personaSignal(persona, run.warnings);
+      if (!ids.length) return [];
       let result = await callInsights(run, 'competitors', 'Score competitors', persona.label, {
         filter: { type, results: { entities: ids.join(',') } },
         signal: withAnchors,
@@ -233,20 +229,21 @@ export async function competitorBenchmark(run: FeatureRun, request: CompetitorBe
         rows = result?.ok ? parseEntities(result.body, type) : [];
       }
       const byId = new Map(rows.map((row) => [row.id, row]));
-      for (const competitor of group) {
+      return group.map((competitor) => {
         const row = byId.get(competitor.id);
-        scored.push({
+        if (!row) run.warnings.push(`${persona.label} received no affinity for ${competitor.name}.`);
+        return {
           id: competitor.id,
           name: row?.name ?? competitor.name,
           type,
           affinity: row?.affinity ?? null,
           explainability: row?.explainability ?? [],
-        });
-        if (!row) run.warnings.push(`${persona.label} received no affinity for ${competitor.name}.`);
-      }
-    }
-    personas.push({ id: persona.id, label: persona.label, competitors: scored });
-  }
+        };
+      });
+    }));
+    const scored = blocks.flat();
+    return { id: persona.id, label: persona.label, competitors: scored };
+  }));
   return CompetitorBenchmarkResultSchema.parse({ ...metaOf(run), personas });
 }
 
@@ -270,19 +267,21 @@ function tasteSignal(request: NeighborhoodFitRequest, warnings: string[]): NonNu
 
 export async function neighborhoodFit(run: FeatureRun, request: NeighborhoodFitRequest): Promise<NeighborhoodFitResult> {
   const signal = tasteSignal(request, run.warnings);
-  const heat = await callInsights(run, 'neighborhood', 'Heatmap', request.location, {
-    filter: { type: 'urn:heatmap', location: { query: request.location } },
-    signal,
-    extra: { 'heatmap.dimensions': 'price_level,popularity' },
-  });
   const box = cityBox(request.location);
+  const [heat, placesResult] = await Promise.all([
+    callInsights(run, 'neighborhood', 'Heatmap', request.location, {
+      filter: { type: 'urn:heatmap', location: { query: request.location } },
+      signal,
+      extra: { 'heatmap.dimensions': 'price_level,popularity' },
+    }),
+    callInsights(run, 'neighborhood', 'Places', request.location, {
+      filter: { type: 'urn:entity:place', location: { query: request.location } },
+      signal,
+      extra: { sort_by: 'quality' },
+      take: 20,
+    }),
+  ]);
   const cells = (heat?.ok ? parseHeatmap(heat.body) : []).filter((cell) => insideCity(cell.lat, cell.lng, box));
-  const placesResult = await callInsights(run, 'neighborhood', 'Places', request.location, {
-    filter: { type: 'urn:entity:place', location: { query: request.location } },
-    signal,
-    extra: { sort_by: 'quality' },
-    take: 20,
-  });
   const places = (placesResult?.ok ? parseEntities(placesResult.body, 'urn:entity:place') : []).filter(
     (place) => place.lat != null && place.lng != null && insideCity(place.lat, place.lng, box),
   );
@@ -433,8 +432,7 @@ export async function nicheFinder(run: FeatureRun, request: NicheFinderRequest):
 }
 
 export async function activationPlan(run: FeatureRun, request: ActivationPlanRequest): Promise<ActivationPlanResult> {
-  const personas = [];
-  for (const persona of request.personas) {
+  const personas = await Promise.all(request.personas.map(async (persona) => {
     const located = { ...persona, location: persona.location || request.location };
     const signal = personaSignal(located, run.warnings);
     const placeFilter: NonNullable<QlooInsightsParams['filter']> = {
@@ -442,11 +440,13 @@ export async function activationPlan(run: FeatureRun, request: ActivationPlanReq
       location: { query: request.location },
     };
     if (request.priceLevel) placeFilter.price_level = { max: request.priceLevel };
-    const places = await activationCall(run, 'Places', { filter: placeFilter, signal, extra: { sort_by: 'quality' }, take: 4 }, 'urn:entity:place');
-    const podcasts = await activationCall(run, 'Podcasts', { filter: { type: 'urn:entity:podcast' }, signal, take: 4 }, 'urn:entity:podcast');
-    const partners = await activationCall(run, 'Partner brands', { filter: { type: 'urn:entity:brand' }, signal, take: 4 }, 'urn:entity:brand');
-    personas.push({ id: persona.id, label: persona.label, places, podcasts, partners });
-  }
+    const [places, podcasts, partners] = await Promise.all([
+      activationCall(run, 'Places', { filter: placeFilter, signal, extra: { sort_by: 'quality' }, take: 4 }, 'urn:entity:place'),
+      activationCall(run, 'Podcasts', { filter: { type: 'urn:entity:podcast' }, signal, take: 4 }, 'urn:entity:podcast'),
+      activationCall(run, 'Partner brands', { filter: { type: 'urn:entity:brand' }, signal, take: 4 }, 'urn:entity:brand'),
+    ]);
+    return { id: persona.id, label: persona.label, places, podcasts, partners };
+  }));
   return ActivationPlanResultSchema.parse({ ...metaOf(run), location: request.location, personas });
 }
 
@@ -496,17 +496,19 @@ async function affinitiesFor(
 ): Promise<Map<string, ParsedEntity>> {
   const found = new Map<string, ParsedEntity>();
   const signal = personaSignal({ ...persona, anchors: (persona.anchors ?? []).filter((anchor) => !references.some((reference) => reference.id === anchor.id)) }, run.warnings);
-  for (const [type, group] of groupByType(references)) {
+  const groups = [...groupByType(references)];
+  const rows = await Promise.all(groups.map(async ([type, group]) => {
     const ids = group.map((item) => item.id).filter(isQlooId);
-    if (!ids.length) continue;
+    if (!ids.length) return [];
     const result = await callInsights(run, 'reinterview', label, persona.label, {
       filter: { type, results: { entities: ids.join(',') } },
       signal,
       feature: { explainability: true },
       take: ids.length,
     });
-    for (const row of result?.ok ? parseEntities(result.body, type) : []) found.set(row.id, row);
-  }
+    return result?.ok ? parseEntities(result.body, type) : [];
+  }));
+  for (const row of rows.flat()) found.set(row.id, row);
   return found;
 }
 
@@ -558,21 +560,30 @@ async function resolveReinterviewList(
   run: FeatureRun,
   entities: readonly FeatureEntity[],
   cache: Map<string, FeatureEntity | null>,
+  inflight: Map<string, Promise<FeatureEntity | null>>,
 ): Promise<FeatureEntity[]> {
-  const resolved: FeatureEntity[] = [];
-  for (const entity of entities) {
+  const hits = await Promise.all(entities.map((entity) => {
     const key = `${entity.id}|${entity.name}`.toLowerCase();
-    if (!cache.has(key)) cache.set(key, await resolveReinterviewEntity(run, entity));
-    const hit = cache.get(key);
-    if (hit) resolved.push(hit);
-  }
-  return resolved;
+    if (cache.has(key)) return Promise.resolve(cache.get(key) ?? null);
+    const pending = inflight.get(key);
+    if (pending) return pending;
+    const job = resolveReinterviewEntity(run, entity).then((hit) => {
+      cache.set(key, hit);
+      return hit;
+    });
+    inflight.set(key, job);
+    return job;
+  }));
+  return hits.filter((hit): hit is FeatureEntity => Boolean(hit));
 }
 
 export async function reinterview(run: FeatureRun, request: ReinterviewRequest): Promise<ReinterviewResult> {
   const cache = new Map<string, FeatureEntity | null>();
-  const beforeRefs = await resolveReinterviewList(run, request.before.references, cache);
-  const afterRefs = await resolveReinterviewList(run, request.after.references, cache);
+  const inflight = new Map<string, Promise<FeatureEntity | null>>();
+  const [beforeRefs, afterRefs] = await Promise.all([
+    resolveReinterviewList(run, request.before.references, cache, inflight),
+    resolveReinterviewList(run, request.after.references, cache, inflight),
+  ]);
   const personas = [];
   for (const persona of request.personas) {
     const anchors: FeatureEntity[] = [];
@@ -584,8 +595,10 @@ export async function reinterview(run: FeatureRun, request: ReinterviewRequest):
       if (hit) anchors.push(hit);
     }
     const scoredPersona = { ...persona, anchors };
-    const beforeRows = await affinitiesFor(run, scoredPersona, beforeRefs, 'Score V1');
-    const afterRows = await affinitiesFor(run, scoredPersona, afterRefs, 'Score V2');
+    const [beforeRows, afterRows] = await Promise.all([
+      affinitiesFor(run, scoredPersona, beforeRefs, 'Score V1'),
+      affinitiesFor(run, scoredPersona, afterRefs, 'Score V2'),
+    ]);
     const beforeList = beforeRefs.map((reference) => ({
       id: reference.id,
       affinity: beforeRows.get(reference.id)?.affinity ?? null,
@@ -624,7 +637,10 @@ export async function reinterview(run: FeatureRun, request: ReinterviewRequest):
 export async function personaChat(run: FeatureRun, request: PersonaChatRequest, llm: LlmClient = createLlmClient()): Promise<PersonaChatResult> {
   run.emit({ type: 'step', feature: 'persona-chat', label: 'Ground the reply', detail: request.persona.label });
   const drafted = await draftPersonaReply(llm, request);
-  if (drafted.warning) run.warnings.push(drafted.warning);
+  if (drafted.warning || drafted.source === 'template') {
+    console.error('persona-chat: model reply was not used');
+    if (drafted.warning) run.warnings.push(drafted.warning);
+  }
   for (const part of drafted.message.split(/(\s+)/)) {
     if (part) run.emit({ type: 'token', feature: 'persona-chat', text: part });
   }

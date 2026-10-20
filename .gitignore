@@ -5,6 +5,7 @@
 
 # QlooClient disk cache and local SQLite. Live response bodies stay on the server.
 apps/api/data/qloo-cache/
+apps/api/data/benchmark-cache/
 apps/api/data/recordings/
 server/data/qloo-cache/
 .qloo-cache/

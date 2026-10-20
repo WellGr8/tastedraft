@@ -60,7 +60,7 @@ The VM filesystem is the durable store. Do not rely on the container writable la
 
 ### Budget, rate limit, and recorded fallback
 
-`QLOO_DAILY_BUDGET` defaults to 400 live Qloo calls per UTC day. Cache hits do not count. When the counter is full, the client refuses the call before the network, and the agent runner plays the derived recording and labels the run **Recorded run**.
+`QLOO_DAILY_BUDGET` defaults to 1000 live Qloo calls per UTC day. Cache hits do not count. When the counter is full, the client refuses the call before the network, and the agent runner plays the derived recording and labels the run **Recorded run**.
 
 `RATE_LIMIT_PER_MINUTE` defaults to 60 requests per address. The address is the first hop of `X-Forwarded-For`, which Caddy sets. `GET /api/health` is exempt. A limited client receives HTTP 429 and `{ "error": { "code": "rate_limited" } }`. Set the variable to `0` to turn the limit off.
 

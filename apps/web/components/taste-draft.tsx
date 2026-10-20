@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { BriefV2, Entity, MapLayer } from '@tastedraft/contracts';
+import { stripEntityIds, type BriefV2, type Entity, type MapLayer } from '@tastedraft/contracts';
 import { ChatPanel, type ChatTurn } from '@/components/chat-panel';
 import {
   AnalysisPhase,
@@ -30,6 +30,7 @@ import { askFromRun, decisionTrace, EMPTY_TRACE, namesOnRun, personasOf, readRun
 import { placeLabel, plainStopReason } from '@/lib/labels';
 import type { RunSnapshot } from '@tastedraft/contracts';
 import { bandOf } from '@/lib/hex';
+import { featureEntity, loadPersonaChat } from '@/lib/lab-api';
 import { chatWithPersona, loadPersonas, mindChanges, type EvidenceChip, type MindChange, type Persona } from '@/lib/personas';
 import {
   defaultControls,
@@ -112,6 +113,7 @@ export function TasteDraft() {
   const [history, setHistory] = useState<LoopSnap[]>([]);
   const [chatPersona, setChatPersona] = useState<Persona | null>(null);
   const [personaSay, setPersonaSay] = useState('');
+  const [personaTurns, setPersonaTurns] = useState<Array<{ role: 'you' | 'persona'; text: string; note?: string }>>([]);
   const [personaChips, setPersonaChips] = useState<EvidenceChip[]>([]);
   const [personaDraft, setPersonaDraft] = useState('');
   const [turns, setTurns] = useState<ChatTurn[]>([]);
@@ -664,18 +666,74 @@ export function TasteDraft() {
   function talk(persona: Persona) {
     setChatPersona(persona);
     setPersonaSay(persona.interview);
+    setPersonaTurns(persona.interview.trim() ? [{ role: 'persona', text: persona.interview.trim() }] : []);
     setPersonaChips(persona.evidence.slice(0, 5));
     setPersonaDraft('');
     setSheet(true);
   }
 
   async function sendPersona() {
-    if (!chatPersona || !personaDraft.trim()) return;
+    if (!chatPersona || !personaDraft.trim() || chatBusy) return;
     const message = personaDraft.trim();
+    const history = personaTurns
+      .slice(-8)
+      .map((turn) => ({
+        role: turn.role === 'you' ? ('user' as const) : ('persona' as const),
+        content: turn.text.slice(0, 500),
+      }))
+      .filter((turn) => turn.content.length > 0);
     setPersonaDraft('');
-    const reply = await chatWithPersona(chatPersona, message, fetch, apiBase());
-    setPersonaSay(reply.say);
-    setPersonaChips(reply.evidence);
+    setPersonaTurns((current) => [...current, { role: 'you', text: message }]);
+    setChatBusy(true);
+    try {
+      const anchors = chatPersona.anchors.slice(0, 8).map((anchor) => {
+        const entity = featureEntity(anchor);
+        const category = anchor.type.split(':').filter(Boolean).pop()?.replace(/_/g, ' ') || 'taste';
+        const reason = anchor.affinity == null
+          ? `${category} listed by Qloo, affinity not measured`
+          : `${category} with Qloo affinity ${anchor.affinity.toFixed(2)}`;
+        return { ...entity, reason: stripEntityIds(reason).slice(0, 240) };
+      });
+      const idea = stripEntityIds(draft.idea).slice(0, 500);
+      // A recorded run reports zero Qloo calls. Chat still asks the model.
+      const feature = anchors.length
+        ? await loadPersonaChat(
+            {
+              persona: {
+                id: chatPersona.id,
+                label: chatPersona.label,
+                location: chatPersona.city,
+                age: chatPersona.age,
+                ...(chatPersona.gender ? { gender: chatPersona.gender } : {}),
+                anchors,
+              },
+              message: message.slice(0, 500),
+              ...(history.length ? { history } : {}),
+              context: {
+                ...(idea ? { idea } : {}),
+                ...(chatPersona.role === 'Red team' ? { stance: 'red-team' as const, verdict: 'Argues against this idea' } : {}),
+              },
+            },
+            fetch,
+            apiBase(),
+          )
+        : null;
+      if (feature) {
+        const note = feature.source === 'template' ? 'Template reply. The language model was not used.' : undefined;
+        setPersonaSay(feature.message);
+        setPersonaTurns((current) => [...current, { role: 'persona', text: feature.message, ...(note ? { note } : {}) }]);
+        return;
+      }
+      const reply = await chatWithPersona(chatPersona, message, fetch, apiBase(), history);
+      setPersonaSay(reply.say);
+      setPersonaChips(reply.evidence);
+      setPersonaTurns((current) => [
+        ...current,
+        { role: 'persona', text: reply.say, note: 'Template reply. The language model was not used.' },
+      ]);
+    } finally {
+      setChatBusy(false);
+    }
   }
 
   async function approve(id: string) {
@@ -984,6 +1042,7 @@ export function TasteDraft() {
                     evidence={personaChips}
                     draft={personaDraft}
                     busy={chatBusy}
+                    turns={personaTurns}
                     onDraft={setPersonaDraft}
                     onSend={() => void sendPersona()}
                     onBack={() => setChatPersona(null)}

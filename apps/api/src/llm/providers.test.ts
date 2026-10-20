@@ -10,7 +10,7 @@ import {
   redactSecrets,
   resolveLlmProvider,
 } from './client.ts';
-import { capPersonaMessage, draftPersonaReply, PERSONA_MAX_CHARS } from './persona.ts';
+import { capPersonaMessage, draftPersonaReply, PERSONA_MAX_CHARS, PERSONA_TEMPERATURE, templatePersona } from './persona.ts';
 import type { PersonaChatRequest } from '@tastedraft/contracts';
 
 const ANCHOR = '11111111-1111-1111-1111-111111111111';
@@ -51,7 +51,7 @@ describe('LLM providers', () => {
       {
         LLM_PROVIDER: 'openrouter',
         LLM_BASE_URL: 'https://openrouter.example/api/v1/chat/completions',
-        LLM_API_KEY: 'sk-or-v1-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+        LLM_API_KEY: `sk-or-v1-${'c'.repeat(64)}`,
       },
       fetchImpl,
     );
@@ -74,17 +74,18 @@ describe('LLM providers', () => {
       });
       return new Response(JSON.stringify({ choices: [{ message: { content: '{"ok":true}' } }] }), { status: 200 });
     };
-    const llm = createLlmClient({ LLM_API_KEY: 'sk-or-v1-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }, fetchImpl);
+    const llm = createLlmClient({ LLM_API_KEY: `sk-or-v1-${'a'.repeat(64)}` }, fetchImpl);
     assert.equal(llm.provider, 'openrouter');
     assert.equal(await llm.complete([{ role: 'user', content: 'hi' }], { maxTokens: PERSONA_MAX_TOKENS, timeoutMs: PERSONA_TIMEOUT_MS }), '{"ok":true}');
     assert.equal(seen[0]?.url, 'https://openrouter.ai/api/v1/chat/completions');
     assert.equal(seen[0]?.body.model, OPENROUTER_MODEL);
     assert.deepEqual(seen[0]?.body.models, [OPENROUTER_MODEL, OPENROUTER_FALLBACK_MODEL]);
     assert.equal(seen[0]?.body.max_tokens, PERSONA_MAX_TOKENS);
+    assert.equal(seen[0]?.body.temperature, 0);
     assert.equal(seen[0]?.headers['X-Title'], 'TasteDraft');
     assert.match(seen[0]?.headers.Authorization ?? '', /^Bearer sk-or-v1-/);
     assert.doesNotMatch(JSON.stringify(seen[0]?.body), /sk-or-v1-/);
-    assert.equal(redactSecrets('failed sk-or-v1-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'), 'failed [redacted]');
+    assert.equal(redactSecrets(`failed sk-or-v1-${'a'.repeat(64)}`), 'failed [redacted]');
     assert.equal(redactSecrets('{"user_id":"user_example"}'), '{"user_id":"[redacted]"}');
   });
 
@@ -130,6 +131,7 @@ describe('LLM providers', () => {
     assert.equal(seen[2]?.headers['anthropic-version'], '2023-06-01');
     assert.equal(seen[2]?.body.model, 'claude-test');
     assert.equal(seen[2]?.body.max_tokens, PERSONA_MAX_TOKENS);
+    assert.equal(seen[2]?.body.temperature, 0);
     assert.equal(seen[2]?.body.system, 'json only');
     assert.equal((seen[2]?.body.messages as Array<{ role: string }>).some((message) => message.role === 'system'), false);
     assert.doesNotMatch(JSON.stringify(seen[2]?.body), /sk-ant-testkeyvalue1234/);
@@ -148,7 +150,7 @@ describe('LLM providers', () => {
       });
       return new Response('');
     };
-    const llm = createLlmClient({ LLM_PROVIDER: 'openrouter', LLM_API_KEY: 'sk-or-v1-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' }, fetchImpl);
+    const llm = createLlmClient({ LLM_PROVIDER: 'openrouter', LLM_API_KEY: `sk-or-v1-${'b'.repeat(64)}` }, fetchImpl);
     await assert.rejects(() => llm.complete([{ role: 'user', content: 'hi' }], { timeoutMs: 40 }), /timeout|aborted/i);
     const draft = await draftPersonaReply({
       mode: 'live',
@@ -251,5 +253,277 @@ describe('persona grounding', () => {
     assert.ok(capped.length <= PERSONA_MAX_CHARS);
     assert.doesNotMatch(capped, /Simulated persona response/);
     assert.match(capped, /…$/);
+  });
+
+  it('varies the template by question, in the first person', () => {
+    const base = request();
+    const replies = [
+      templatePersona({ ...base, message: 'why?' }),
+      templatePersona({ ...base, message: 'Is the price too high?' }),
+      templatePersona({ ...base, message: 'Where would you look?' }),
+      templatePersona({ ...base, message: 'What would change your mind?' }),
+      templatePersona({ ...base, message: "maybe it's your style?" }),
+    ].map((draft) => draft.message);
+    assert.equal(new Set(replies).size, replies.length);
+    for (const message of replies) {
+      assert.match(message, /Billie Eilish/);
+      assert.match(message, /\bI\b|\bmy\b/i);
+      assert.doesNotMatch(message, /Simulated persona response/);
+      assert.doesNotMatch(message, /your preferred style/i);
+      assert.doesNotMatch(message, /\byou'd\b/i);
+      assert.doesNotMatch(message, new RegExp(ANCHOR, 'i'));
+    }
+    assert.match(replies[0] ?? '', /because/i);
+    assert.match(replies[1] ?? '', /price/i);
+    assert.match(replies[2] ?? '', /Tokyo/);
+    assert.match(replies[3] ?? '', /change my mind/i);
+    assert.match(replies[4] ?? '', /would go/i);
+  });
+});
+
+describe('persona conversation', () => {
+  const opening = 'Not for me. I would walk past. Billie Eilish is the taste, and this is not.';
+  const go = 'I would not go. Billie Eilish is the taste I keep, and this show is not it.';
+  const why = 'I walk past because Billie Eilish is what I already choose, and this show is not that.';
+  const style = 'My style is Billie Eilish. This show belongs to someone else.';
+  const mind = 'A version next to Billie Eilish would change my mind. This one does not.';
+
+  function chatContext(): PersonaChatRequest['context'] {
+    return {
+      idea: 'An indie artist launching a Tokyo tour',
+      verdict: 'Would pass',
+      frictions: ['Premium price'],
+    };
+  }
+
+  it('sends full history as turns at temperature 0.8 and retries a repeated reply', async () => {
+    const questions = ['Would you go to this show?', 'why?', "maybe it's your style?", 'What would change your mind?'];
+    const queue = [go, go, why, style, mind];
+    const bodies: Array<Record<string, unknown>> = [];
+    const fetchImpl: typeof fetch = async (_url, init) => {
+      bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      const message = queue.shift() ?? mind;
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: JSON.stringify({ message, citationIds: ['a1'] }) } }],
+      }), { status: 200 });
+    };
+    const llm = createLlmClient({
+      LLM_API_KEY: `sk-or-v1-${'d'.repeat(64)}`,
+    }, fetchImpl);
+    const history: NonNullable<PersonaChatRequest['history']> = [{ role: 'persona', content: opening }];
+    const answers: string[] = [];
+    for (const question of questions) {
+      const draft = await draftPersonaReply(llm, {
+        ...request(),
+        message: question,
+        history: history.slice(-8),
+        context: chatContext(),
+      });
+      assert.equal(draft.source, 'llm');
+      assert.match(draft.message, /Billie Eilish/);
+      assert.doesNotMatch(draft.message, /\byou'd\b|your preferred style/i);
+      answers.push(draft.message);
+      history.push({ role: 'user', content: question });
+      history.push({ role: 'persona', content: draft.message });
+    }
+
+    assert.equal(bodies.length, 5);
+    assert.deepEqual(answers, [go, why, style, mind]);
+    assert.equal(new Set(answers).size, 4);
+    for (const body of bodies) assert.equal(body.temperature, PERSONA_TEMPERATURE);
+
+    const turns = (body: Record<string, unknown>) => body.messages as Array<{ role: string; content: string }>;
+    const first = turns(bodies[0]!);
+    assert.equal(first[0]?.role, 'system');
+    assert.match(first[0]?.content ?? '', /You ARE/);
+    assert.match(first[0]?.content ?? '', /first person/i);
+    assert.match(first[0]?.content ?? '', /Billie Eilish/);
+    assert.match(first[0]?.content ?? '', /category artist/);
+    assert.match(first[0]?.content ?? '', /affinity 0\.72/);
+    assert.match(first[0]?.content ?? '', /Tokyo tour/);
+    assert.match(first[0]?.content ?? '', /Would pass/);
+    assert.match(first[0]?.content ?? '', /Premium price/);
+    assert.match(first[0]?.content ?? '', /Never repeat a previous reply verbatim/);
+    assert.equal(first[1]?.role, 'assistant');
+    assert.equal(first[1]?.content, opening);
+    assert.equal(first.at(-1)?.role, 'user');
+    assert.equal(first.at(-1)?.content, questions[0]);
+    assert.doesNotMatch(JSON.stringify(first), /"history"/);
+    assert.doesNotMatch(JSON.stringify(first), new RegExp(ANCHOR, 'i'));
+
+    const repeated = turns(bodies[1]!);
+    assert.equal(repeated.at(-1)?.content, 'why?');
+    assert.ok(repeated.some((message) => message.role === 'assistant' && message.content === go));
+    const retry = turns(bodies[2]!);
+    assert.match(retry.at(-1)?.content ?? '', /repeats a previous reply/i);
+    assert.match(retry.at(-1)?.content ?? '', /first person/i);
+    assert.equal(retry.filter((message) => message.role === 'assistant').at(-1)?.content, go);
+
+    const last = turns(bodies[4]!);
+    assert.equal(last[0]?.role, 'system');
+    assert.equal(last.at(-1)?.content, 'What would change your mind?');
+    assert.ok(last.some((message) => message.role === 'user' && message.content === 'why?'));
+    assert.ok(last.some((message) => message.role === 'user' && message.content === "maybe it's your style?"));
+    assert.doesNotMatch(JSON.stringify(last), /"history"/);
+  });
+
+  it('retries once when the reply talks to the interviewer as the persona', async () => {
+    const bad = "I'm not sure why you'd walk past Billie Eilish. They seem to be your preferred style.";
+    const good = 'I walk past because Billie Eilish is my taste and this show is not.';
+    const seen: string[] = [];
+    let calls = 0;
+    const llm = {
+      mode: 'live' as const,
+      async complete(messages: Array<{ content: string }>) {
+        calls += 1;
+        seen.push(messages[messages.length - 1]?.content ?? '');
+        const message = calls === 1 ? bad : good;
+        return JSON.stringify({ message, citationIds: ['a1'] });
+      },
+    };
+    const draft = await draftPersonaReply(llm, {
+      ...request(),
+      message: 'why?',
+      history: [{ role: 'persona', content: opening }],
+    });
+    assert.equal(calls, 2);
+    assert.match(seen[1] ?? '', /interviewer/i);
+    assert.equal(draft.source, 'llm');
+    assert.equal(draft.message, good);
+  });
+
+  it('tells a red-team persona to argue against the idea', async () => {
+    let system = '';
+    const llm = {
+      mode: 'live' as const,
+      async complete(messages: Array<{ role: string; content: string }>) {
+        system = messages.find((message) => message.role === 'system')?.content ?? '';
+        return JSON.stringify({
+          message: 'I would argue against it because Billie Eilish is the taste this misses.',
+          citationIds: ['a1'],
+        });
+      },
+    };
+    const draft = await draftPersonaReply(llm, {
+      ...request(),
+      message: 'why?',
+      context: { idea: 'A Tokyo tour', verdict: 'Argues against this idea', stance: 'red-team', frictions: ['Premium price'] },
+    });
+    assert.match(system, /red team/i);
+    assert.match(system, /Argue against/);
+    assert.match(system, /Premium price/);
+    assert.equal(draft.source, 'llm');
+  });
+
+  it('uses a different template when the retry still repeats', async () => {
+    const llm = {
+      mode: 'live' as const,
+      async complete() {
+        return JSON.stringify({ message: go, citationIds: ['a1'] });
+      },
+    };
+    const draft = await draftPersonaReply(llm, {
+      ...request(),
+      message: 'why?',
+      history: [{ role: 'persona', content: go }],
+    });
+    assert.equal(draft.source, 'template');
+    assert.match(draft.warning ?? '', /repeated/);
+    assert.notEqual(draft.message, go);
+    assert.match(draft.message, /Billie Eilish/);
+    assert.match(draft.message, /because/i);
+    assert.doesNotMatch(draft.message, /\byou'd\b|your preferred style/i);
+  });
+
+  it('answers why, a change, price, and where in a new sentence, including Thai', () => {
+    const history: NonNullable<PersonaChatRequest['history']> = [];
+    const questions = ['why?', 'what if we add a late show?', 'Is the price too high?', 'Where would you look?', 'แล้วถ้าเราเพิ่มมาละ', 'ทำไมไม่สนใจ', 'why?'];
+    const messages: string[] = [];
+    for (const message of questions) {
+      const draft = templatePersona({ ...request(), message, ...(history.length ? { history } : {}) });
+      messages.push(draft.message);
+      history.push({ role: 'user', content: message }, { role: 'persona', content: draft.message });
+    }
+    assert.equal(new Set(messages).size, messages.length);
+    assert.match(messages[0] ?? '', /because/i);
+    assert.match(messages[1] ?? '', /added/i);
+    assert.match(messages[2] ?? '', /price/i);
+    assert.match(messages[3] ?? '', /Tokyo/);
+    assert.match(messages[4] ?? '', /Billie Eilish/);
+    assert.match(messages[4] ?? '', /[\u0E00-\u0E7F]/);
+    assert.match(messages[5] ?? '', /[\u0E00-\u0E7F]/);
+    assert.doesNotMatch(messages[4] ?? '', /Billiei|บิลลี/i);
+  });
+
+  it('retries a Thai question answered in English and keeps the model reply if the retry is not grounded', async () => {
+    const english = 'I would not go because Billie Eilish is already my taste.';
+    const thai = 'ฉันไม่ไปเพราะ Billie Eilish คือรสนิยมของฉัน';
+    let calls = 0;
+    const llm = {
+      mode: 'live' as const,
+      async complete(messages: Array<{ content: string }>) {
+        calls += 1;
+        const last = messages.at(-1)?.content ?? '';
+        if (calls === 1) {
+          assert.match(last, /ทำไมไม่สนใจ/);
+          return JSON.stringify({ message: english, citationIds: ['a1'] });
+        }
+        assert.match(last, /Thai/);
+        return JSON.stringify({ message: thai, citationIds: ['a1'] });
+      },
+    };
+    const draft = await draftPersonaReply(llm, { ...request(), message: 'ทำไมไม่สนใจ' });
+    assert.equal(calls, 2);
+    assert.equal(draft.source, 'llm');
+    assert.match(draft.message, /[\u0E00-\u0E7F]/);
+    assert.match(draft.message, /Billie Eilish/);
+  });
+
+  it('keeps the English model reply when the Thai retry is not grounded', async () => {
+    const english = 'I would not go because Billie Eilish is already my taste.';
+    let calls = 0;
+    const llm = {
+      mode: 'live' as const,
+      async complete() {
+        calls += 1;
+        if (calls === 1) return JSON.stringify({ message: english, citationIds: ['a1'] });
+        return JSON.stringify({ message: 'Sure.', citationIds: ['missing'] });
+      },
+    };
+    const draft = await draftPersonaReply(llm, { ...request(), message: 'ทำไมไม่สนใจ' });
+    assert.equal(calls, 2);
+    assert.equal(draft.source, 'llm');
+    assert.equal(draft.message, english);
+  });
+
+  it('calls the live model for a recorded persona whose affinity was never measured', async () => {
+    let calls = 0;
+    let system = '';
+    const llm = {
+      mode: 'live' as const,
+      async complete(messages: Array<{ role: string; content: string }>) {
+        calls += 1;
+        system = messages.find((message) => message.role === 'system')?.content ?? '';
+        return JSON.stringify({
+          message: 'ฉันไม่สนใจเพราะ Billie Eilish คือรสนิยมที่ฉันมีอยู่แล้ว',
+          citationIds: ['a1'],
+        });
+      },
+    };
+    const draft = await draftPersonaReply(llm, {
+      ...request(),
+      message: 'ทำไมไม่สนใจ',
+      persona: {
+        ...request().persona,
+        anchors: [{ id: ANCHOR, name: 'Billie Eilish', type: 'artist', affinity: null }],
+      },
+    });
+    assert.equal(calls, 1);
+    assert.equal(draft.source, 'llm');
+    assert.match(draft.message, /Billie Eilish/);
+    assert.match(draft.message, /[\u0E00-\u0E7F]/);
+    assert.match(system, /same language/i);
+    assert.match(system, /Do not translate entity names/);
+    assert.match(system, /zero Qloo calls/);
   });
 });

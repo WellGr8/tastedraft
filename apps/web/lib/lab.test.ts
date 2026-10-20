@@ -3,6 +3,8 @@ import test from 'node:test';
 import { assumptionsFor, BriefV2Schema, detectLaunch } from '@tastedraft/contracts';
 import { readFileSync } from 'node:fs';
 import { caseStudySummary, caseStudyViews } from './cases.ts';
+import { redTeamLine, redTeamOf } from './red-team.ts';
+import { moveEvidence, revealAt } from './reveal.ts';
 import { STARTER_REFERENCES, TOUR_IDEA, TOUR_REFERENCES, defaultDraft, mergeEntities, uniqueById } from './defaults.ts';
 import {
   addChip,
@@ -14,6 +16,8 @@ import {
   formatMoney,
   impactRequest,
   isTourBrief,
+  JUDGE_EXAMPLES,
+  LAB_EXAMPLES,
   previewGap,
   rememberVersion,
   neighborhoodPriceNote,
@@ -23,7 +27,7 @@ import {
 import { mergeFeatures, parseLabFeatures, projectFeatures, stubLabFeatures } from './lab-api.ts';
 import { namedArea } from './places.ts';
 import { recordedSnapshot } from './recorded-tour.ts';
-import { anchorRefs, sentimentOf, voiceFor } from './voice.ts';
+import { anchorRefs, distinctVoices, sentimentOf, voiceFor } from './voice.ts';
 
 const idea = (): LabIdea => ({
   id: 'idea-a',
@@ -109,6 +113,18 @@ test('persona voice follows that persona’s anchors and fit', () => {
   assert.equal(sentimentOf(44), 'pass');
   assert.equal(sentimentOf(53), 'curious');
   assert.equal(voiceFor([], 80), 'Still measuring what this person actually likes.');
+  assert.match(voiceFor([], 0, undefined, 'Tokyo 18–25 female'), /Tokyo 18–25 female/);
+  assert.notEqual(voiceFor([], 0, undefined, 'Tokyo 18–25 female'), voiceFor([], 0, undefined, 'Tokyo 46+ male'));
+  const shared = [{ name: 'Aphex Twin' }, { name: 'Muji' }];
+  const lines = distinctVoices([
+    { anchors: shared, fit: 44, who: 'Tokyo 26–35 male' },
+    { anchors: shared, fit: 44, who: 'Tokyo 36–45 female' },
+    { anchors: [], fit: 0, who: 'Tokyo 18–25 female' },
+    { anchors: [], fit: 0, who: 'Tokyo 46+ male' },
+  ]);
+  assert.equal(new Set(lines).size, lines.length);
+  assert.match(lines[2] ?? '', /Tokyo 18–25 female/);
+  assert.match(lines[3] ?? '', /Tokyo 46\+ male/);
   assert.deepEqual(anchorRefs([{ name: 'Paper Coast' }, { name: 'Studio Slot' }]), ['Paper Coast', 'Studio Slot']);
   assert.notDeepEqual(
     anchorRefs([{ name: 'Paper Coast' }]),
@@ -239,13 +255,84 @@ test('neighborhood price stays distinct from a lower merch proposal', () => {
   assert.equal(namedArea('Koenji', 'Tokyo', 33.16, 139.9), 'Koenji');
 });
 
-test('case studies report the published match count', () => {
+test('case studies list the locked cities and wait for a live rank', () => {
   const body = JSON.parse(readFileSync(new URL('../public/case-studies.json', import.meta.url), 'utf8'));
   const studies = caseStudyViews(body);
-  assert.equal(studies.length, 4);
-  assert.equal(caseStudySummary(studies), '2 of 4 matched');
-  assert.deepEqual(
-    studies.map((study) => study.matched),
-    [false, true, false, true],
-  );
+  assert.equal(studies.length, 8);
+  assert.equal(caseStudySummary(studies), 'No live ranks yet · city-rank-2');
+  assert.equal(studies.filter((study) => !study.scored).length, 8);
+  assert.ok(studies.every((study) => !study.scored && study.matched === null && study.realRank === null));
+  assert.ok(studies.every((study) => study.cities.length === 5 && study.cities.some((city) => city.city === study.market)));
+  assert.ok(studies.every((study) => study.sources.length >= 2 && study.source.startsWith('http')));
+  const domains = new Set(studies.map((study) => study.domain));
+  for (const domain of ['music', 'fashion', 'food', 'beauty', 'games', 'film']) assert.equal(domains.has(domain), true);
+  assert.equal(caseStudySummary([
+    { scored: true, matched: true, outcome: 'sold_out', realRank: 1 },
+    { scored: true, matched: false, outcome: 'stayed', realRank: 3 },
+    { scored: true, matched: true, outcome: 'left', realRank: 5 },
+    { scored: false, matched: null, outcome: 'sold_out', realRank: null },
+  ]), 'Top-2 1 of 2 · low rank 1 of 1 · mean rank 3 · 1 awaiting live Qloo');
+});
+
+test('two home examples open compare with five options', () => {
+  const tour = LAB_EXAMPLES.find((example) => example.id === 'indie-tour-cities');
+  const coffee = LAB_EXAMPLES.find((example) => example.id === 'bangkok-neighborhoods');
+  assert.equal(tour?.compare?.kind, 'cities');
+  assert.deepEqual(tour?.compare?.options, ['Tokyo', 'Osaka', 'Seoul', 'Taipei', 'Bangkok']);
+  assert.equal(coffee?.compare?.kind, 'neighborhoods');
+  assert.equal(coffee?.compare?.options.length, 5);
+  assert.equal(LAB_EXAMPLES.filter((example) => example.compare).length >= 2, true);
+});
+
+test('judge starting points stay general and fill distinct ideas', () => {
+  const labels = new Set([...LAB_EXAMPLES, ...JUDGE_EXAMPLES].map((example) => example.label));
+  assert.equal(labels.size, LAB_EXAMPLES.length + JUDGE_EXAMPLES.length);
+  assert.equal(detectLaunch(JUDGE_EXAMPLES.find((example) => example.id === 'live-tour')!.idea).kind, 'music');
+  assert.equal(detectLaunch(JUDGE_EXAMPLES.find((example) => example.id === 'venue-concession')!.idea).kind, 'dining');
+  assert.equal(detectLaunch(JUDGE_EXAMPLES.find((example) => example.id === 'comedy-special')!.idea).kind, 'movie');
+  assert.equal(detectLaunch(JUDGE_EXAMPLES.find((example) => example.id === 'startup-launch')!.idea).kind, 'event');
+  assert.equal(detectLaunch(JUDGE_EXAMPLES.find((example) => example.id === 'brand-bet')!.idea).kind, 'general');
+});
+
+test('the red team objects from measured anchors and stays quiet without them', () => {
+  const line = redTeamLine([{ id: 'a', name: 'Billie Eilish', type: 'artist', affinity: 0.7, provenance: 'qloo' }], ['Premium price']);
+  assert.match(line, /argue against/i);
+  assert.match(line, /Billie Eilish/);
+  assert.match(line, /Premium price/);
+  assert.doesNotMatch(line, /you'd|your preferred/i);
+  const persona = {
+    id: 'p1',
+    label: 'Seoul 18–25',
+    city: 'Seoul',
+    age: '18–25',
+    gender: 'female' as const,
+    role: 'fan',
+    initials: 'S',
+    anchors: [{ id: 'a', name: 'Billie Eilish', type: 'artist', affinity: 0.7, provenance: 'qloo' }],
+    taste: [],
+    fit: 44,
+    measuring: false,
+    evidenceStrength: 'HIGH',
+    rejects: true,
+    rejectWhy: null,
+    interview: 'I would pass.',
+    evidence: [],
+    provenance: [],
+    source: 'test',
+  };
+  const team = redTeamOf([persona], ['Premium price']);
+  assert.equal(team?.role, 'Red team');
+  assert.match(team?.interview ?? '', /Billie Eilish/);
+  assert.equal(redTeamOf([{ ...persona, anchors: [], measuring: true }], []), null);
+});
+
+test('a score reveal eases from version 1 to version 2 and cites the new anchor', () => {
+  assert.equal(revealAt(48, 61, 0), 48);
+  assert.equal(revealAt(48, 61, 1), 61);
+  const mid = revealAt(48, 61, 0.5);
+  assert.ok(mid > 48 && mid < 61);
+  const evidence = moveEvidence(['Aphex Twin'], ['Aphex Twin', 'Muji'], null, 'Premium price');
+  assert.match(evidence, /Muji/);
+  assert.match(evidence, /Premium price/);
+  assert.doesNotMatch(evidence, /[0-9a-f]{8}-[0-9a-f]{4}-/i);
 });

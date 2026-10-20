@@ -1,15 +1,54 @@
 {
-  "method": "scoreInsightMeasurements on live Qloo affinities. Heatmap is context and is not a ledger row. One reference keeps evidence LIMITED.",
+  "method": "city-rank-2 ranks the real launch city against a locked list of comparable cities. Local and heatmap are taste lift: affinity divided by that city's popularity, then scaled. Weights are local 60, heatmap 35, and popularity 5. A missing part stays null. A capital does not win on size. Successes should land in the top 2. Failures (a later exit) should land in the bottom 2. Rank 3 of 5 is a miss for both. Locked 2026-10-14 before the rerun. This is not a sales forecast.",
+  "grounding": "needs-live",
+  "rerun": "npm run case-studies -w @tastedraft/api with QLOO_API_KEY set. Cache: apps/api/data/qloo-cache (gitignored). The writer refuses raw results, entity ids, explainability, images, and keys. Without a key the script exits and leaves this file unchanged.",
   "rule": {
-    "encourageTotal": 55,
-    "encourageLocal": 50,
-    "lockedBeforeCalls": true
+    "version": "city-rank-2",
+    "lockedOn": "2026-10-14",
+    "topK": 2,
+    "weights": {
+      "local": 60,
+      "heatmap": 35,
+      "popularity": 5
+    },
+    "trends": "mid",
+    "maxRelated": 4,
+    "cities": {
+      "japan": [
+        "Tokyo",
+        "Osaka",
+        "Kyoto",
+        "Fukuoka",
+        "Sapporo"
+      ],
+      "us": [
+        "New York",
+        "Los Angeles",
+        "Chicago",
+        "Miami",
+        "Boston"
+      ]
+    }
   },
-  "contamination": "Qloo is today's graph. Later records and the 2019 Forever 21 exit can still sit in the affinities. The briefs themselves stop at pre-launch facts.",
+  "callEstimate": 104,
+  "dailyBudget": 1000,
+  "historicalNote": "city-rank-1 (local 50, heatmap 25, popularity 25) ranked every real city 1 of 5 on the live run, including Forever 21 and Innisfree, because size and popularity crowned Tokyo and New York. city-rank-2 replaces that rule. An earlier absolute rule, encourage only when the ledger total was at least 55 and local fit was at least 50, matched 2 of 4 scored Tokyo rows. Those totals are not ranks.",
+  "hitRate": {
+    "top2Successes": null,
+    "successes": null,
+    "lowRankFailures": null,
+    "failures": null,
+    "meanRank": null,
+    "scored": 0,
+    "label": "No live ranks yet"
+  },
+  "contamination": "Qloo is today's graph. Later records, the 2019 Forever 21 exit, and the 2021 Innisfree exit can still sit in the affinities. The briefs themselves stop at pre-launch facts.",
   "studies": [
     {
       "id": "billie-eilish-tokyo-2022",
       "title": "Billie Eilish, first solo Japan show",
+      "domain": "music",
+      "domainLabel": "Music",
       "market": "Tokyo",
       "launch": "2022-08-26",
       "outcome": "sold_out",
@@ -20,58 +59,76 @@
         "https://www.universal-music.co.jp/billie-eilish/news/2022-08-30/",
         "https://iflyer.tv/en/article/2022/06/23/happierthaneverworldtour-japan2022/"
       ],
+      "scored": false,
       "subject": {
         "query": "Billie Eilish",
-        "resolvedName": "Billie Eilish",
-        "resolvedType": "urn:entity:artist"
+        "resolvedName": null,
+        "resolvedType": null
       },
-      "inputs": {
-        "ageBucket": "24_and_younger",
-        "priceLevel": 3,
-        "city": "Tokyo"
+      "audience": {
+        "age": null,
+        "gender": null,
+        "location": null
       },
-      "engine": {
-        "total": 45,
-        "anchor": null,
-        "cross": 64,
-        "local": 87,
-        "audience": 46,
-        "friction": null,
-        "evidenceStrength": "LIMITED",
-        "gaps": [
-          "anchor",
-          "friction"
-        ],
-        "verdict": "caution"
-      },
+      "confidence": null,
+      "referenceCount": 0,
+      "references": [],
+      "realRank": null,
+      "realScore": null,
+      "cities": [
+        {
+          "city": "Tokyo",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Osaka",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Kyoto",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Fukuoka",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Sapporo",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        }
+      ],
       "derived": {
-        "anchorAffinity": null,
-        "placeCount": 8,
-        "placeAffinityMedian": 0.87,
-        "heatmapCells": 122,
-        "heatmapInCity": 65,
-        "heatmapMedian": 0.71,
-        "audienceSkew": 0.46,
-        "cross": [
-          {
-            "type": "urn:entity:brand",
-            "count": 5,
-            "medianAffinity": 0.97
-          },
-          {
-            "type": "urn:entity:movie",
-            "count": 5,
-            "medianAffinity": 0.94
-          }
-        ],
-        "qlooCalls": 7,
+        "qlooCalls": 0,
         "failures": []
       },
-      "matched": false
+      "matched": null,
+      "grounding": "needs-live"
     },
     {
       "id": "olivia-rodrigo-tokyo-2024",
       "title": "Olivia Rodrigo, first concert in Japan",
+      "domain": "music",
+      "domainLabel": "Music",
       "market": "Tokyo",
       "launch": "2024-09-27",
       "outcome": "sold_out",
@@ -83,58 +140,76 @@
         "https://niewmedia.com/en/news/043985/",
         "https://en.skream.jp/news/2024/06/olivia_rodrigo_guts_world_tour_japan_add.php"
       ],
+      "scored": false,
       "subject": {
         "query": "Olivia Rodrigo",
-        "resolvedName": "Olivia Rodrigo",
-        "resolvedType": "urn:entity:artist"
+        "resolvedName": null,
+        "resolvedType": null
       },
-      "inputs": {
-        "ageBucket": "24_and_younger",
-        "priceLevel": 3,
-        "city": "Tokyo"
+      "audience": {
+        "age": null,
+        "gender": null,
+        "location": null
       },
-      "engine": {
-        "total": 55,
-        "anchor": null,
-        "cross": 63,
-        "local": 85,
-        "audience": 87,
-        "friction": null,
-        "evidenceStrength": "LIMITED",
-        "gaps": [
-          "anchor",
-          "friction"
-        ],
-        "verdict": "encourage"
-      },
+      "confidence": null,
+      "referenceCount": 0,
+      "references": [],
+      "realRank": null,
+      "realScore": null,
+      "cities": [
+        {
+          "city": "Tokyo",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Osaka",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Kyoto",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Fukuoka",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Sapporo",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        }
+      ],
       "derived": {
-        "anchorAffinity": null,
-        "placeCount": 8,
-        "placeAffinityMedian": 0.84,
-        "heatmapCells": 76,
-        "heatmapInCity": 61,
-        "heatmapMedian": 0.59,
-        "audienceSkew": 0.87,
-        "cross": [
-          {
-            "type": "urn:entity:brand",
-            "count": 5,
-            "medianAffinity": 0.96
-          },
-          {
-            "type": "urn:entity:movie",
-            "count": 5,
-            "medianAffinity": 0.94
-          }
-        ],
-        "qlooCalls": 7,
+        "qlooCalls": 0,
         "failures": []
       },
-      "matched": true
+      "matched": null,
+      "grounding": "needs-live"
     },
     {
       "id": "harry-styles-tokyo-2017",
       "title": "Harry Styles, first solo Japan shows",
+      "domain": "music",
+      "domainLabel": "Music",
       "market": "Tokyo",
       "launch": "2017-12-07",
       "outcome": "sold_out",
@@ -145,58 +220,76 @@
         "https://www.sonymusic.co.jp/artist/harrystyles/info/483508",
         "https://www.m-messe.co.jp/event/detail/4526"
       ],
+      "scored": false,
       "subject": {
         "query": "Harry Styles",
-        "resolvedName": "Harry Styles",
-        "resolvedType": "urn:entity:artist"
+        "resolvedName": null,
+        "resolvedType": null
       },
-      "inputs": {
-        "ageBucket": "24_and_younger",
-        "priceLevel": 3,
-        "city": "Tokyo"
+      "audience": {
+        "age": null,
+        "gender": null,
+        "location": null
       },
-      "engine": {
-        "total": 44,
-        "anchor": null,
-        "cross": 64,
-        "local": 87,
-        "audience": 42,
-        "friction": null,
-        "evidenceStrength": "LIMITED",
-        "gaps": [
-          "anchor",
-          "friction"
-        ],
-        "verdict": "caution"
-      },
+      "confidence": null,
+      "referenceCount": 0,
+      "references": [],
+      "realRank": null,
+      "realScore": null,
+      "cities": [
+        {
+          "city": "Tokyo",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Osaka",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Kyoto",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Fukuoka",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Sapporo",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        }
+      ],
       "derived": {
-        "anchorAffinity": null,
-        "placeCount": 8,
-        "placeAffinityMedian": 0.87,
-        "heatmapCells": 101,
-        "heatmapInCity": 63,
-        "heatmapMedian": 0.68,
-        "audienceSkew": 0.42,
-        "cross": [
-          {
-            "type": "urn:entity:brand",
-            "count": 5,
-            "medianAffinity": 0.98
-          },
-          {
-            "type": "urn:entity:movie",
-            "count": 5,
-            "medianAffinity": 0.94
-          }
-        ],
-        "qlooCalls": 7,
+        "qlooCalls": 0,
         "failures": []
       },
-      "matched": false
+      "matched": null,
+      "grounding": "needs-live"
     },
     {
       "id": "forever-21-tokyo-2009",
       "title": "Forever 21, first Japan store",
+      "domain": "fashion",
+      "domainLabel": "Fashion retail",
       "market": "Tokyo",
       "launch": "2009-04-01",
       "outcome": "left",
@@ -208,54 +301,392 @@
         "https://www.lmaga.jp/news/2019/09/77183/",
         "https://www.shibukei.com/headline/14564/"
       ],
+      "scored": false,
       "subject": {
         "query": "Forever 21",
-        "resolvedName": "Forever 21",
-        "resolvedType": "urn:entity:brand"
+        "resolvedName": null,
+        "resolvedType": null
       },
-      "inputs": {
-        "ageBucket": "24_and_younger",
-        "priceLevel": 1,
-        "city": "Tokyo"
+      "audience": {
+        "age": null,
+        "gender": null,
+        "location": null
       },
-      "engine": {
-        "total": 42,
-        "anchor": null,
-        "cross": 64,
-        "local": 89,
-        "audience": 31,
-        "friction": null,
-        "evidenceStrength": "LIMITED",
-        "gaps": [
-          "anchor",
-          "friction"
-        ],
-        "verdict": "caution"
-      },
+      "confidence": null,
+      "referenceCount": 0,
+      "references": [],
+      "realRank": null,
+      "realScore": null,
+      "cities": [
+        {
+          "city": "Tokyo",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Osaka",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Kyoto",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Fukuoka",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Sapporo",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        }
+      ],
       "derived": {
-        "anchorAffinity": null,
-        "placeCount": 8,
-        "placeAffinityMedian": 0.89,
-        "heatmapCells": 108,
-        "heatmapInCity": 63,
-        "heatmapMedian": 0.7,
-        "audienceSkew": 0.31,
-        "cross": [
-          {
-            "type": "urn:entity:artist",
-            "count": 5,
-            "medianAffinity": 0.97
-          },
-          {
-            "type": "urn:entity:movie",
-            "count": 5,
-            "medianAffinity": 0.95
-          }
-        ],
-        "qlooCalls": 7,
+        "qlooCalls": 0,
         "failures": []
       },
-      "matched": true
+      "matched": null,
+      "grounding": "needs-live"
+    },
+    {
+      "id": "blue-bottle-tokyo-2015",
+      "title": "Blue Bottle Coffee, first shop outside the US",
+      "domain": "food",
+      "domainLabel": "Food",
+      "market": "Tokyo",
+      "launch": "2015-02-06",
+      "outcome": "stayed",
+      "outcomeSummary": "The Kiyosumi-Shirakawa flagship opened on 6 February 2015, the first Blue Bottle outside the United States. Opening day drew lines of about three hours. Blue Bottle's Japan shop page still lists the cafe.",
+      "prelaunch": "Before 6 February 2015: Blue Bottle was an Oakland specialty coffee company that had not opened a shop outside the United States. A second Tokyo cafe, in Aoyama, was already announced for 7 March 2015 and had not opened. The brief does not include the opening-day lines or the later Japan shops.",
+      "sources": [
+        "https://sprudge.com/blue-bottle-tokyo-roastery-kiyosumi-shirakawa-opening-70221.html",
+        "https://www.eater.com/2015/2/6/7992629/tokyo-blue-bottle-3-hour-lines-opening-day",
+        "https://www.japantimes.co.jp/life/2015/02/03/food/blue-bottle-coffee-offers-fresher-brew/",
+        "https://store.bluebottlecoffee.jp/pages/kiyosumi"
+      ],
+      "scored": false,
+      "subject": {
+        "query": "Blue Bottle Coffee",
+        "resolvedName": null,
+        "resolvedType": null
+      },
+      "audience": {
+        "age": null,
+        "gender": null,
+        "location": null
+      },
+      "confidence": null,
+      "referenceCount": 0,
+      "references": [],
+      "realRank": null,
+      "realScore": null,
+      "cities": [
+        {
+          "city": "Tokyo",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Osaka",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Kyoto",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Fukuoka",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Sapporo",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        }
+      ],
+      "derived": {
+        "qlooCalls": 0,
+        "failures": []
+      },
+      "matched": null,
+      "grounding": "needs-live"
+    },
+    {
+      "id": "innisfree-new-york-2017",
+      "title": "Innisfree, first US flagship",
+      "domain": "beauty",
+      "domainLabel": "Beauty",
+      "market": "New York",
+      "launch": "2017-09-15",
+      "outcome": "left",
+      "outcomeSummary": "The first US store opened at 862 Broadway, Union Square, on 15 September 2017. On 7 May 2021 Amorepacific said it would close every Innisfree store in North America. The company cited the pandemic and a shift to digital. Product remained at Sephora. The standalone New York stores did not stay.",
+      "prelaunch": "Before 15 September 2017: Innisfree was Amorepacific's affordable Jeju-ingredient skincare brand, with a large store network in Asia and no US shop yet. The brief does not include the 2021 exit. Today's Qloo graph can still reflect it. The exit was not only a taste result: the company named the pandemic.",
+      "sources": [
+        "https://www.apgroup.com/int/en/news/2017-09-18.html",
+        "https://www.koreatimes.co.kr/business/companies/20210507/amorepacific-withdraws-innisfree-business-from-north-america",
+        "https://www.businessoffashion.com/news/beauty/amorepacifics-innisfree-to-exit-us-market/"
+      ],
+      "scored": false,
+      "subject": {
+        "query": "Innisfree",
+        "resolvedName": null,
+        "resolvedType": null
+      },
+      "audience": {
+        "age": null,
+        "gender": null,
+        "location": null
+      },
+      "confidence": null,
+      "referenceCount": 0,
+      "references": [],
+      "realRank": null,
+      "realScore": null,
+      "cities": [
+        {
+          "city": "New York",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Los Angeles",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Chicago",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Miami",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Boston",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        }
+      ],
+      "derived": {
+        "qlooCalls": 0,
+        "failures": []
+      },
+      "matched": null,
+      "grounding": "needs-live"
+    },
+    {
+      "id": "nintendo-tokyo-2019",
+      "title": "Nintendo TOKYO, first direct store in Japan",
+      "domain": "games",
+      "domainLabel": "Games",
+      "market": "Tokyo",
+      "launch": "2019-11-22",
+      "outcome": "stayed",
+      "outcomeSummary": "Shibuya Parco 6F opened on 22 November 2019, the first Nintendo store the company operated directly in Japan. Opening day switched to numbered tickets and stopped admitting people once those ran out. Nintendo still lists the store, alongside later shops in Osaka, Kyoto, and Fukuoka.",
+      "prelaunch": "Before 22 November 2019: Nintendo sold hardware and software in Japan through other retailers. Switch had been out since 2017. The company had announced the Shibuya shop on 1 February 2019 and had no directly operated permanent store in Japan yet. The brief does not include the opening-day queues or the later Osaka, Kyoto, and Fukuoka stores.",
+      "sources": [
+        "https://www.nintendo.co.jp/corporate/release/2019/190201_2.html",
+        "https://www.nintendo.com/jp/topics/article/5c5d7496-efad-11e9-b641-063b7ac45a6d",
+        "https://news.denfaminicogamer.jp/kikakuthetower/191122b",
+        "https://www.nintendo.com/jp/officialstore/index.html"
+      ],
+      "scored": false,
+      "subject": {
+        "query": "Nintendo",
+        "resolvedName": null,
+        "resolvedType": null
+      },
+      "audience": {
+        "age": null,
+        "gender": null,
+        "location": null
+      },
+      "confidence": null,
+      "referenceCount": 0,
+      "references": [],
+      "realRank": null,
+      "realScore": null,
+      "cities": [
+        {
+          "city": "Tokyo",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Osaka",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Kyoto",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Fukuoka",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Sapporo",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        }
+      ],
+      "derived": {
+        "qlooCalls": 0,
+        "failures": []
+      },
+      "matched": null,
+      "grounding": "needs-live"
+    },
+    {
+      "id": "mario-movie-tokyo-2023",
+      "title": "The Super Mario Bros. Movie, Japan opening",
+      "domain": "film",
+      "domainLabel": "Film",
+      "market": "Tokyo",
+      "launch": "2023-04-28",
+      "outcome": "sold_out",
+      "outcomeSummary": "Japan opened on 28 April 2023. The first three days sold 1.276 million tickets and ¥1.843 billion, which Toho-Towa and Universal called the biggest opening weekend for an animated studio film in Japan and Universal's biggest Japan opening. Tokyo is the city string sent to Qloo. The published gross is national, not one Tokyo screen.",
+      "prelaunch": "Before the 28 April 2023 Japan opening: the film had already opened in the United States on 5 April 2023. The brief stops before the Japan weekend. Today's Qloo graph can still reflect that weekend. A record opening is the positive side of the ranking rule, the same side as a sellout.",
+      "sources": [
+        "https://www.animenewsnetwork.com/news/2023-05-03/the-super-mario-bros-movie-opens-at-no.1-in-japan-knights-of-the-zodiac-at-no.8/.197719",
+        "https://deadline.com/2023/04/super-mario-bros-movie-crosses-one-billion-global-box-office-1235341660/",
+        "https://www.nikkansports.com/entertainment/news/202305020000519.html"
+      ],
+      "scored": false,
+      "subject": {
+        "query": "The Super Mario Bros. Movie",
+        "resolvedName": null,
+        "resolvedType": null
+      },
+      "audience": {
+        "age": null,
+        "gender": null,
+        "location": null
+      },
+      "confidence": null,
+      "referenceCount": 0,
+      "references": [],
+      "realRank": null,
+      "realScore": null,
+      "cities": [
+        {
+          "city": "Tokyo",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Osaka",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Kyoto",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Fukuoka",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        },
+        {
+          "city": "Sapporo",
+          "score": null,
+          "rank": null,
+          "local": null,
+          "heatmap": null,
+          "popularity": null
+        }
+      ],
+      "derived": {
+        "qlooCalls": 0,
+        "failures": []
+      },
+      "matched": null,
+      "grounding": "needs-live"
     }
   ]
 }

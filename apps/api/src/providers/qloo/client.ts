@@ -222,6 +222,7 @@ export class QlooClient {
   private readonly minIntervalMs: number;
   private readonly sleep: (ms: number) => Promise<void>;
   private readonly admitLive: (() => boolean) | null;
+  private readonly memory = new Map<string, CacheFile>();
   private tail: Promise<void> = Promise.resolve();
   private lastRequestAt = 0;
 
@@ -402,13 +403,25 @@ export class QlooClient {
     return join(this.cacheDir, `${file}.json`);
   }
 
+  private fresh(file: CacheFile): QlooEnvelope | undefined {
+    if (file.v !== 1 || typeof file.storedAt !== 'number') return undefined;
+    if (file.storedAt + this.cacheTtlMs <= this.now()) return undefined;
+    const body = QlooEnvelopeSchema.safeParse(file.body);
+    return body.success ? body.data : undefined;
+  }
+
   private readCache(url: string): QlooEnvelope | undefined {
+    const hot = this.memory.get(url);
+    if (hot) {
+      const body = this.fresh(hot);
+      if (body) return body;
+      this.memory.delete(url);
+    }
     try {
       const raw = JSON.parse(readFileSync(this.cachePath(url), 'utf8')) as CacheFile;
-      if (raw.v !== 1 || typeof raw.storedAt !== 'number') return undefined;
-      if (raw.storedAt + this.cacheTtlMs <= this.now()) return undefined;
-      const body = QlooEnvelopeSchema.safeParse(raw.body);
-      return body.success ? body.data : undefined;
+      const body = this.fresh(raw);
+      if (body) this.memory.set(url, raw);
+      return body;
     } catch {
       return undefined;
     }
@@ -416,6 +429,7 @@ export class QlooClient {
 
   private writeCache(url: string, body: QlooEnvelope): void {
     const file: CacheFile = { v: 1, storedAt: this.now(), body };
+    this.memory.set(url, file);
     mkdirSync(this.cacheDir, { recursive: true });
     writeFileSync(this.cachePath(url), JSON.stringify(file));
   }

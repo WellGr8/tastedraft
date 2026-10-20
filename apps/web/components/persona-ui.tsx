@@ -264,6 +264,7 @@ export function PersonaChat({
   evidence,
   draft,
   busy,
+  turns,
   onDraft,
   onSend,
   onBack,
@@ -273,10 +274,12 @@ export function PersonaChat({
   evidence: EvidenceChip[];
   draft: string;
   busy: boolean;
+  turns?: ReadonlyArray<{ role: 'you' | 'persona'; text: string; note?: string }>;
   onDraft: (value: string) => void;
   onSend: () => void;
   onBack: () => void;
 }) {
+  const thread = turns?.filter((turn) => turn.text.trim()) ?? [];
   return (
     <div className="flex h-full min-h-0 flex-col" data-testid="persona-chat">
       <div className="td-loop">
@@ -292,9 +295,18 @@ export function PersonaChat({
         </div>
       </div>
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-3">
-        <p className="byb-p" style={{ fontSize: 16 }} data-testid="persona-say">
-          {say || persona.interview}
-        </p>
+        {thread.length ? (
+          thread.map((turn, index) => (
+            <p key={`${turn.role}-${index}`} className="byb-p" style={{ fontSize: 16 }} data-testid={turn.role === 'persona' ? 'persona-say' : 'persona-you'}>
+              {turn.text}
+              {turn.note ? <small style={{ display: 'block', marginTop: 4 }}>{turn.note}</small> : null}
+            </p>
+          ))
+        ) : (
+          <p className="byb-p" style={{ fontSize: 16 }} data-testid="persona-say">
+            {say || persona.interview}
+          </p>
+        )}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {(evidence.length ? evidence : persona.evidence).slice(0, 5).map((chip) => (
             <span key={`${chip.label}-${chip.detail}`} className="td-chip" data-testid="evidence-chip">

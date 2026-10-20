@@ -26,7 +26,7 @@ export function redact(message: string): string {
 export function openCaller(client: QlooClient, budget: number, sleep?: (ms: number) => Promise<void>): FeatureCaller {
   const gateway = new QlooGateway(client, {
     budget,
-    concurrency: 2,
+    concurrency: 4,
     backoffMs: 250,
     attempts: 3,
     ...(sleep ? { sleep } : {}),

@@ -1,4 +1,4 @@
-import type { BriefV2 } from '@tastedraft/contracts';
+import { offlinePersonaMessage, type BriefV2 } from '@tastedraft/contracts';
 import type { LiveBrief } from '@/lib/engine-preview';
 
 /**
@@ -393,20 +393,34 @@ export async function fillMissingFits(build: PersonaBuild, query: PersonaQuery, 
   return { ...build, personas };
 }
 
-export function personaReply(persona: Persona, message: string): PersonaReply {
+export function personaReply(
+  persona: Persona,
+  message: string,
+  history: ReadonlyArray<{ role: 'user' | 'persona'; content: string }> = [],
+): PersonaReply {
   const chips = persona.evidence.slice(0, 5);
   const question = message.trim();
   if (persona.measuring || !persona.anchors.length) return { say: MEASURING, evidence: chips };
   if (!question) return { say: persona.interview, evidence: chips };
-  const named = persona.anchors.find((anchor) => question.toLowerCase().includes(anchor.name.toLowerCase()));
-  if (named) {
-    const affinity = named.affinity == null ? 'Qloo listed it, without a measured affinity.' : `Qloo affinity is ${named.affinity}.`;
-    return {
-      say: `${named.name} is already part of how I spend my time. ${affinity}`,
-      evidence: [{ label: named.name, detail: named.affinity == null ? 'from Qloo' : `affinity ${named.affinity}` }, ...chips].slice(0, 5),
-    };
-  }
-  return { say: persona.interview, evidence: chips };
+  const say = offlinePersonaMessage({
+    message: question,
+    history,
+    persona: {
+      location: persona.city,
+      anchors: persona.anchors.map((anchor) => ({
+        name: anchor.name,
+        type: anchor.type,
+        affinity: anchor.affinity,
+      })),
+    },
+  });
+  const named = persona.anchors[0];
+  return {
+    say,
+    evidence: named
+      ? [{ label: named.name, detail: named.affinity == null ? 'from Qloo' : `affinity ${named.affinity}` }, ...chips].slice(0, 5)
+      : chips,
+  };
 }
 
 export function mindChanges(before: readonly Persona[], after: readonly Persona[]): MindChange[] {
@@ -462,6 +476,7 @@ export async function chatWithPersona(
   message: string,
   fetchImpl: typeof fetch = fetch,
   base = '',
+  history: ReadonlyArray<{ role: 'user' | 'persona'; content: string }> = [],
 ): Promise<PersonaReply> {
   const root = base.replace(/\/$/, '');
   try {
@@ -485,5 +500,5 @@ export async function chatWithPersona(
   } catch {
     // Offline template below.
   }
-  return personaReply(persona, message);
+  return personaReply(persona, message, history);
 }

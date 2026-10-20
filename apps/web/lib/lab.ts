@@ -1,5 +1,6 @@
 import { assumptionsFor, detectLaunch, type LaunchKind } from '@tastedraft/contracts';
 import type { Entity } from '@tastedraft/contracts';
+import type { CompareKind } from './compare.ts';
 import { sentimentOf } from './voice.ts';
 import {
   COFFEE_IDEA,
@@ -189,7 +190,107 @@ export interface LabExample {
   scarcity: 'open' | 'limited' | 'preorder';
   references: DraftState['references'];
   tags: DraftState['interests'];
+  /** Fills Compare mode. Absent examples stay on Test one. */
+  compare?: { kind: CompareKind; options: string[] };
 }
+
+function sampleRef(id: string, name: string, type: string, city?: string): Entity {
+  return { id, name, type, source: 'sample', ...(city ? { city } : {}) };
+}
+
+/** Starting points for other kinds of launch. They fill the form and do not submit. */
+export const JUDGE_EXAMPLES: LabExample[] = [
+  {
+    id: 'live-tour',
+    label: 'Live tour',
+    idea: 'A live tour promotion in Chicago: neighborhood posters, a merch table, and one hometown show',
+    city: 'Chicago',
+    age: '18–25',
+    priceLevel: 3,
+    scarcity: 'limited',
+    references: [
+      sampleRef('radiohead', 'Radiohead', 'urn:entity:artist'),
+      sampleRef('logan-square', 'Logan Square', 'urn:entity:place', 'Chicago'),
+      sampleRef('pitchfork', 'Pitchfork', 'urn:entity:brand'),
+    ],
+    tags: [
+      { id: 'tag-live-show', name: 'Live music', type: 'urn:tag' },
+      { id: 'tag-posters', name: 'Posters', type: 'urn:tag' },
+    ],
+  },
+  {
+    id: 'venue-concession',
+    label: 'Venue concession',
+    idea: 'A venue concession in Los Angeles: a shareable food item sold at the counter between periods',
+    city: 'Los Angeles',
+    age: '26–35',
+    priceLevel: 2,
+    scarcity: 'open',
+    references: [
+      sampleRef('shake-shack', 'Shake Shack', 'urn:entity:brand'),
+      sampleRef('dodger-stadium', 'Dodger Stadium', 'urn:entity:place', 'Los Angeles'),
+      sampleRef('in-n-out', 'In-N-Out Burger', 'urn:entity:brand'),
+    ],
+    tags: [
+      { id: 'tag-snack', name: 'Snack', type: 'urn:tag' },
+      { id: 'tag-counter', name: 'Counter', type: 'urn:tag' },
+    ],
+  },
+  {
+    id: 'comedy-special',
+    label: 'Comedy special',
+    idea: 'A comedy special filmed like a short movie in New York: a one-hour set, a poster, and a theater premiere',
+    city: 'New York',
+    age: '26–35',
+    priceLevel: 3,
+    scarcity: 'limited',
+    references: [
+      sampleRef('john-mulaney', 'John Mulaney', 'urn:entity:person'),
+      sampleRef('comedy-cellar', 'Comedy Cellar', 'urn:entity:place', 'New York'),
+      sampleRef('snl', 'Saturday Night Live', 'urn:entity:tv_show'),
+    ],
+    tags: [
+      { id: 'tag-comedy', name: 'Comedy', type: 'urn:tag' },
+      { id: 'tag-theater', name: 'Theater', type: 'urn:tag' },
+    ],
+  },
+  {
+    id: 'startup-launch',
+    label: 'Startup launch',
+    idea: 'A startup product launch in San Francisco: a first device, a city meetup, and a two-week pilot',
+    city: 'San Francisco',
+    age: '26–35',
+    priceLevel: 3,
+    scarcity: 'preorder',
+    references: [
+      sampleRef('apple', 'Apple', 'urn:entity:brand'),
+      sampleRef('soma', 'SoMa', 'urn:entity:place', 'San Francisco'),
+      sampleRef('stripe', 'Stripe', 'urn:entity:brand'),
+    ],
+    tags: [
+      { id: 'tag-pilot', name: 'Pilot', type: 'urn:tag' },
+      { id: 'tag-meetup', name: 'Meetup', type: 'urn:tag' },
+    ],
+  },
+  {
+    id: 'brand-bet',
+    label: 'Brand bet',
+    idea: 'A brand bet in New York: back a label entering one neighborhood, with a retail test and a limited first run',
+    city: 'New York',
+    age: '26–35',
+    priceLevel: 3,
+    scarcity: 'limited',
+    references: [
+      sampleRef('glossier', 'Glossier', 'urn:entity:brand'),
+      sampleRef('warby', 'Warby Parker', 'urn:entity:brand'),
+      sampleRef('soho-shop', 'SoHo', 'urn:entity:place', 'New York'),
+    ],
+    tags: [
+      { id: 'tag-retail', name: 'Retail', type: 'urn:tag' },
+      { id: 'tag-label', name: 'Label', type: 'urn:tag' },
+    ],
+  },
+];
 
 export const LAB_EXAMPLES: LabExample[] = [
   {
@@ -246,6 +347,36 @@ export const LAB_EXAMPLES: LabExample[] = [
     scarcity: 'open',
     references: TRAVEL_REFERENCES,
     tags: TRAVEL_TAGS,
+  },
+  {
+    id: 'indie-tour-cities',
+    label: 'Indie tour: five cities',
+    idea: 'An indie artist touring with a small merch table. Same show, five cities.',
+    city: 'Tokyo',
+    age: '18–25',
+    priceLevel: 3,
+    scarcity: 'limited',
+    references: TOUR_REFERENCES,
+    tags: TOUR_TAGS,
+    compare: {
+      kind: 'cities',
+      options: ['Tokyo', 'Osaka', 'Seoul', 'Taipei', 'Bangkok'],
+    },
+  },
+  {
+    id: 'bangkok-neighborhoods',
+    label: 'Bangkok coffee: five neighborhoods',
+    idea: COFFEE_IDEA,
+    city: 'Bangkok',
+    age: '26–35',
+    priceLevel: 2,
+    scarcity: 'open',
+    references: COFFEE_REFERENCES,
+    tags: COFFEE_TAGS,
+    compare: {
+      kind: 'neighborhoods',
+      options: ['Thong Lo', 'Ari', 'Sukhumvit', 'Silom', 'Yaowarat'],
+    },
   },
 ];
 

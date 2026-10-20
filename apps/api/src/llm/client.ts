@@ -9,6 +9,8 @@ export interface LlmCompleteOptions {
   /** Upper bound sent to the provider. Persona chat uses a short cap. */
   maxTokens?: number;
   timeoutMs?: number;
+  /** Defaults to 0 so scoring stays deterministic. Persona chat passes about 0.8. */
+  temperature?: number;
 }
 
 export interface LlmClient {
@@ -26,8 +28,8 @@ export const OPENROUTER_MODEL = 'google/gemini-2.5-flash-lite';
 /** Cheaper prompt price if the primary model is down. */
 export const OPENROUTER_FALLBACK_MODEL = 'meta-llama/llama-3.2-3b-instruct';
 
-export const PERSONA_MAX_TOKENS = 120;
-export const PERSONA_TIMEOUT_MS = 8_000;
+export const PERSONA_MAX_TOKENS = 400;
+export const PERSONA_TIMEOUT_MS = 15_000;
 
 export interface LlmCallOptions {
   client?: LlmClient;
@@ -116,8 +118,9 @@ export function createLlmClient(
     async complete(messages, options) {
       const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
       const maxTokens = options?.maxTokens;
+      const temperature = options?.temperature ?? 0;
       let response = provider === 'anthropic'
-        ? await postAnthropic({ fetchImpl, baseUrl, apiKey, model, messages, maxTokens, timeoutMs })
+        ? await postAnthropic({ fetchImpl, baseUrl, apiKey, model, messages, maxTokens, timeoutMs, temperature })
         : await postChat({
             fetchImpl,
             baseUrl,
@@ -126,6 +129,7 @@ export function createLlmClient(
             messages,
             maxTokens,
             timeoutMs,
+            temperature,
             fallback,
             openRouter: provider === 'openrouter',
             jsonMode: true,
@@ -139,6 +143,7 @@ export function createLlmClient(
           messages,
           maxTokens,
           timeoutMs,
+          temperature,
           fallback: null,
           openRouter: true,
           jsonMode: false,
@@ -164,13 +169,14 @@ async function postChat(input: {
   messages: ChatMessage[];
   maxTokens: number | undefined;
   timeoutMs: number;
+  temperature: number;
   fallback: string | null;
   openRouter: boolean;
   jsonMode: boolean;
 }): Promise<Response> {
   const body: Record<string, unknown> = {
     model: input.model,
-    temperature: 0,
+    temperature: input.temperature,
     messages: input.messages,
   };
   if (input.jsonMode) body.response_format = { type: 'json_object' };
@@ -204,6 +210,7 @@ async function postAnthropic(input: {
   messages: ChatMessage[];
   maxTokens: number | undefined;
   timeoutMs: number;
+  temperature: number;
 }): Promise<Response> {
   const system = input.messages.filter((message) => message.role === 'system').map((message) => message.content).join('\n\n');
   const messages = input.messages
@@ -219,7 +226,7 @@ async function postAnthropic(input: {
     body: JSON.stringify({
       model: input.model,
       max_tokens: input.maxTokens ?? 400,
-      temperature: 0,
+      temperature: input.temperature,
       ...(system ? { system } : {}),
       messages,
     }),

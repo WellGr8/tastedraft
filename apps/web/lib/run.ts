@@ -6,7 +6,7 @@ import { STARTER_REFERENCES, STARTER_TAGS, uniqueById } from '@/lib/defaults';
 import { scoreLive } from '@/lib/engine-preview';
 import { plainEvidence, plainHypothesis, plainToken, showName, traceSummary } from '@/lib/labels';
 import type { Persona, TasteLink } from '@/lib/personas';
-import { anchorRefs, voiceFor } from '@/lib/voice';
+import { anchorRefs, distinctVoices } from '@/lib/voice';
 
 export interface RunProgress {
   calls: number;
@@ -262,7 +262,7 @@ export async function personasOf(run: RunSnapshot, brief: BriefV2): Promise<Pers
       evidenceStrength: run.evidenceStrength,
       rejects: !measuring && fit > 0 && fit < 70,
       rejectWhy: null,
-      interview: measuring || fit <= 0 ? 'Still measuring what this person actually likes.' : voiceFor(anchors, fit),
+      interview: '',
       evidence: measuring
         ? [{ label: 'Taste', detail: 'still measuring' }]
         : [
@@ -274,5 +274,12 @@ export async function personasOf(run: RunSnapshot, brief: BriefV2): Promise<Pers
       source: 'qloo',
     });
   }
-  return people;
+  const lines = distinctVoices(
+    people.map((persona) => ({
+      anchors: persona.anchors,
+      fit: persona.measuring || persona.fit <= 0 ? 0 : persona.fit,
+      who: persona.label,
+    })),
+  );
+  return people.map((persona, index) => ({ ...persona, interview: lines[index] ?? persona.interview }));
 }

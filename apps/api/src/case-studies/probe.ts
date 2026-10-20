@@ -1,94 +1,80 @@
 /**
- * One live pass of a pre-launch brief through the insight ledger.
- * Prints and returns derived numbers only. Response bodies stay in memory.
+ * One live pass of a pre-launch brief through city-rank-2.
+ * Prints and returns derived numbers only. Response bodies stay in the cache.
  */
-import type { InsightScoreInput, MeasuredGroup } from '../engine/insights-score.ts';
-import { scoreInsightMeasurements } from '../engine/wasm-adapter.ts';
-import { affinitiesFrom, entitiesFrom, heatPoints, inCity, median, pickEntity, type NamedEntity } from '../backtest/cases.ts';
-import { parseDemographics, parseEntities } from '../features/parse.ts';
+import { heatPoints, inCity, pickEntity, type NamedEntity } from '../backtest/cases.ts';
+import { parseDemographics, parseEntities, parseHeatmap } from '../features/parse.ts';
 import type { QlooInsightsParams, QlooResult, QlooSearchParams } from '../providers/qloo/client.ts';
 import {
-  launchVerdict,
-  verdictMatched,
-  type LaunchCase,
-  type PublicOutcome,
-} from './cases.ts';
+  RANK_RULE,
+  leadingAudience,
+  panelConfidence,
+  rankOptions,
+  realCityHit,
+  type PanelConfidence,
+  type RankOptionInput,
+} from '../engine/rank-options.ts';
+import { citiesFor, polarityOf, type LaunchCase, type LaunchDomain, type PublicOutcome } from './cases.ts';
 
-/** The two calls a launch probe makes. A test can pass a stand-in. */
+/** The calls a launch probe makes. A test can pass a stand-in. */
 export interface LaunchProbeClient {
   search(params: QlooSearchParams): Promise<QlooResult>;
   insights(params: QlooInsightsParams): Promise<QlooResult>;
 }
 
-export interface CrossReading {
-  type: string;
-  count: number;
-  medianAffinity: number | null;
+export interface CityRankRow {
+  city: string;
+  score: number | null;
+  rank: number | null;
+  local: number | null;
+  heatmap: number | null;
+  popularity: number | null;
 }
 
 export interface LaunchStudy {
   id: string;
   title: string;
+  domain: LaunchDomain;
+  domainLabel: string;
   market: string;
   launch: string;
   outcome: PublicOutcome;
   outcomeSummary: string;
   prelaunch: string;
   sources: string[];
+  /** False when the subject or the real city never received a score. */
+  scored: boolean;
   subject: { query: string; resolvedName: string | null; resolvedType: string | null };
-  inputs: { ageBucket: string; priceLevel: 1 | 2 | 3 | 4; city: string };
-  engine: {
-    total: number | null;
-    anchor: number | null;
-    cross: number | null;
-    local: number | null;
-    audience: number | null;
-    friction: number | null;
-    evidenceStrength: string;
-    gaps: string[];
-    verdict: 'encourage' | 'caution';
-  };
-  derived: {
-    anchorAffinity: number | null;
-    placeCount: number;
-    placeAffinityMedian: number | null;
-    heatmapCells: number;
-    heatmapInCity: number;
-    heatmapMedian: number | null;
-    audienceSkew: number | null;
-    cross: CrossReading[];
-    qlooCalls: number;
-    failures: string[];
-  };
-  matched: boolean;
+  audience: { age: string | null; gender: string | null; location: string | null };
+  confidence: PanelConfidence | null;
+  referenceCount: number;
+  /** Names only. Entity ids stay out of the fixture. */
+  references: string[];
+  realRank: number | null;
+  realScore: number | null;
+  cities: CityRankRow[];
+  derived: { qlooCalls: number; failures: string[] };
+  matched: boolean | null;
 }
 
-function round2(value: number | null): number | null {
-  if (value == null) return null;
-  return Math.round(value * 100) / 100;
+const SEARCH_TYPES = {
+  artist: 'urn:entity:artist',
+  brand: 'urn:entity:brand',
+  movie: 'urn:entity:movie',
+  tv_show: 'urn:entity:tv_show',
+  videogame: 'urn:entity:videogame',
+} as const;
+
+function mean(values: readonly number[]): number | null {
+  if (!values.length) return null;
+  const raw = values.reduce((sum, value) => sum + value, 0) / values.length;
+  return Math.round(raw * 100) / 100;
 }
 
 function failureLabel(ok: boolean, status: number | undefined, timedOut: boolean): string | null {
   if (ok) return null;
   if (timedOut) return 'timeout';
   return String(status ?? 'network');
-}
-
-function rowsOf(body: unknown, id?: string): number[] {
-  const rows = parseEntities(body, 'urn:entity');
-  const picked = id ? rows.filter((row) => row.id === id && row.affinity != null) : rows.filter((row) => row.affinity != null);
-  return picked.map((row) => row.affinity as number);
-}
-
-function dimension(values: readonly number[], source: string, label?: string): InsightScoreInput['anchor'] {
-  if (!values.length) return { source, groups: [] };
-  return {
-    source,
-    groups: [{
-      ...(label ? { label } : {}),
-      rows: values.map((affinity) => ({ affinity, contributions: [], evidenceRefs: [] })),
-    }],
-  };
 }
 
 export async function probeLaunch(client: LaunchProbeClient, row: LaunchCase): Promise<LaunchStudy> {
@@ -100,158 +86,177 @@ export async function probeLaunch(client: LaunchProbeClient, row: LaunchCase): P
     if (label) failures.push(`${name}:${label}`);
   };
 
-  const searchTypes = { artist: 'urn:entity:artist', brand: 'urn:entity:brand' } as const;
-  const search = await client.search({ query: row.query, types: searchTypes[row.searchType], take: 5 });
+  const search = await client.search({ query: row.query, types: SEARCH_TYPES[row.searchType], take: 5 });
   note('search', search);
   const found: NamedEntity | null = search.ok ? pickTyped(search.body, row.query, row.searchType) : null;
-  const empty = emptyStudy(row, calls, failures, found);
-  if (!found) return empty;
+  const options = citiesFor(row.region);
+  const shell = emptyStudy(row, calls, failures, found, options.map((option) => option.city));
+  if (!found) return shell;
 
-  const signal = {
-    interests: { entities: found.id },
-    location: { query: row.city },
-    demographics: { age: row.ageBucket },
-  };
-  const anchor = await client.insights({
-    filter: { type: row.anchorType, results: { entities: found.id } },
-    signal,
-    feature: { explainability: true },
-    take: 5,
-  });
-  note('anchor', anchor);
-  const anchorValues = anchor.ok ? rowsOf(anchor.body, found.id) : [];
-
-  const places = await client.insights({
-    filter: {
-      type: 'urn:entity:place',
-      location: { query: row.city },
-      price_level: { max: row.priceLevel },
-    },
-    signal,
-    take: 8,
-  });
-  note('places', places);
-  const placeValues = places.ok ? (rowsOf(places.body).length ? rowsOf(places.body) : affinitiesFrom(places.body)) : [];
-
-  const heat = await client.insights({
-    filter: { type: 'urn:heatmap', location: { query: row.city } },
+  const related = await callInsights(client, 'related', {
+    filter: { type: row.anchorType },
     signal: { interests: { entities: found.id } },
     take: 8,
-  });
-  note('heatmap', heat);
-  const points = heat.ok ? heatPoints(heat.body) : [];
-  const inside = points.filter((point) => inCity(point.lat, point.lng, row.box));
+    extra: { 'bias.trends': RANK_RULE.trends },
+  }, note);
+  const neighbors = related.ok ? closestNeighbors(related.body, found.id) : [];
+  const references = [{ id: found.id, name: found.name }, ...neighbors].slice(0, 1 + RANK_RULE.maxRelated);
+  const confidence = panelConfidence(references.length);
+  const interestIds = references.map((item) => item.id).join(',');
 
-  const cross: CrossReading[] = [];
-  const crossGroups: MeasuredGroup[] = [];
-  for (const type of row.crossTypes) {
-    const result = await client.insights({
-      filter: { type },
+  const audienceCity = options[0]?.city ?? row.city;
+  const demo = await callInsights(client, 'demographics', {
+    filter: { type: 'urn:demographics' },
+    signal: { interests: { entities: found.id }, location: { query: audienceCity } },
+    take: 5,
+  }, note);
+  const audience = leadingAudience(demo.ok ? parseDemographics(demo.body).map((item) => ({
+    dimension: item.dimension,
+    bucket: item.bucket,
+    value: item.value,
+  })) : []);
+  const demographics = {
+    ...(audience.age ? { age: audience.age } : {}),
+    ...(audience.gender ? { gender: audience.gender } : {}),
+  };
+
+  const measurements: RankOptionInput[] = [];
+  const readings: Array<{ local: number | null; heatmap: number | null; popularity: number | null }> = [];
+  for (const option of options) {
+    const signal = {
+      interests: { entities: interestIds },
+      ...(Object.keys(demographics).length ? { demographics } : {}),
+    };
+    const places = await callInsights(client, `places:${option.city}`, {
+      filter: {
+        type: 'urn:entity:place',
+        location: { query: option.city },
+        price_level: { max: row.priceLevel },
+      },
       signal,
-      take: 5,
+      take: 8,
+      extra: { 'bias.trends': RANK_RULE.trends },
+    }, note);
+    const placeRows = places.ok ? parseEntities(places.body, 'urn:entity:place').filter((item) => item.affinity != null) : [];
+    const local = mean(placeRows.map((item) => item.affinity as number));
+    const placePopularity = mean(placeRows.map((item) => item.popularity).filter((value): value is number => value != null));
+
+    const heat = await callInsights(client, `heatmap:${option.city}`, {
+      filter: { type: 'urn:heatmap', location: { query: option.city } },
+      signal: { interests: { entities: interestIds } },
+      take: 8,
+      extra: { 'bias.trends': RANK_RULE.trends },
+    }, note);
+    const cells = heat.ok ? heatCells(heat.body).filter((cell) => inCity(cell.lat, cell.lng, option.box)) : [];
+    const heatmap = mean(cells.map((cell) => cell.weight));
+    const heatPopularity = mean(cells.map((cell) => cell.popularity).filter((value): value is number => value != null));
+    readings.push({
+      local,
+      heatmap,
+      popularity: heatPopularity ?? placePopularity,
     });
-    note(type, result);
-    const values = result.ok ? rowsOf(result.body) : [];
-    cross.push({ type, count: values.length, medianAffinity: median(values) });
-    if (values.length) {
-      crossGroups.push({
-        label: type.replace('urn:entity:', ''),
-        rows: values.map((affinity) => ({ affinity, contributions: [], evidenceRefs: [] })),
-      });
-    }
+    measurements.push({
+      id: option.city,
+      label: option.city,
+      local,
+      heatmap,
+      popularity: heatPopularity ?? placePopularity,
+    });
   }
 
-  const demo = await client.insights({
-    filter: { type: 'urn:demographics' },
-    signal: { interests: { entities: found.id }, location: { query: row.city } },
-    take: 5,
+  const ranked = rankOptions(measurements);
+  const cities: CityRankRow[] = ranked.map((item) => {
+    const reading = readings[options.findIndex((option) => option.city === item.id)] ?? { local: null, heatmap: null, popularity: null };
+    return {
+      city: item.label,
+      score: item.score,
+      rank: item.rank,
+      local: reading.local,
+      heatmap: reading.heatmap,
+      popularity: reading.popularity,
+    };
   });
-  note('demographics', demo);
-  const skews = demo.ok ? parseDemographics(demo.body) : [];
-  const bucket = skews.find((item) => item.dimension === 'age' && item.bucket === row.ageBucket);
-  const audienceAffinity = bucket && bucket.value > 0 ? bucket.value : bucket ? 0 : null;
-
-  const source = 'qloo:/v2/insights';
-  const scored = scoreInsightMeasurements({
-    anchor: dimension(anchorValues, source),
-    cross: { source, groups: crossGroups },
-    local: dimension(placeValues, source),
-    audience: audienceAffinity == null ? { source, groups: [] } : dimension([audienceAffinity], source),
-    activeRefCount: 1,
-  });
-  const subs = scored.subscores;
-  const verdict = launchVerdict(scored.ledger.total, subs.local);
+  const real = cities.find((item) => item.city === row.city) ?? null;
+  const matched = realCityHit(real?.rank ?? null, options.length, polarityOf(row.outcome));
   return {
-    ...empty,
+    ...shell,
+    scored: matched != null,
     subject: { query: row.query, resolvedName: found.name, resolvedType: found.type },
-    engine: {
-      total: scored.ledger.total,
-      anchor: subs.anchor,
-      cross: subs.cross,
-      local: subs.local,
-      audience: subs.audience,
-      friction: subs.friction,
-      evidenceStrength: scored.evidenceStrength,
-      gaps: [...scored.gaps],
-      verdict,
-    },
-    derived: {
-      anchorAffinity: round2(anchorValues[0] ?? null),
-      placeCount: placeValues.length,
-      placeAffinityMedian: median(placeValues),
-      heatmapCells: points.length,
-      heatmapInCity: inside.length,
-      heatmapMedian: median(inside.map((point) => point.weight)),
-      audienceSkew: bucket ? bucket.value : null,
-      cross,
-      qlooCalls: calls,
-      failures,
-    },
-    matched: verdictMatched(verdict, row.outcome),
+    audience: { age: audience.age, gender: audience.gender, location: audienceCity },
+    confidence,
+    referenceCount: references.length,
+    references: references.map((item) => item.name),
+    realRank: real?.rank ?? null,
+    realScore: real?.score ?? null,
+    cities,
+    derived: { qlooCalls: calls, failures },
+    matched,
   };
+}
+
+async function callInsights(
+  client: LaunchProbeClient,
+  name: string,
+  params: QlooInsightsParams,
+  note: (name: string, result: { ok: boolean; status?: number; timedOut?: boolean }) => void,
+): Promise<QlooResult> {
+  const first = await client.insights(params);
+  note(name, first);
+  if (first.ok || first.status !== 400 || !params.extra?.['bias.trends']) return first;
+  const extra = { ...params.extra };
+  delete extra['bias.trends'];
+  const retry = await client.insights({ ...params, extra });
+  note(`${name}-retry`, retry);
+  return retry;
+}
+
+function closestNeighbors(body: unknown, primaryId: string): Array<{ id: string; name: string }> {
+  const rows = parseEntities(body, 'urn:entity')
+    .filter((row) => row.id !== primaryId && row.affinity != null && row.name !== row.id);
+  rows.sort((a, b) => (b.affinity ?? 0) - (a.affinity ?? 0) || a.name.localeCompare(b.name));
+  return rows.slice(0, RANK_RULE.maxRelated).map((row) => ({ id: row.id, name: row.name }));
+}
+
+function heatCells(body: unknown): Array<{ lat: number; lng: number; weight: number; popularity: number | null }> {
+  const parsed = parseHeatmap(body);
+  if (parsed.length) {
+    return parsed.map((cell) => ({ lat: cell.lat, lng: cell.lng, weight: cell.affinity, popularity: cell.popularityAffinity }));
+  }
+  return heatPoints(body).map((cell) => ({ lat: cell.lat, lng: cell.lng, weight: cell.weight, popularity: null }));
 }
 
 function pickTyped(body: unknown, query: string, type: string): NamedEntity | null {
-  const rows = entitiesFrom(body).filter((entity) => entity.type.includes(type));
-  return pickEntity(rows.length ? rows : entitiesFrom(body), query);
+  const rows = entitiesFromSearch(body).filter((entity) => entity.type.includes(type));
+  return pickEntity(rows.length ? rows : entitiesFromSearch(body), query);
 }
 
-function emptyStudy(row: LaunchCase, calls: number, failures: string[], found: NamedEntity | null): LaunchStudy {
+function entitiesFromSearch(body: unknown): NamedEntity[] {
+  return parseEntities(body, 'urn:entity').map((row) => ({ id: row.id, name: row.name, type: row.type }));
+}
+
+function emptyStudy(row: LaunchCase, calls: number, failures: string[], found: NamedEntity | null, cities: string[]): LaunchStudy {
   return {
     id: row.id,
     title: row.title,
+    domain: row.domain,
+    domainLabel: row.domainLabel,
     market: row.city,
     launch: row.launch,
     outcome: row.outcome,
     outcomeSummary: row.outcomeSummary,
     prelaunch: row.prelaunch,
     sources: [...row.sources],
+    scored: false,
     subject: { query: row.query, resolvedName: found?.name ?? null, resolvedType: found?.type ?? null },
-    inputs: { ageBucket: row.ageBucket, priceLevel: row.priceLevel, city: row.city },
-    engine: {
-      total: null,
-      anchor: null,
-      cross: null,
-      local: null,
-      audience: null,
-      friction: null,
-      evidenceStrength: 'LIMITED',
-      gaps: ['anchor', 'cross', 'local', 'audience', 'friction'],
-      verdict: 'caution',
-    },
-    derived: {
-      anchorAffinity: null,
-      placeCount: 0,
-      placeAffinityMedian: null,
-      heatmapCells: 0,
-      heatmapInCity: 0,
-      heatmapMedian: null,
-      audienceSkew: null,
-      cross: [],
-      qlooCalls: calls,
-      failures,
-    },
-    matched: verdictMatched('caution', row.outcome),
+    audience: { age: null, gender: null, location: null },
+    confidence: null,
+    referenceCount: 0,
+    references: [],
+    realRank: null,
+    realScore: null,
+    cities: cities.map((city) => ({ city, score: null, rank: null, local: null, heatmap: null, popularity: null })),
+    derived: { qlooCalls: calls, failures },
+    matched: null,
   };
 }
 

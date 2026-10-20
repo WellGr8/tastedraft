@@ -1,0 +1,1451 @@
+{
+  "source": "recorded",
+  "live": false,
+  "label": "Recorded offline run. QLOO_API_KEY and LLM_API_KEY were not set, so persona reasons are the product templates. city-rank-1 has no live ranks in this checkout, so this file does not copy an outcome agreement. This is not a live OpenRouter or Qloo pass.",
+  "generatedAt": "2026-10-14T07:54:03.124Z",
+  "model": null,
+  "qlooCalls": 0,
+  "budgetCap": 80,
+  "headline": {
+    "withQloo": "16 of 36",
+    "withoutQloo": "0 of 36",
+    "citationShareWithQloo": 0.444,
+    "citationShareWithoutQloo": 0,
+    "outcomeWithQloo": null,
+    "outcomeWithoutQloo": null
+  },
+  "agreement": {
+    "qlooLedger": {
+      "matched": 0,
+      "total": 0,
+      "source": "apps/web/public/case-studies.json"
+    },
+    "llmPanel": null
+  },
+  "totals": {
+    "qloo": {
+      "unverifiableMentions": 40,
+      "unverifiableNames": [
+        "Aphex Twin",
+        "Boards of Canada",
+        "Blue Bottle",
+        "% Arabica",
+        "Celeste",
+        "Hades",
+        "Laneige",
+        "Crash Landing on You",
+        "Alfama",
+        "Patagonia"
+      ],
+      "hallucinatedMentions": null,
+      "hallucinatedNames": []
+    },
+    "llm": {
+      "unverifiableMentions": 0,
+      "unverifiableNames": [],
+      "hallucinatedMentions": null,
+      "hallucinatedNames": []
+    }
+  },
+  "scoreSpread": {
+    "qlooCaseStudies": null,
+    "qlooExamples": null,
+    "llmExamples": null,
+    "note": "Case-study spread is filled only when the published file still has ledger totals. city-rank-1 does not publish those totals. Example spreads use persona scores from this run only."
+  },
+  "sampleEngine": {
+    "label": "Local Rust sample engine. Not a Qloo measurement. Tokyo follows the Los Angeles row because the sample table has no Tokyo entry.",
+    "cities": [
+      {
+        "id": "tokyo-tour",
+        "city": "Tokyo",
+        "mean": 55,
+        "segments": [
+          {
+            "age": "18–25",
+            "score": 55
+          },
+          {
+            "age": "26–35",
+            "score": 58
+          },
+          {
+            "age": "36–45",
+            "score": 56
+          },
+          {
+            "age": "46+",
+            "score": 51
+          }
+        ]
+      },
+      {
+        "id": "bangkok-coffee",
+        "city": "Bangkok",
+        "mean": 50.75,
+        "segments": [
+          {
+            "age": "26–35",
+            "score": 54
+          },
+          {
+            "age": "36–45",
+            "score": 50
+          },
+          {
+            "age": "46+",
+            "score": 43
+          },
+          {
+            "age": "18–25",
+            "score": 56
+          }
+        ]
+      },
+      {
+        "id": "seoul-game",
+        "city": "Seoul",
+        "mean": 46.25,
+        "segments": [
+          {
+            "age": "18–25",
+            "score": 51
+          },
+          {
+            "age": "26–35",
+            "score": 50
+          },
+          {
+            "age": "36–45",
+            "score": 45
+          },
+          {
+            "age": "46+",
+            "score": 39
+          }
+        ]
+      },
+      {
+        "id": "nyc-skin",
+        "city": "New York",
+        "mean": 44,
+        "segments": [
+          {
+            "age": "26–35",
+            "score": 46
+          },
+          {
+            "age": "36–45",
+            "score": 46
+          },
+          {
+            "age": "46+",
+            "score": 41
+          },
+          {
+            "age": "18–25",
+            "score": 43
+          }
+        ]
+      },
+      {
+        "id": "lisbon-travel",
+        "city": "Lisbon",
+        "mean": 48,
+        "segments": [
+          {
+            "age": "36–45",
+            "score": 49
+          },
+          {
+            "age": "46+",
+            "score": 44
+          },
+          {
+            "age": "18–25",
+            "score": 48
+          },
+          {
+            "age": "26–35",
+            "score": 51
+          }
+        ]
+      }
+    ],
+    "citySpread": {
+      "min": 44,
+      "max": 55,
+      "range": 11,
+      "stdev": 3.81,
+      "n": 5
+    },
+    "segmentSpread": {
+      "min": 39,
+      "max": 58,
+      "range": 19,
+      "stdev": 5.24,
+      "n": 20
+    }
+  },
+  "items": [
+    {
+      "id": "tokyo-tour",
+      "title": "Tokyo tour + merch",
+      "kind": "example",
+      "city": "Tokyo",
+      "outcome": null,
+      "qloo": {
+        "reasons": [
+          {
+            "personaId": "persona-tokyo-18-25-female",
+            "label": "Tokyo 18–25 female",
+            "age": "18–25",
+            "reason": "I would go for An indie artist launching a Tokyo tour + merch drop: positioning, merch price, w only if it felt like Aphex Twin. I judge it from Aphex Twin and Boards of Canada.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [
+              "Aphex Twin",
+              "Boards of Canada"
+            ],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-26-35-male",
+            "label": "Tokyo 26–35 male",
+            "age": "26–35",
+            "reason": "I would go for An indie artist launching a Tokyo tour + merch drop: positioning, merch price, w only if it felt like Aphex Twin. I judge it from Aphex Twin and Boards of Canada.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [
+              "Aphex Twin",
+              "Boards of Canada"
+            ],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-36-45-female",
+            "label": "Tokyo 36–45 female",
+            "age": "36–45",
+            "reason": "I would go for An indie artist launching a Tokyo tour + merch drop: positioning, merch price, w only if it felt like Aphex Twin. I judge it from Aphex Twin and Boards of Canada.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [
+              "Aphex Twin",
+              "Boards of Canada"
+            ],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-46-male",
+            "label": "Tokyo 46+ male",
+            "age": "46+",
+            "reason": "I would go for An indie artist launching a Tokyo tour + merch drop: positioning, merch price, w only if it felt like Aphex Twin. I judge it from Aphex Twin and Boards of Canada.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [
+              "Aphex Twin",
+              "Boards of Canada"
+            ],
+            "hallucinated": [],
+            "score": null
+          }
+        ],
+        "verifiedReasons": 0,
+        "reasonCount": 4,
+        "citationShare": 0,
+        "unverifiableMentions": 8,
+        "unverifiableNames": [
+          "Aphex Twin",
+          "Boards of Canada"
+        ],
+        "hallucinatedMentions": null,
+        "hallucinatedNames": [],
+        "segmentSpread": null,
+        "ledgerScore": null,
+        "ledgerLocal": null,
+        "verdict": null,
+        "matched": null
+      },
+      "llm": {
+        "reasons": [
+          {
+            "personaId": "persona-tokyo-18-25-female",
+            "label": "Tokyo 18–25 female",
+            "age": "18–25",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-26-35-male",
+            "label": "Tokyo 26–35 male",
+            "age": "26–35",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-36-45-female",
+            "label": "Tokyo 36–45 female",
+            "age": "36–45",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-46-male",
+            "label": "Tokyo 46+ male",
+            "age": "46+",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          }
+        ],
+        "verifiedReasons": 0,
+        "reasonCount": 4,
+        "citationShare": 0,
+        "unverifiableMentions": 0,
+        "unverifiableNames": [],
+        "hallucinatedMentions": null,
+        "hallucinatedNames": [],
+        "segmentSpread": null,
+        "ledgerScore": null,
+        "ledgerLocal": null,
+        "verdict": null,
+        "matched": null
+      }
+    },
+    {
+      "id": "bangkok-coffee",
+      "title": "Bangkok coffee shop",
+      "kind": "example",
+      "city": "Bangkok",
+      "outcome": null,
+      "qloo": {
+        "reasons": [
+          {
+            "personaId": "persona-bangkok-26-35-female",
+            "label": "Bangkok 26–35 female",
+            "age": "26–35",
+            "reason": "I would go for A specialty coffee shop in Bangkok: pour-over, a small pastry case, and a neighb only if it felt like Blue Bottle. I judge it from Blue Bottle and % Arabica.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [
+              "Blue Bottle",
+              "% Arabica"
+            ],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-bangkok-36-45-male",
+            "label": "Bangkok 36–45 male",
+            "age": "36–45",
+            "reason": "I would go for A specialty coffee shop in Bangkok: pour-over, a small pastry case, and a neighb only if it felt like Blue Bottle. I judge it from Blue Bottle and % Arabica.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [
+              "Blue Bottle",
+              "% Arabica"
+            ],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-bangkok-46-female",
+            "label": "Bangkok 46+ female",
+            "age": "46+",
+            "reason": "I would go for A specialty coffee shop in Bangkok: pour-over, a small pastry case, and a neighb only if it felt like Blue Bottle. I judge it from Blue Bottle and % Arabica.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [
+              "Blue Bottle",
+              "% Arabica"
+            ],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-bangkok-18-25-male",
+            "label": "Bangkok 18–25 male",
+            "age": "18–25",
+            "reason": "I would go for A specialty coffee shop in Bangkok: pour-over, a small pastry case, and a neighb only if it felt like Blue Bottle. I judge it from Blue Bottle and % Arabica.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [
+              "Blue Bottle",
+              "% Arabica"
+            ],
+            "hallucinated": [],
+            "score": null
+          }
+        ],
+        "verifiedReasons": 0,
+        "reasonCount": 4,
+        "citationShare": 0,
+        "unverifiableMentions": 8,
+        "unverifiableNames": [
+          "Blue Bottle",
+          "% Arabica"
+        ],
+        "hallucinatedMentions": null,
+        "hallucinatedNames": [],
+        "segmentSpread": null,
+        "ledgerScore": null,
+        "ledgerLocal": null,
+        "verdict": null,
+        "matched": null
+      },
+      "llm": {
+        "reasons": [
+          {
+            "personaId": "persona-bangkok-26-35-female",
+            "label": "Bangkok 26–35 female",
+            "age": "26–35",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-bangkok-36-45-male",
+            "label": "Bangkok 36–45 male",
+            "age": "36–45",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-bangkok-46-female",
+            "label": "Bangkok 46+ female",
+            "age": "46+",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-bangkok-18-25-male",
+            "label": "Bangkok 18–25 male",
+            "age": "18–25",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          }
+        ],
+        "verifiedReasons": 0,
+        "reasonCount": 4,
+        "citationShare": 0,
+        "unverifiableMentions": 0,
+        "unverifiableNames": [],
+        "hallucinatedMentions": null,
+        "hallucinatedNames": [],
+        "segmentSpread": null,
+        "ledgerScore": null,
+        "ledgerLocal": null,
+        "verdict": null,
+        "matched": null
+      }
+    },
+    {
+      "id": "seoul-game",
+      "title": "Seoul indie game",
+      "kind": "example",
+      "city": "Seoul",
+      "outcome": null,
+      "qloo": {
+        "reasons": [
+          {
+            "personaId": "persona-seoul-18-25-female",
+            "label": "Seoul 18–25 female",
+            "age": "18–25",
+            "reason": "I would go for An indie video game launch in Seoul: a narrative puzzle, a demo build, and a sma only if it felt like Celeste. I judge it from Celeste and Hades.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [
+              "Celeste",
+              "Hades"
+            ],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-seoul-26-35-male",
+            "label": "Seoul 26–35 male",
+            "age": "26–35",
+            "reason": "I would go for An indie video game launch in Seoul: a narrative puzzle, a demo build, and a sma only if it felt like Celeste. I judge it from Celeste and Hades.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [
+              "Celeste",
+              "Hades"
+            ],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-seoul-36-45-female",
+            "label": "Seoul 36–45 female",
+            "age": "36–45",
+            "reason": "I would go for An indie video game launch in Seoul: a narrative puzzle, a demo build, and a sma only if it felt like Celeste. I judge it from Celeste and Hades.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [
+              "Celeste",
+              "Hades"
+            ],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-seoul-46-male",
+            "label": "Seoul 46+ male",
+            "age": "46+",
+            "reason": "I would go for An indie video game launch in Seoul: a narrative puzzle, a demo build, and a sma only if it felt like Celeste. I judge it from Celeste and Hades.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [
+              "Celeste",
+              "Hades"
+            ],
+            "hallucinated": [],
+            "score": null
+          }
+        ],
+        "verifiedReasons": 0,
+        "reasonCount": 4,
+        "citationShare": 0,
+        "unverifiableMentions": 8,
+        "unverifiableNames": [
+          "Celeste",
+          "Hades"
+        ],
+        "hallucinatedMentions": null,
+        "hallucinatedNames": [],
+        "segmentSpread": null,
+        "ledgerScore": null,
+        "ledgerLocal": null,
+        "verdict": null,
+        "matched": null
+      },
+      "llm": {
+        "reasons": [
+          {
+            "personaId": "persona-seoul-18-25-female",
+            "label": "Seoul 18–25 female",
+            "age": "18–25",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-seoul-26-35-male",
+            "label": "Seoul 26–35 male",
+            "age": "26–35",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-seoul-36-45-female",
+            "label": "Seoul 36–45 female",
+            "age": "36–45",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-seoul-46-male",
+            "label": "Seoul 46+ male",
+            "age": "46+",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          }
+        ],
+        "verifiedReasons": 0,
+        "reasonCount": 4,
+        "citationShare": 0,
+        "unverifiableMentions": 0,
+        "unverifiableNames": [],
+        "hallucinatedMentions": null,
+        "hallucinatedNames": [],
+        "segmentSpread": null,
+        "ledgerScore": null,
+        "ledgerLocal": null,
+        "verdict": null,
+        "matched": null
+      }
+    },
+    {
+      "id": "nyc-skin",
+      "title": "NYC skincare",
+      "kind": "example",
+      "city": "New York",
+      "outcome": null,
+      "qloo": {
+        "reasons": [
+          {
+            "personaId": "persona-new-york-26-35-female",
+            "label": "New York 26–35 female",
+            "age": "26–35",
+            "reason": "I would go for A K-drama-inspired skincare brand launching in New York: a glass serum, a SoHo p only if it felt like Laneige. I judge it from Laneige and Crash Landing on You.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [
+              "Laneige",
+              "Crash Landing on You"
+            ],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-new-york-36-45-male",
+            "label": "New York 36–45 male",
+            "age": "36–45",
+            "reason": "I would go for A K-drama-inspired skincare brand launching in New York: a glass serum, a SoHo p only if it felt like Laneige. I judge it from Laneige and Crash Landing on You.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [
+              "Laneige",
+              "Crash Landing on You"
+            ],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-new-york-46-female",
+            "label": "New York 46+ female",
+            "age": "46+",
+            "reason": "I would go for A K-drama-inspired skincare brand launching in New York: a glass serum, a SoHo p only if it felt like Laneige. I judge it from Laneige and Crash Landing on You.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [
+              "Laneige",
+              "Crash Landing on You"
+            ],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-new-york-18-25-male",
+            "label": "New York 18–25 male",
+            "age": "18–25",
+            "reason": "I would go for A K-drama-inspired skincare brand launching in New York: a glass serum, a SoHo p only if it felt like Laneige. I judge it from Laneige and Crash Landing on You.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [
+              "Laneige",
+              "Crash Landing on You"
+            ],
+            "hallucinated": [],
+            "score": null
+          }
+        ],
+        "verifiedReasons": 0,
+        "reasonCount": 4,
+        "citationShare": 0,
+        "unverifiableMentions": 8,
+        "unverifiableNames": [
+          "Laneige",
+          "Crash Landing on You"
+        ],
+        "hallucinatedMentions": null,
+        "hallucinatedNames": [],
+        "segmentSpread": null,
+        "ledgerScore": null,
+        "ledgerLocal": null,
+        "verdict": null,
+        "matched": null
+      },
+      "llm": {
+        "reasons": [
+          {
+            "personaId": "persona-new-york-26-35-female",
+            "label": "New York 26–35 female",
+            "age": "26–35",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-new-york-36-45-male",
+            "label": "New York 36–45 male",
+            "age": "36–45",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-new-york-46-female",
+            "label": "New York 46+ female",
+            "age": "46+",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-new-york-18-25-male",
+            "label": "New York 18–25 male",
+            "age": "18–25",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          }
+        ],
+        "verifiedReasons": 0,
+        "reasonCount": 4,
+        "citationShare": 0,
+        "unverifiableMentions": 0,
+        "unverifiableNames": [],
+        "hallucinatedMentions": null,
+        "hallucinatedNames": [],
+        "segmentSpread": null,
+        "ledgerScore": null,
+        "ledgerLocal": null,
+        "verdict": null,
+        "matched": null
+      }
+    },
+    {
+      "id": "lisbon-travel",
+      "title": "Lisbon eco tour",
+      "kind": "example",
+      "city": "Lisbon",
+      "outcome": null,
+      "qloo": {
+        "reasons": [
+          {
+            "personaId": "persona-lisbon-36-45-female",
+            "label": "Lisbon 36–45 female",
+            "age": "36–45",
+            "reason": "I would go for An eco travel tour in Lisbon: small groups, tram neighborhoods, and a low-waste only if it felt like Alfama. I judge it from Alfama and Patagonia.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [
+              "Alfama",
+              "Patagonia"
+            ],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-lisbon-46-male",
+            "label": "Lisbon 46+ male",
+            "age": "46+",
+            "reason": "I would go for An eco travel tour in Lisbon: small groups, tram neighborhoods, and a low-waste only if it felt like Alfama. I judge it from Alfama and Patagonia.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [
+              "Alfama",
+              "Patagonia"
+            ],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-lisbon-18-25-female",
+            "label": "Lisbon 18–25 female",
+            "age": "18–25",
+            "reason": "I would go for An eco travel tour in Lisbon: small groups, tram neighborhoods, and a low-waste only if it felt like Alfama. I judge it from Alfama and Patagonia.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [
+              "Alfama",
+              "Patagonia"
+            ],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-lisbon-26-35-male",
+            "label": "Lisbon 26–35 male",
+            "age": "26–35",
+            "reason": "I would go for An eco travel tour in Lisbon: small groups, tram neighborhoods, and a low-waste only if it felt like Alfama. I judge it from Alfama and Patagonia.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [
+              "Alfama",
+              "Patagonia"
+            ],
+            "hallucinated": [],
+            "score": null
+          }
+        ],
+        "verifiedReasons": 0,
+        "reasonCount": 4,
+        "citationShare": 0,
+        "unverifiableMentions": 8,
+        "unverifiableNames": [
+          "Alfama",
+          "Patagonia"
+        ],
+        "hallucinatedMentions": null,
+        "hallucinatedNames": [],
+        "segmentSpread": null,
+        "ledgerScore": null,
+        "ledgerLocal": null,
+        "verdict": null,
+        "matched": null
+      },
+      "llm": {
+        "reasons": [
+          {
+            "personaId": "persona-lisbon-36-45-female",
+            "label": "Lisbon 36–45 female",
+            "age": "36–45",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-lisbon-46-male",
+            "label": "Lisbon 46+ male",
+            "age": "46+",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-lisbon-18-25-female",
+            "label": "Lisbon 18–25 female",
+            "age": "18–25",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-lisbon-26-35-male",
+            "label": "Lisbon 26–35 male",
+            "age": "26–35",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          }
+        ],
+        "verifiedReasons": 0,
+        "reasonCount": 4,
+        "citationShare": 0,
+        "unverifiableMentions": 0,
+        "unverifiableNames": [],
+        "hallucinatedMentions": null,
+        "hallucinatedNames": [],
+        "segmentSpread": null,
+        "ledgerScore": null,
+        "ledgerLocal": null,
+        "verdict": null,
+        "matched": null
+      }
+    },
+    {
+      "id": "billie-eilish-tokyo-2022",
+      "title": "Billie Eilish, first solo Japan show",
+      "kind": "case-study",
+      "city": "Tokyo",
+      "outcome": "sold_out",
+      "qloo": {
+        "reasons": [
+          {
+            "personaId": "persona-tokyo-18-25-female",
+            "label": "Tokyo 18–25 female",
+            "age": "18–25",
+            "reason": "I would go for Billie Eilish, first solo Japan show. Before the 23 June 2022 announcement: Happ only if it felt like Billie Eilish. I judge it from Billie Eilish.",
+            "source": "offline-template",
+            "verified": [
+              "Billie Eilish"
+            ],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-26-35-male",
+            "label": "Tokyo 26–35 male",
+            "age": "26–35",
+            "reason": "I would go for Billie Eilish, first solo Japan show. Before the 23 June 2022 announcement: Happ only if it felt like Billie Eilish. I judge it from Billie Eilish.",
+            "source": "offline-template",
+            "verified": [
+              "Billie Eilish"
+            ],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-36-45-female",
+            "label": "Tokyo 36–45 female",
+            "age": "36–45",
+            "reason": "I would go for Billie Eilish, first solo Japan show. Before the 23 June 2022 announcement: Happ only if it felt like Billie Eilish. I judge it from Billie Eilish.",
+            "source": "offline-template",
+            "verified": [
+              "Billie Eilish"
+            ],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-46-male",
+            "label": "Tokyo 46+ male",
+            "age": "46+",
+            "reason": "I would go for Billie Eilish, first solo Japan show. Before the 23 June 2022 announcement: Happ only if it felt like Billie Eilish. I judge it from Billie Eilish.",
+            "source": "offline-template",
+            "verified": [
+              "Billie Eilish"
+            ],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          }
+        ],
+        "verifiedReasons": 4,
+        "reasonCount": 4,
+        "citationShare": 1,
+        "unverifiableMentions": 0,
+        "unverifiableNames": [],
+        "hallucinatedMentions": null,
+        "hallucinatedNames": [],
+        "segmentSpread": null,
+        "ledgerScore": null,
+        "ledgerLocal": null,
+        "verdict": null,
+        "matched": null
+      },
+      "llm": {
+        "reasons": [
+          {
+            "personaId": "persona-tokyo-18-25-female",
+            "label": "Tokyo 18–25 female",
+            "age": "18–25",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-26-35-male",
+            "label": "Tokyo 26–35 male",
+            "age": "26–35",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-36-45-female",
+            "label": "Tokyo 36–45 female",
+            "age": "36–45",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-46-male",
+            "label": "Tokyo 46+ male",
+            "age": "46+",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          }
+        ],
+        "verifiedReasons": 0,
+        "reasonCount": 4,
+        "citationShare": 0,
+        "unverifiableMentions": 0,
+        "unverifiableNames": [],
+        "hallucinatedMentions": null,
+        "hallucinatedNames": [],
+        "segmentSpread": null,
+        "ledgerScore": null,
+        "ledgerLocal": null,
+        "verdict": null,
+        "matched": null
+      }
+    },
+    {
+      "id": "olivia-rodrigo-tokyo-2024",
+      "title": "Olivia Rodrigo, first concert in Japan",
+      "kind": "case-study",
+      "city": "Tokyo",
+      "outcome": "sold_out",
+      "qloo": {
+        "reasons": [
+          {
+            "personaId": "persona-tokyo-18-25-female",
+            "label": "Tokyo 18–25 female",
+            "age": "18–25",
+            "reason": "I would go for Olivia Rodrigo, first concert in Japan. Before the 9 May 2024 on-sale: SOUR (202 only if it felt like Olivia Rodrigo. I judge it from Olivia Rodrigo.",
+            "source": "offline-template",
+            "verified": [
+              "Olivia Rodrigo"
+            ],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-26-35-male",
+            "label": "Tokyo 26–35 male",
+            "age": "26–35",
+            "reason": "I would go for Olivia Rodrigo, first concert in Japan. Before the 9 May 2024 on-sale: SOUR (202 only if it felt like Olivia Rodrigo. I judge it from Olivia Rodrigo.",
+            "source": "offline-template",
+            "verified": [
+              "Olivia Rodrigo"
+            ],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-36-45-female",
+            "label": "Tokyo 36–45 female",
+            "age": "36–45",
+            "reason": "I would go for Olivia Rodrigo, first concert in Japan. Before the 9 May 2024 on-sale: SOUR (202 only if it felt like Olivia Rodrigo. I judge it from Olivia Rodrigo.",
+            "source": "offline-template",
+            "verified": [
+              "Olivia Rodrigo"
+            ],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-46-male",
+            "label": "Tokyo 46+ male",
+            "age": "46+",
+            "reason": "I would go for Olivia Rodrigo, first concert in Japan. Before the 9 May 2024 on-sale: SOUR (202 only if it felt like Olivia Rodrigo. I judge it from Olivia Rodrigo.",
+            "source": "offline-template",
+            "verified": [
+              "Olivia Rodrigo"
+            ],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          }
+        ],
+        "verifiedReasons": 4,
+        "reasonCount": 4,
+        "citationShare": 1,
+        "unverifiableMentions": 0,
+        "unverifiableNames": [],
+        "hallucinatedMentions": null,
+        "hallucinatedNames": [],
+        "segmentSpread": null,
+        "ledgerScore": null,
+        "ledgerLocal": null,
+        "verdict": null,
+        "matched": null
+      },
+      "llm": {
+        "reasons": [
+          {
+            "personaId": "persona-tokyo-18-25-female",
+            "label": "Tokyo 18–25 female",
+            "age": "18–25",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-26-35-male",
+            "label": "Tokyo 26–35 male",
+            "age": "26–35",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-36-45-female",
+            "label": "Tokyo 36–45 female",
+            "age": "36–45",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-46-male",
+            "label": "Tokyo 46+ male",
+            "age": "46+",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          }
+        ],
+        "verifiedReasons": 0,
+        "reasonCount": 4,
+        "citationShare": 0,
+        "unverifiableMentions": 0,
+        "unverifiableNames": [],
+        "hallucinatedMentions": null,
+        "hallucinatedNames": [],
+        "segmentSpread": null,
+        "ledgerScore": null,
+        "ledgerLocal": null,
+        "verdict": null,
+        "matched": null
+      }
+    },
+    {
+      "id": "harry-styles-tokyo-2017",
+      "title": "Harry Styles, first solo Japan shows",
+      "kind": "case-study",
+      "city": "Tokyo",
+      "outcome": "sold_out",
+      "qloo": {
+        "reasons": [
+          {
+            "personaId": "persona-tokyo-18-25-female",
+            "label": "Tokyo 18–25 female",
+            "age": "18–25",
+            "reason": "I would go for Harry Styles, first solo Japan shows. Before 7 December 2017: the solo album Har only if it felt like Harry Styles. I judge it from Harry Styles.",
+            "source": "offline-template",
+            "verified": [
+              "Harry Styles"
+            ],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-26-35-male",
+            "label": "Tokyo 26–35 male",
+            "age": "26–35",
+            "reason": "I would go for Harry Styles, first solo Japan shows. Before 7 December 2017: the solo album Har only if it felt like Harry Styles. I judge it from Harry Styles.",
+            "source": "offline-template",
+            "verified": [
+              "Harry Styles"
+            ],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-36-45-female",
+            "label": "Tokyo 36–45 female",
+            "age": "36–45",
+            "reason": "I would go for Harry Styles, first solo Japan shows. Before 7 December 2017: the solo album Har only if it felt like Harry Styles. I judge it from Harry Styles.",
+            "source": "offline-template",
+            "verified": [
+              "Harry Styles"
+            ],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-46-male",
+            "label": "Tokyo 46+ male",
+            "age": "46+",
+            "reason": "I would go for Harry Styles, first solo Japan shows. Before 7 December 2017: the solo album Har only if it felt like Harry Styles. I judge it from Harry Styles.",
+            "source": "offline-template",
+            "verified": [
+              "Harry Styles"
+            ],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          }
+        ],
+        "verifiedReasons": 4,
+        "reasonCount": 4,
+        "citationShare": 1,
+        "unverifiableMentions": 0,
+        "unverifiableNames": [],
+        "hallucinatedMentions": null,
+        "hallucinatedNames": [],
+        "segmentSpread": null,
+        "ledgerScore": null,
+        "ledgerLocal": null,
+        "verdict": null,
+        "matched": null
+      },
+      "llm": {
+        "reasons": [
+          {
+            "personaId": "persona-tokyo-18-25-female",
+            "label": "Tokyo 18–25 female",
+            "age": "18–25",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-26-35-male",
+            "label": "Tokyo 26–35 male",
+            "age": "26–35",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-36-45-female",
+            "label": "Tokyo 36–45 female",
+            "age": "36–45",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-46-male",
+            "label": "Tokyo 46+ male",
+            "age": "46+",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          }
+        ],
+        "verifiedReasons": 0,
+        "reasonCount": 4,
+        "citationShare": 0,
+        "unverifiableMentions": 0,
+        "unverifiableNames": [],
+        "hallucinatedMentions": null,
+        "hallucinatedNames": [],
+        "segmentSpread": null,
+        "ledgerScore": null,
+        "ledgerLocal": null,
+        "verdict": null,
+        "matched": null
+      }
+    },
+    {
+      "id": "forever-21-tokyo-2009",
+      "title": "Forever 21, first Japan store",
+      "kind": "case-study",
+      "city": "Tokyo",
+      "outcome": "left",
+      "qloo": {
+        "reasons": [
+          {
+            "personaId": "persona-tokyo-18-25-female",
+            "label": "Tokyo 18–25 female",
+            "age": "18–25",
+            "reason": "I would go for Forever 21, first Japan store. Before the 2009 opening: Forever 21 was a Los Ang only if it felt like Forever 21. I judge it from Forever 21.",
+            "source": "offline-template",
+            "verified": [
+              "Forever 21"
+            ],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-26-35-male",
+            "label": "Tokyo 26–35 male",
+            "age": "26–35",
+            "reason": "I would go for Forever 21, first Japan store. Before the 2009 opening: Forever 21 was a Los Ang only if it felt like Forever 21. I judge it from Forever 21.",
+            "source": "offline-template",
+            "verified": [
+              "Forever 21"
+            ],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-36-45-female",
+            "label": "Tokyo 36–45 female",
+            "age": "36–45",
+            "reason": "I would go for Forever 21, first Japan store. Before the 2009 opening: Forever 21 was a Los Ang only if it felt like Forever 21. I judge it from Forever 21.",
+            "source": "offline-template",
+            "verified": [
+              "Forever 21"
+            ],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-46-male",
+            "label": "Tokyo 46+ male",
+            "age": "46+",
+            "reason": "I would go for Forever 21, first Japan store. Before the 2009 opening: Forever 21 was a Los Ang only if it felt like Forever 21. I judge it from Forever 21.",
+            "source": "offline-template",
+            "verified": [
+              "Forever 21"
+            ],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          }
+        ],
+        "verifiedReasons": 4,
+        "reasonCount": 4,
+        "citationShare": 1,
+        "unverifiableMentions": 0,
+        "unverifiableNames": [],
+        "hallucinatedMentions": null,
+        "hallucinatedNames": [],
+        "segmentSpread": null,
+        "ledgerScore": null,
+        "ledgerLocal": null,
+        "verdict": null,
+        "matched": null
+      },
+      "llm": {
+        "reasons": [
+          {
+            "personaId": "persona-tokyo-18-25-female",
+            "label": "Tokyo 18–25 female",
+            "age": "18–25",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-26-35-male",
+            "label": "Tokyo 26–35 male",
+            "age": "26–35",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-36-45-female",
+            "label": "Tokyo 36–45 female",
+            "age": "36–45",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          },
+          {
+            "personaId": "persona-tokyo-46-male",
+            "label": "Tokyo 46+ male",
+            "age": "46+",
+            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
+            "source": "offline-template",
+            "verified": [],
+            "unverifiable": [],
+            "hallucinated": [],
+            "score": null
+          }
+        ],
+        "verifiedReasons": 0,
+        "reasonCount": 4,
+        "citationShare": 0,
+        "unverifiableMentions": 0,
+        "unverifiableNames": [],
+        "hallucinatedMentions": null,
+        "hallucinatedNames": [],
+        "segmentSpread": null,
+        "ledgerScore": null,
+        "ledgerLocal": null,
+        "verdict": null,
+        "matched": null
+      }
+    }
+  ],
+  "limits": [
+    "A name counts as a verified Qloo entity only when this run resolved it, or when case-studies.json already records a resolved subject from the earlier live probe.",
+    "Example reference names are the product sample list. Until a live search confirms them, a reason that cites them is unverifiable, not a confirmed hallucination.",
+    "Hallucinated means a Qloo search in this run returned no matching entity. The recorded run does not search, so that count stays empty.",
+    "city-rank-1 ranks cities and has no live ranks in this checkout. An earlier absolute rule matched 2 of 4 scored Tokyo rows. Those totals are not copied here and are not city ranks.",
+    "The sample-engine block is the local Rust fixture. It is not a Qloo score. Tokyo has no row in that fixture and follows the Los Angeles table.",
+    "This is not a sales forecast.",
+    "Entity counts use names the reply lists, plus any verified name that appears in the sentence. A stray proper noun that is neither listed nor in the Qloo catalog is left out, so the unverifiable count is not a scan of every capital letter."
+  ]
+}

@@ -120,25 +120,44 @@ export function createFeatureRoutes(options: FeatureRouteOptions = {}): Hono {
     }
   };
 
+  const noteChatFailure = (feature: FeatureName, kind: 'rejected' | 'llm') => {
+    if (feature !== 'persona-chat') return;
+    console.error(kind === 'rejected' ? 'persona-chat: request rejected' : 'persona-chat: model reply was not used');
+  };
+
   const respond = (feature: FeatureName, schema: ZodType) => {
     api.post(`/api/features/${feature}`, async (c) => {
-      const body = schema.parse(await readJson(c)) as { budget?: number };
-      const key = FeatureCache.key(feature, body);
-      const hit = cache.get(key);
-      if (hit && typeof hit === 'object') return c.json({ ...hit, cached: true, qlooCalls: 0 });
-      const events: FeatureSseEvent[] = [];
-      const result = await runFeature(feature, body, events);
-      cache.set(key, result);
-      return c.json(result);
+      try {
+        const body = schema.parse(await readJson(c)) as { budget?: number };
+        const key = FeatureCache.key(feature, body);
+        // Persona chat always reaches the model. A cached template would repeat a sentence.
+        const cacheable = feature !== 'persona-chat';
+        const hit = cacheable ? cache.get(key) : undefined;
+        if (hit && typeof hit === 'object') return c.json({ ...hit, cached: true, qlooCalls: 0 });
+        const events: FeatureSseEvent[] = [];
+        const result = await runFeature(feature, body, events);
+        if (cacheable) cache.set(key, result);
+        return c.json(result);
+      } catch (error) {
+        noteChatFailure(feature, 'rejected');
+        throw error;
+      }
     });
 
     api.post(`/api/features/${feature}/stream`, async (c) => {
-      const body = schema.parse(await readJson(c)) as { budget?: number };
+      let body: { budget?: number };
+      try {
+        body = schema.parse(await readJson(c)) as { budget?: number };
+      } catch (error) {
+        noteChatFailure(feature, 'rejected');
+        throw error;
+      }
       const key = FeatureCache.key(feature, body);
-      const hit = cache.get(key);
+      const cacheable = feature !== 'persona-chat';
+      const hit = cacheable ? cache.get(key) : undefined;
       const events: FeatureSseEvent[] = [];
       const result = hit && typeof hit === 'object' ? { ...hit, cached: true, qlooCalls: 0 } : await runFeature(feature, body, events);
-      if (!hit) cache.set(key, result);
+      if (cacheable && !hit) cache.set(key, result);
       const payload = result as { qlooCalls?: number; budget?: number; cached?: boolean; warnings?: string[] };
       if (hit) {
         for (const warning of payload.warnings ?? []) {

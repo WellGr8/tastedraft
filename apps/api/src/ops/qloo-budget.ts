@@ -54,9 +54,12 @@ export class DailyQlooBudget {
   }
 }
 
+/** Default live Qloo calls per UTC day when QLOO_DAILY_BUDGET is unset. */
+export const DEFAULT_DAILY_BUDGET = 1000;
+
 export function budgetLimit(env: Record<string, string | undefined>): number {
   const raw = env.QLOO_DAILY_BUDGET?.trim();
-  if (!raw) return 400;
+  if (!raw) return DEFAULT_DAILY_BUDGET;
   const value = Number(raw);
   if (!Number.isInteger(value) || value < 0 || value > 100_000) {
     throw new Error('Invalid QLOO_DAILY_BUDGET');

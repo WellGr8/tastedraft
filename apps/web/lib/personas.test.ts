@@ -222,6 +222,39 @@ test('a missing persona route falls back to measuring skeletons', async () => {
   assert.ok(fetched.personas.every((persona) => persona.measuring));
 });
 
+test('offline persona chat answers in the question language and does not repeat', async () => {
+  const built = await enginePersonas({ brief: BRIEF }, score);
+  const persona = {
+    ...built.personas[0]!,
+    measuring: false,
+    anchors: [
+      {
+        id: 'billie',
+        name: 'Billie Eilish',
+        type: 'urn:entity:artist',
+        affinity: 0.72,
+        provenance: 'qloo',
+      },
+    ],
+  };
+  const missing = async () => new Response('missing', { status: 404 });
+  const why = await chatWithPersona(persona, 'ทำไมไม่สนใจ', missing);
+  const added = await chatWithPersona(persona, 'แล้วถ้าเราเพิ่มมาละ', missing, '', [
+    { role: 'persona', content: why.say },
+  ]);
+  const again = await chatWithPersona(persona, 'ทำไมไม่สนใจ', missing, '', [
+    { role: 'persona', content: why.say },
+    { role: 'user', content: 'แล้วถ้าเราเพิ่มมาละ' },
+    { role: 'persona', content: added.say },
+  ]);
+  assert.match(why.say, /Billie Eilish/);
+  assert.match(why.say, /[\u0E00-\u0E7F]/);
+  assert.match(added.say, /เพิ่ม/);
+  assert.notEqual(why.say, added.say);
+  assert.notEqual(why.say, again.say);
+  assert.notEqual(added.say, again.say);
+});
+
 test('persona chat and re-interview stay on measured changes', async () => {
   const built = await enginePersonas({ brief: BRIEF }, score);
   const persona = built.personas[0]!;

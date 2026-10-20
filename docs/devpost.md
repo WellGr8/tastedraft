@@ -37,7 +37,7 @@ The API is ready for a small VM (Dockerfile, Caddy, a nightly SQLite backup, per
 
 ## Challenges
 
-Qloo's graph is today's graph. A fair test of a 2009 or 2017 launch still sees everything that happened later. We wrote the briefs from pre-launch facts only, locked the encourage rule before the calls (total at least 55 and local fit at least 50), and published the misses.
+Qloo's graph is today's graph. A fair test of a 2009 or 2017 launch still sees everything that happened later. We wrote the briefs from pre-launch facts only. The current rule, city-rank-2, was locked on 2026-10-14 after city-rank-1 ranked every real city 1 of 5: rank the real city against a fixed list of comparable cities by taste lift, not by city size, and ask whether a success lands in the top 2.
 
 The self-affinity we wanted for the anchor row did not come back. Insights returned related entities, not an affinity for the subject. Those totals leave the anchor and the friction rows empty rather than inventing them.
 
@@ -51,7 +51,7 @@ Gemini 2.0 Flash no longer has OpenRouter endpoints. The default model is Gemini
 
 The sample loop is deterministic: 71, then 80 after one approved price change, with no keys.
 
-The live Tokyo pass is honest. Under the pre-registered rule, Olivia Rodrigo's 2024 sellout is an encourage (55) and Forever 21's later exit is a caution (42). Billie Eilish's 2022 sellout (45) and Harry Styles's 2017 sellout (44) are cautions, so they miss. Two of four. Local fit was 85–89 for every row.
+The set is eight briefs, across music, fashion retail, food, beauty, games, and film. city-rank-2 has not been run live in this checkout, so the file does not invent a top-2 rate or a mean rank. city-rank-1 ranked every real city 1 of 5, including two later exits, because popularity crowned the capital. An earlier absolute rule (total at least 55 and local fit at least 50) matched 2 of 4 scored Tokyo rows. Those rates belong to the old rules. Local fit on that pass was high for sellouts and for a brand that later left, which is why the question moved from "will it sell out" to "which city fits."
 
 Persona replies that are not grounded in the persona's own anchors are discarded. The user still sees a simulated answer, and a warning that it is the template.
 

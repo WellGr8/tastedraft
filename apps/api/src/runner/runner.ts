@@ -465,7 +465,7 @@ export class AgentRunner {
     const extra = extraTasteType(record.brief.idea);
     const extras = new Map<string, { name: string; type: string; affinity: number | null }>();
     if (extra) {
-      for (const segment of built.segments.slice(0, 4)) {
+      await Promise.all(built.segments.slice(0, 4).map(async (segment) => {
         const age = qlooAge(segment.age ?? record.brief.age) ?? undefined;
         const gender = qlooGender(segment.gender) ?? undefined;
         const result = await limited.insights({
@@ -478,7 +478,7 @@ export class AgentRunner {
         });
         const row = firstTaste(result.ok ? result.body : null, extra);
         if (row) extras.set(segment.id, row);
-      }
+      }));
     }
     const used = new Set<string>();
     return built.segments.slice(0, 4).map((segment) => {
@@ -574,57 +574,65 @@ export class AgentRunner {
     let reached = false;
     const strength = evidenceKey(record.brief.references.length);
     const resolved: string[] = [];
-    for (const reference of record.brief.references.slice(0, 4)) {
+    const references = record.brief.references.slice(0, 4);
+    for (const reference of references) {
       if (isQlooEntityId(reference.id)) resolved.push(reference.id);
-      if (gateway.calls >= record.snapshot.budget) break;
-      const result = await gateway.search({ query: reference.name, take: 1 });
-      if (!result.ok) continue;
+    }
+    const searchRoom = Math.max(0, record.snapshot.budget - gateway.calls);
+    const searches = await Promise.all(
+      references.slice(0, searchRoom).map((reference) => gateway.search({ query: reference.name, take: 1 })),
+    );
+    references.slice(0, searchRoom).forEach((reference, index) => {
+      const result = searches[index];
+      if (!result?.ok) return;
       reached = true;
       const id = firstEntityId(result.body);
-      if (!id) continue;
+      if (!id) return;
       if (isQlooEntityId(id)) resolved.push(id);
       pushEvidence(record, { id: `ev:${id}`, name: reference.name, kind: 'entity', ref: id, strength, affinity: null, source: 'qloo' });
-    }
+    });
     const tagQuery = record.brief.interests[0]?.name ?? record.brief.references[0]?.name;
     let tagCount = 0;
-    if (tagQuery && gateway.calls < record.snapshot.budget) {
-      const result = await gateway.tags({ filter: { query: tagQuery }, take: 3 });
-      if (result.ok) {
-        reached = true;
-        tagCount = pushTags(record, namesFrom(result.body, 'tags'), strength);
-      }
-    }
     const entityIds = [...new Set(resolved.filter(isQlooEntityId))].slice(0, 4);
     let heatmapOk = false;
+    let demographicsOk = false;
+    const opening: Array<Promise<void>> = [];
+    if (tagQuery && gateway.calls < record.snapshot.budget) {
+      opening.push(gateway.tags({ filter: { query: tagQuery }, take: 3 }).then((result) => {
+        if (!result.ok) return;
+        reached = true;
+        tagCount += pushTags(record, namesFrom(result.body, 'tags'), strength);
+      }));
+    }
     if (gateway.calls < record.snapshot.budget) {
-      const heat = await gateway.insights(heatmapParams(record.brief.city, entityIds));
-      if (heat.ok) {
+      opening.push(gateway.insights(heatmapParams(record.brief.city, entityIds)).then((heat) => {
+        if (!heat.ok) return;
         reached = true;
         const cells = safeCells(labelCells(parseHeatCells(heat.body))).slice(0, 6);
         if (cells.length) {
           record.snapshot.districts = cells;
           heatmapOk = true;
         }
-      }
+      }));
     }
-    let demographicsOk = false;
     if (gateway.calls < record.snapshot.budget) {
       const age = qlooAge(record.brief.age);
-      const demo = await gateway.insights({
+      opening.push(gateway.insights({
         filter: { type: 'urn:tag' },
         signal: {
           location: { query: record.brief.city },
           ...(age ? { demographics: { age } } : {}),
         },
         take: 3,
-      });
-      if (demo.ok) {
+      }).then((demo) => {
+        if (!demo.ok) return;
         reached = true;
         const added = pushTags(record, namesFrom(demo.body, 'tags'), strength);
         tagCount += added;
-        demographicsOk = added > 0;
-      }
+        if (added > 0) demographicsOk = true;
+      }));
     }
+    await Promise.all(opening);
     const thin = entityIds.length === 0 || !heatmapOk || !demographicsOk || tagCount === 0;
     if (!thin || gateway.calls >= record.snapshot.budget) return { reached, note: null };
     const plan = broadenQueries({
@@ -634,18 +642,21 @@ export class AgentRunner {
       heatmapFailed: !heatmapOk,
       demographicsFailed: !demographicsOk,
     });
-    for (const name of plan.relatedNames) {
-      if (gateway.calls >= record.snapshot.budget) break;
-      if (record.brief.references.some((reference) => reference.name.toLowerCase() === name.toLowerCase()) && entityIds.length) continue;
-      const result = await gateway.search({ query: name, take: 1 });
-      if (!result.ok) continue;
+    const relatedRoom = Math.max(0, record.snapshot.budget - gateway.calls);
+    const relatedNames = plan.relatedNames
+      .filter((name) => !(record.brief.references.some((reference) => reference.name.toLowerCase() === name.toLowerCase()) && entityIds.length))
+      .slice(0, relatedRoom);
+    const relatedSearches = await Promise.all(relatedNames.map((name) => gateway.search({ query: name, take: 1 })));
+    relatedNames.forEach((name, index) => {
+      const result = relatedSearches[index];
+      if (!result?.ok) return;
       reached = true;
       const id = firstEntityId(result.body);
-      if (!id || !isQlooEntityId(id)) continue;
+      if (!id || !isQlooEntityId(id)) return;
       if (!entityIds.includes(id)) entityIds.push(id);
       const foundName = namesFrom(result.body, 'entities')[0]?.name ?? name;
       pushEvidence(record, { id: `ev:${id}`, name: foundName, kind: 'entity', ref: id, strength, affinity: null, source: 'qloo' });
-    }
+    });
     const widenedIds = plan.entityIds.length ? plan.entityIds : entityIds.filter(isQlooEntityId).slice(0, 4);
     if (widenedIds.length && gateway.calls < record.snapshot.budget) {
       const related = await gateway.insights({
@@ -661,25 +672,27 @@ export class AgentRunner {
         }
       }
     }
+    const retry: Array<Promise<void>> = [];
     if (!heatmapOk && gateway.calls < record.snapshot.budget) {
-      const heat = await gateway.insights(heatmapParams(plan.location, widenedIds));
-      if (heat.ok) {
+      retry.push(gateway.insights(heatmapParams(plan.location, widenedIds)).then((heat) => {
+        if (!heat.ok) return;
         reached = true;
         const cells = safeCells(labelCells(parseHeatCells(heat.body))).slice(0, 6);
         if (cells.length) record.snapshot.districts = cells;
-      }
+      }));
     }
     if (!demographicsOk && gateway.calls < record.snapshot.budget) {
-      const demo = await gateway.insights({
+      retry.push(gateway.insights({
         filter: { type: 'urn:tag' },
         signal: { location: { query: plan.location } },
         take: 3,
-      });
-      if (demo.ok) {
+      }).then((demo) => {
+        if (!demo.ok) return;
         reached = true;
         pushTags(record, namesFrom(demo.body, 'tags'), strength);
-      }
+      }));
     }
+    await Promise.all(retry);
     const where = plan.usedDefaultLocation ? `Tried ${plan.location} after the first place came back empty.` : 'Dropped audience and price filters.';
     return { reached, note: where };
   }

@@ -66,7 +66,7 @@ Hackathon calls go to `https://hackathon.api.qloo.com` with the `X-Api-Key` head
 
 `videogame` is the entity type. `video_game` is not.
 
-If a live call does not land, the agent runner plays a derived recording and labels the result **Recorded run**. Recordings keep ids, names, and heatmap `lat`, `lng`, `weight`, and `label`. They omit response bodies, affinity, image URLs, and request URLs. The daily cap does this on purpose: after `QLOO_DAILY_BUDGET` live calls (default 400 per UTC day), the client refuses before the network. Cache hits do not spend the budget.
+If a live call does not land, the agent runner plays a derived recording and labels the result **Recorded run**. Recordings keep ids, names, and heatmap `lat`, `lng`, `weight`, and `label`. They omit response bodies, affinity, image URLs, and request URLs. The daily cap does this on purpose: after `QLOO_DAILY_BUDGET` live calls (default 1000 per UTC day), the client refuses before the network. Cache hits do not spend the budget.
 
 ## Persona chat
 
@@ -74,22 +74,30 @@ If a live call does not land, the agent runner plays a derived recording and lab
 
 The default provider is OpenRouter (`LLM_PROVIDER=openrouter`, base `https://openrouter.ai/api/v1`, OpenAI-compatible). The default model is `google/gemini-2.5-flash-lite`, with `meta-llama/llama-3.2-3b-instruct` as a cheaper fallback sent in the `models` array. Gemini 2.0 Flash no longer has OpenRouter endpoints, so it is not the default.
 
-The call allows 120 output tokens and 8 seconds. Set `LLM_PROVIDER=openrouter` and `LLM_BASE_URL` (default `https://openrouter.ai/api/v1`) with `LLM_API_KEY` for a live reply. The reply has to name one of that persona's anchors. Identifiers stay out of the prompt and the message. A missing key, a timeout, an ungrounded reply, or an invented entity falls back to a template. The screen marks that fallback with a short note.
+The call allows 400 output tokens and 15 seconds. Set `LLM_PROVIDER=openrouter` and `LLM_BASE_URL` (default `https://openrouter.ai/api/v1`) with `LLM_API_KEY` for a live reply. The reply has to name one of that persona's anchors. Identifiers stay out of the prompt and the message. A missing key, a timeout, an ungrounded reply, or an invented entity falls back to a template. A Thai question is asked again in Thai before that fallback, and a grounded model reply is kept. The screen marks a template with a short note.
 
 `LLM_PROVIDER` may also be `xai`, `openai`, or `anthropic`.
 
 ## Case studies
 
-Four real Tokyo entries, scored only from pre-launch facts, then compared with the public outcome. The rule was locked first: encourage only when the total is at least 55 and local fit is at least 50.
+Eight city launches, compared with other cities in the same region. The question is which city fits the taste best. The rule is city-rank-2, locked on 2026-10-14, after city-rank-1 ranked every real city 1 of 5. `rankOptions` in `packages/contracts` scores every option. Compare mode uses the same function.
 
-| Launch | What happened | Verdict | Match |
+Each brief is ranked across a fixed list: Tokyo, Osaka, Kyoto, Fukuoka, and Sapporo, or New York, Los Angeles, Chicago, Miami, and Boston. Local and heatmap are taste lift: affinity divided by that city's own popularity, then scaled. Weights are local 60, heatmap 35, and popularity 5, so a capital does not win on size. A success should land in the top 2. A later exit should land in the bottom 2. The panel uses up to five references, an audience taken from Qloo demographics, and `bias.trends=mid`.
+
+No live ranks of city-rank-2 are in this checkout. The script will not invent one. city-rank-1 (local 50, heatmap 25, popularity 25) ranked every real city 1 of 5, including Forever 21 and Innisfree. An earlier absolute pass (encourage at total 55 and local 50) matched 2 of 4 scored Tokyo rows. Those results belong to the old rules.
+
+| Launch | What happened | Real city | Rank |
 |---|---|---|---|
-| Billie Eilish, first solo Japan show, 2022 | Sold out | Caution (45) | Miss |
-| Olivia Rodrigo, first Japan concert, 2024 | Sold out | Encourage (55) | Match |
-| Harry Styles, first solo Japan shows, 2017 | Sold out | Caution (44) | Miss |
-| Forever 21, first Japan store, 2009 | Left in 2019 | Caution (42) | Match |
+| Billie Eilish, first solo Japan show, 2022 | Sold out | Tokyo | Awaiting live Qloo |
+| Olivia Rodrigo, first Japan concert, 2024 | Sold out | Tokyo | Awaiting live Qloo |
+| Harry Styles, first solo Japan shows, 2017 | Sold out | Tokyo | Awaiting live Qloo |
+| Forever 21, first Japan store, 2009 | Left in 2019 | Tokyo | Awaiting live Qloo |
+| Blue Bottle, first shop outside the US, 2015 | Stayed | Tokyo | Awaiting live Qloo |
+| Innisfree, first US flagship, 2017 | Left in 2021 | New York | Awaiting live Qloo |
+| Nintendo TOKYO, Shibuya, 2019 | Stayed | Tokyo | Awaiting live Qloo |
+| The Super Mario Bros. Movie, Japan opening, 2023 | Record opening | Tokyo | Awaiting live Qloo |
 
-Local place fit is high for all four (85–89) and does not separate a sellout from an exit. The anchor row was a gap on every call, because insights did not return an affinity for the subject entity itself. Two matches out of four is the result. The full table, the contamination note, and the sources are in [docs/case-studies.md](docs/case-studies.md). The derived fixture the UI can read is [apps/web/public/case-studies.json](apps/web/public/case-studies.json).
+A full pass is about 104 calls. The shared daily budget is 1000. Sources and the locked lists are in [docs/case-studies.md](docs/case-studies.md). The fixture the UI reads is [apps/web/public/case-studies.json](apps/web/public/case-studies.json).
 
 ## Honest limits
 
@@ -97,7 +105,7 @@ Local place fit is high for all four (85–89) and does not separate a sellout f
 - Personas are simulated. A template chat reply says so in a short note. The reply does not print Qloo ids.
 - Qloo's graph is current. A 2009 or 2017 brief is still scored on today's affinities.
 - The sample 71 → 80 path does not run on live affinities. Live rows with no affinity stay empty, and evidence stays LIMITED when a dimension is missing or the brief has a single reference.
-- The Tokyo case studies matched 2 of 4 public outcomes under a rule chosen in advance.
+- Case studies under city-rank-2 have no live ranks in this checkout. city-rank-1 ranked every real city 1 of 5. An earlier absolute rule matched 2 of 4 scored Tokyo rows. Those rates are not the city-rank-2 result.
 - The opening screen is the Tokyo tour. The empty-body API sample remains the Los Angeles streetwear brief at 71, then 80.
 - A full daily budget or a failed live call becomes a Recorded run, not a silent sample score.
 - Impact math uses numbers the caller supplies. It does not ask Qloo what the launch will earn.
@@ -139,7 +147,7 @@ The web app is [http://127.0.0.1:3000](http://127.0.0.1:3000). The API is [http:
 | `EVIDENCE_PROVIDER` | `sample`, `fallback`, or `qloo`. Unset follows the Qloo key. |
 | `HOST` / `PORT` | Default `0.0.0.0:8787`. |
 | `DATABASE_PATH` | Default `data/tastedraft.sqlite`. |
-| `QLOO_DAILY_BUDGET` | Default 400 live calls per UTC day, then Recorded run. |
+| `QLOO_DAILY_BUDGET` | Default 1000 live calls per UTC day, then Recorded run. |
 | `RATE_LIMIT_PER_MINUTE` | Default 60 per address. `GET /api/health` is exempt. |
 | `CORS_ORIGINS` | Comma-separated browser origins. No wildcard. |
 | `NEXT_PUBLIC_API_URL` | API origin baked into the web build. Wins over `NEXT_PUBLIC_API_BASE_URL`. |
@@ -152,7 +160,7 @@ The web app is [http://127.0.0.1:3000](http://127.0.0.1:3000). The API is [http:
 | `npm run build` | Production build of `apps/web`, then a typecheck of `apps/api`. |
 | `npm test` | API tests, Rust/WASM parity, and the web label tests. |
 | `npm run backtest -w @tastedraft/api` | Five sourced city entries. Needs a Qloo key. Derived lines only. |
-| `npm run case-studies -w @tastedraft/api` | The four Tokyo launches. Needs a Qloo key. Writes the derived fixture. |
+| `npm run case-studies -w @tastedraft/api` | All eight city launches. Needs a Qloo key. Writes the derived fixture. Without a key it exits and leaves the recorded file in place. |
 
 Live response bodies are cached under `apps/api/data/qloo-cache/`. The cache key hashes the API key. The key is not written into the file. `.env.local`, the cache, and `*.sqlite` are gitignored.
 

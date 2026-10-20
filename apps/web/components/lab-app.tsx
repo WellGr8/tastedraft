@@ -2,6 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { comparisonLine, detectLaunch, RunSnapshotSchema, stripEntityIds, type BriefV2, type RunSnapshot } from '@tastedraft/contracts';
+import { agentStateFrom, PARTNER_CATALOG, planAgentRounds, type AgentBrief, type AgentPlan, type AgentState } from '@/lib/agent-plan';
+import { BenchmarkPanel } from '@/components/benchmark-panel';
+import { LaunchReport } from '@/components/launch-report';
+import { buildLaunchReport } from '@/lib/launch-report';
 import { ApiError, TasteDraftClient, apiBase, type ProposalView, type SimulationResponse } from '@/lib/api';
 import { AGES, tourDraft, uniqueById, withImage, type DraftState } from '@/lib/defaults';
 import { scoreLive } from '@/lib/engine-preview';
@@ -17,6 +21,7 @@ import {
   assumptionsForIdea,
   neighborhoodPriceNote,
   nextAssumptions,
+  JUDGE_EXAMPLES,
   LAB_EXAMPLES,
   loadLibrary,
   previewGap,
@@ -38,10 +43,15 @@ import {
   stubLabFeatures,
   type LabFeatures,
 } from '@/lib/lab-api';
-import { caseStudySummary, caseStudyViews, type CaseStudyView } from '@/lib/cases';
+import { caseStudySummary, caseStudyViews, sourceHost, type CaseStudyView } from '@/lib/cases';
+import { redTeamOf } from '@/lib/red-team';
+import { moveEvidence } from '@/lib/reveal';
+import { ScoreReveal } from '@/components/score-reveal';
 import { deltaText, fitOf, plainStopReason, tasteVerb, typeLabel } from '@/lib/labels';
 import { groupDistricts, insideCity, namedArea, playbackDistricts } from '@/lib/places';
 import { chatWithPersona, type Persona } from '@/lib/personas';
+import { compareSummary, saturationLabel, type CompareCard, type CompareKind } from '@/lib/compare';
+import { runCompare } from '@/lib/compare-run';
 
 function spoken(message: string): string {
   return stripEntityIds(message).replace(/^simulated persona response\.?\s*/i, '').trim();
@@ -92,7 +102,7 @@ import {
 } from '@/lib/profile';
 import { askFromRun, decisionTrace, personasOf, readRunEvents, simulationOf, type RunProgress } from '@/lib/run';
 import { buildRecordedRun, RECORDED_NOTE, scoreBrief } from '@/lib/recorded-tour';
-import { sentimentLabel, sentimentOf, voiceFor } from '@/lib/voice';
+import { distinctVoices, sentimentLabel, sentimentOf } from '@/lib/voice';
 
 /**
  * Taste lab. Progress labels come from the run stream.
@@ -228,6 +238,10 @@ export function LabApp() {
   const [controls, setControls] = useState<ProfileControls>(() => defaultControls());
   const [step, setStep] = useState(1);
   const [reached, setReached] = useState(1);
+  const [labMode, setLabMode] = useState<'one' | 'compare'>('one');
+  const [compareKind, setCompareKind] = useState<CompareKind>('cities');
+  const [compareOptions, setCompareOptions] = useState<string[]>(['', '', '', '', '']);
+  const [compareRows, setCompareRows] = useState<CompareCard[]>([]);
   const [live, setLive] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -251,6 +265,9 @@ export function LabApp() {
   const [whyRun, setWhyRun] = useState<RunSnapshot | null>(null);
   const [whyBusy, setWhyBusy] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [plan, setPlan] = useState<AgentPlan | null>(null);
+  const [appliedPlan, setAppliedPlan] = useState<AgentPlan | null>(null);
   const [over, setOver] = useState(false);
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState<Array<{ id: string; name: string; type: string; image?: string }>>([]);
@@ -320,6 +337,23 @@ export function LabApp() {
       window.clearTimeout(handle);
     };
   }, [draft, controls]);
+
+  useEffect(() => {
+    if (appliedPlan || personas.length === 0) return;
+    let cancel = false;
+    const areaNames = (features.neighborhoods.length ? features.neighborhoods : places).map((item) => item.label);
+    const partners = personas.flatMap((persona) => persona.anchors.map((anchor) => anchor.name));
+    void planAgentRounds({ state: agentStateFrom(draft, controls), places: areaNames, partners }, scoreAgentBrief)
+      .then((next) => {
+        if (!cancel) setPlan(next);
+      })
+      .catch(() => {
+        if (!cancel) setPlan(null);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [draft, controls, personas, appliedPlan, features.neighborhoods, places]);
 
   useEffect(() => {
     if (live == null) return;
@@ -426,14 +460,27 @@ export function LabApp() {
   }
 
   function stopClock() {
-    if (clock.current) window.clearInterval(clock.current);
-    clock.current = null;
-    if (clockStart.current) {
-      const next = Date.now() - clockStart.current;
+    const started = clockStart.current;
+    if (!started) {
+      if (clock.current) window.clearInterval(clock.current);
+      clock.current = null;
+      return;
+    }
+    const finish = () => {
+      if (clockStart.current !== started) return;
+      if (clock.current) window.clearInterval(clock.current);
+      clock.current = null;
+      const next = Date.now() - started;
       elapsedRef.current = next;
       setElapsed(next);
       clockStart.current = 0;
+    };
+    const soFar = Date.now() - started;
+    if (soFar < 1000) {
+      window.setTimeout(finish, 1000 - soFar);
+      return;
     }
+    finish();
   }
 
   function bump(next: number) {
@@ -607,6 +654,8 @@ export function LabApp() {
     setPersonas([]);
     setAfter([]);
     setProposal(null);
+    setPlan(null);
+    setAppliedPlan(null);
     setV1(null);
     setV2(null);
     setWhyRun(null);
@@ -710,6 +759,94 @@ export function LabApp() {
     setError(note);
   }
 
+  async function scoreAgentBrief(brief: AgentBrief): Promise<number> {
+    const scored = await scoreLive({
+      idea: brief.idea,
+      age: brief.age,
+      city: brief.city,
+      pos: brief.pos,
+      refs: brief.refs,
+      posture: brief.posture,
+      scarcity: brief.scarcity,
+    });
+    return scored.total;
+  }
+
+  function draftWithPlan(current: DraftState, state: AgentState): DraftState {
+    const references = state.refs.map((name) => {
+      const found = current.references.find((entity) => entity.name.toLowerCase() === name.toLowerCase());
+      if (found) return found;
+      const known = PARTNER_CATALOG.find((entity) => entity.name.toLowerCase() === name.toLowerCase());
+      return {
+        id: known?.id ?? name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        name,
+        type: known?.type ?? 'urn:entity:brand',
+        source: 'sample' as const,
+      };
+    });
+    return {
+      ...current,
+      idea: state.idea,
+      city: state.city,
+      age: state.age,
+      positioning: positioningForPrice(state.priceLevel),
+      references,
+    };
+  }
+
+  async function applyPlan(ready: AgentPlan) {
+    const base = lastRun;
+    const nextState = ready.rounds[ready.rounds.length - 1]?.state;
+    if (!base || !nextState) return false;
+    const beforeBrief = briefRef.current;
+    const nextControls = { ...controls, priceLevel: nextState.priceLevel, scarcity: nextState.scarcity };
+    const nextDraft = draftWithPlan(draft, nextState);
+    setAppliedPlan(ready);
+    setPlan(ready);
+    setControls(nextControls);
+    setDraft(nextDraft);
+    const brief = toProfileBrief(nextDraft, nextControls);
+    briefRef.current = brief;
+    const scored = await scoreBrief(brief);
+    const version = Math.max(2, base.version + (base.version < 2 ? 1 : 0));
+    const next = RunSnapshotSchema.parse({
+      ...base,
+      version,
+      status: 'stopped',
+      stopReason: 'approved_target',
+      grounding: base.grounding,
+      score: scored.total,
+      proposals: [],
+      report: ready.action,
+      simulation: {
+        version,
+        total: scored.total,
+        ledger: scored.rows.reduce(
+          (bag, row) => {
+            if (row.id === 'anchor' || row.id === 'cross' || row.id === 'local' || row.id === 'audience' || row.id === 'friction') {
+              bag[row.id] = row.points;
+            }
+            return bag;
+          },
+          { anchor: null, cross: null, local: null, audience: null, friction: null } as {
+            anchor: number | null;
+            cross: number | null;
+            local: number | null;
+            audience: number | null;
+            friction: number | null;
+          },
+        ),
+        evidenceStrength: base.evidenceStrength,
+        mode: 'sample',
+      },
+    });
+    setRunId(null);
+    follow(next, brief);
+    setLive(scored.total);
+    if (beforeBrief) queueReinterview(beforeBrief, brief);
+    return true;
+  }
+
   function applyPrice(nextProposal: ProposalView) {
     if (nextProposal.param !== 'filter.price_level.max') return { draft, controls };
     const level = Number(nextProposal.to);
@@ -808,13 +945,19 @@ export function LabApp() {
   }
 
   async function approve() {
-    if (!proposal) return;
     const beforeBrief = briefRef.current;
     setBusy(true);
     setError('');
     bump(4);
     startClock(true);
     try {
+      const areaNames = (features.neighborhoods.length ? features.neighborhoods : places).map((item) => item.label);
+      const partners = personas.flatMap((persona) => persona.anchors.map((anchor) => anchor.name));
+      const ready = plan && plan.rounds.length
+        ? plan
+        : await planAgentRounds({ state: agentStateFrom(draft, controls), places: areaNames, partners }, scoreAgentBrief);
+      if (ready.rounds.length && (await applyPlan(ready))) return;
+      if (!proposal) return;
       if (!runId) {
         await approveLocal(proposal);
         if (beforeBrief && briefRef.current) queueReinterview(beforeBrief, briefRef.current);
@@ -940,6 +1083,61 @@ export function LabApp() {
     setTalking(null);
   }
 
+  function applyExample(example: (typeof LAB_EXAMPLES)[number]) {
+    const references = example.references.map((entity) => ({ ...entity }));
+    const place = references.find((entity) => /place|destination/.test(entity.type));
+    setDraft((current) => ({
+      ...current,
+      idea: example.idea,
+      city: example.city,
+      age: example.age,
+      positioning: positioningForPrice(example.priceLevel),
+      references,
+      locations: place ? [{ ...place }] : [],
+      interests: example.tags.map((tag) => ({ ...tag })),
+    }));
+    setControls((current) => ({
+      ...current,
+      priceLevel: example.priceLevel,
+      scarcity: example.scarcity,
+    }));
+    setLibrary((current) => ({ ...current, assumptions: assumptionsForIdea(example.idea) }));
+    if (example.compare) {
+      setLabMode('compare');
+      setCompareKind(example.compare.kind);
+      setCompareOptions([...example.compare.options, '', '', '', '', ''].slice(0, 5));
+      setCompareRows([]);
+    } else {
+      setLabMode('one');
+    }
+  }
+
+  async function compareIdeas() {
+    const labels = compareOptions.map((option) => option.trim()).filter(Boolean);
+    if (labels.length < 2) {
+      setError('Add at least two options to compare.');
+      return;
+    }
+    setBusy(true);
+    setError('');
+    try {
+      const rows = await runCompare({
+        draft,
+        controls,
+        kind: compareKind,
+        labels,
+        fetchImpl: fetch,
+        base: apiBase(),
+      });
+      setCompareRows(rows);
+      bump(2);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'The comparison did not finish');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function send() {
     const text = composer.trim();
     if (!text) return;
@@ -954,9 +1152,22 @@ export function LabApp() {
     setLines((current) => [...current, { role: 'you', text }]);
     try {
       if (talking) {
-        const anchors = talking.anchors.slice(0, 8).map((anchor) => featureEntity(anchor));
+        const anchors = talking.anchors.slice(0, 8).map((anchor) => {
+          const entity = featureEntity(anchor);
+          const category = anchor.type.split(':').filter(Boolean).pop()?.replace(/_/g, ' ') || 'taste';
+          const reason = anchor.affinity == null
+            ? `${category} listed by Qloo, affinity not measured`
+            : `${category} with Qloo affinity ${anchor.affinity.toFixed(2)}`;
+          return { ...entity, reason: stripEntityIds(reason).slice(0, 240) };
+        });
+        const frictions = (v1?.frictions ?? [])
+          .map((item) => stripEntityIds(item.text).slice(0, 240))
+          .filter((line) => line.length > 0)
+          .slice(0, 6);
+        const idea = stripEntityIds(draft.idea).slice(0, 500);
         setLines((current) => [...current, { role: 'agent', text: '' }]);
         let streamed = '';
+        // Recorded runs have zero Qloo calls. Chat still asks the model and only templates when it is unavailable.
         const feature = anchors.length
           ? await loadPersonaChat(
               {
@@ -965,10 +1176,17 @@ export function LabApp() {
                   label: talking.label,
                   location: talking.city,
                   age: talking.age,
+                  ...(talking.gender ? { gender: talking.gender } : {}),
                   anchors,
                 },
                 message: text.slice(0, 500),
                 ...(history.length ? { history } : {}),
+                context: {
+                  ...(idea ? { idea } : {}),
+                  verdict: talking.role === 'Red team' ? 'Argues against this idea' : sentimentLabel(sentimentOf(talking.fit, talking.measuring)),
+                  ...(frictions.length ? { frictions } : {}),
+                  ...(talking.role === 'Red team' ? { stance: 'red-team' as const } : {}),
+                },
               },
               fetch,
               apiBase(),
@@ -985,7 +1203,19 @@ export function LabApp() {
               },
             )
           : null;
-        const reply = feature ?? { label: 'Simulated', source: 'template' as const, message: (await chatWithPersona(talking, text, fetch, apiBase())).say };
+        const reply = feature ?? {
+          label: 'Simulated',
+          source: 'template' as const,
+          message: (
+            await chatWithPersona(
+              talking,
+              text,
+              fetch,
+              apiBase(),
+              history,
+            )
+          ).say,
+        };
         const shown = spoken(reply.message);
         const note = reply.source === 'template' ? TEMPLATE_NOTE : undefined;
         setLines((current) => {
@@ -1035,6 +1265,9 @@ export function LabApp() {
     setControls(idea.controls);
     setStep(1);
     setReportOpen(false);
+    setPlan(null);
+    setAppliedPlan(null);
+    setMenuOpen(false);
   }
 
   function addReference(chip: LabChip) {
@@ -1078,6 +1311,15 @@ export function LabApp() {
     variantA && variantB
       ? previewGap(variantA.versions.find((item) => item.n === 0)?.score ?? null, variantB.versions.find((item) => item.n === 0)?.score ?? null)
       : null;
+  const afterQuotes = distinctVoices(
+    personas.map((persona) => {
+      const next = after.find((item) => item.id === persona.id) ?? after.find((item) => item.label === persona.label);
+      const anchors = next?.anchors.length ? next.anchors : persona.anchors;
+      const fit = next && !next.measuring && next.fit > 0 ? next.fit : 0;
+      return { anchors, fit, previous: persona.fit, who: persona.label };
+    }),
+  );
+  const redTeam = redTeamOf(personas, v1?.frictions.map((item) => item.text) ?? []);
   const snag = snagLine(
     personas.map((persona) => ({ label: persona.label, fit: persona.fit, rejects: persona.rejects, measuring: persona.measuring })),
     v1?.frictions.map((item) => item.text) ?? [],
@@ -1102,7 +1344,8 @@ export function LabApp() {
 
   return (
     <div className="lab" data-testid="lab-root">
-      <aside className="lab-side" data-testid="sidebar">
+      {menuOpen ? <button type="button" className="lab-scrim" aria-label="Close menu" onClick={() => setMenuOpen(false)} /> : null}
+      <aside className="lab-side" data-testid="sidebar" data-open={menuOpen ? 'true' : 'false'}>
         <p className="lab-brand">
           <i />
           TasteDraft
@@ -1158,7 +1401,7 @@ export function LabApp() {
         </div>
         <p className="lab-k">Markets</p>
         {PROFILE_CITIES.map((city) => (
-          <button key={city} type="button" className={draft.city === city ? 'lab-market is-on' : 'lab-market'} onClick={() => setDraft((current) => ({ ...current, city }))}>
+          <button key={city} type="button" className={draft.city === city ? 'lab-market is-on' : 'lab-market'} onClick={() => { setDraft((current) => ({ ...current, city })); setMenuOpen(false); }}>
             <small>{city}</small>
           </button>
         ))}
@@ -1178,25 +1421,68 @@ export function LabApp() {
           <div className="lab-cases" data-testid="case-studies">
             <p className="lab-case-sum">{caseStudySummary(studies)}</p>
             {studies.map((study) => (
-              <button
+              <div
                 key={study.id}
-                type="button"
                 className="lab-case"
+                role="button"
+                tabIndex={0}
                 aria-expanded={openStudy === study.id}
                 onClick={() => setOpenStudy((current) => (current === study.id ? null : study.id))}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setOpenStudy((current) => (current === study.id ? null : study.id));
+                  }
+                }}
               >
                 <b>{study.short}</b>
                 <small>
-                  {study.verdict} · {study.matched ? 'Match' : 'Miss'}
+                  {study.domainLabel}
+                  {study.market ? ` · ${study.market}` : ''}
+                  {' · '}
+                  {study.scored ? `rank ${study.realRank}/${study.cityCount}${study.confidence ? ` · ${study.confidence}` : ''} · ${study.matched ? 'Match' : 'Miss'}` : 'Awaiting live Qloo'}
                 </small>
-                {openStudy === study.id && study.outcomeSummary ? <span>{study.outcomeSummary}</span> : null}
-              </button>
+                {openStudy === study.id ? (
+                  <span>
+                    {study.outcomeSummary}
+                    {study.scored && study.confidence ? ` Panel confidence ${study.confidence}.` : ' Not scored on this pass.'}
+                    {study.cities.length ? (
+                      <span className="lab-case-ranks">
+                        {study.cities.map((city) => (
+                          <span key={city.city} className={city.city === study.market ? 'is-launch' : undefined}>
+                            {city.rank != null ? `${city.rank}. ` : '— '}
+                            {city.city}
+                            {city.score != null ? ` ${city.score}` : ''}
+                            {city.city === study.market ? ' · launch city' : ''}
+                          </span>
+                        ))}
+                      </span>
+                    ) : null}
+                    {study.sources.length ? (
+                      <span className="lab-case-sources">
+                        {study.sources.map((url) => (
+                          <a key={url} href={url} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>
+                            {sourceHost(url)}
+                          </a>
+                        ))}
+                      </span>
+                    ) : null}
+                  </span>
+                ) : null}
+              </div>
             ))}
-            <p className="lab-case-note">These four are Tokyo launches. The same pre-registered rule applies to any category. Not a sales forecast.</p>
+            <p className="lab-case-note">city-rank-2 locked 2026-10-14. Taste lift, not city size. Successes should rank in the top 2. Failures should rank in the bottom 2. Not a sales forecast.</p>
           </div>
         ) : null}
       </aside>
       <main className="lab-canvas">
+        <header className="lab-topbar">
+          <button type="button" className="lab-menu" data-testid="lab-menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>
+            Ideas
+          </button>
+          <p className="lab-brand"><i />TasteDraft</p>
+          <p className="lab-progress" data-testid="lab-progress">{step} / {STEPS.length} {STEPS[step - 1]}</p>
+        </header>
         <div className="lab-scroll">
           <ol className="lab-steps" data-testid="lab-stepper">
             {STEPS.map((label, index) => {
@@ -1231,6 +1517,36 @@ export function LabApp() {
                   ))}
                 </div>
               </div>
+              <div className="lab-mode" role="group" aria-label="How to test" data-testid="lab-mode">
+                <button type="button" aria-pressed={labMode === 'one'} onClick={() => setLabMode('one')}>Test one</button>
+                <button type="button" aria-pressed={labMode === 'compare'} onClick={() => setLabMode('compare')}>Compare options</button>
+              </div>
+              {labMode === 'compare' ? (
+                <div className="lab-card lab-compare-setup" data-testid="compare-setup">
+                  <label className="lab-label" htmlFor="compare-kind">What changes between options</label>
+                  <select id="compare-kind" className="lab-select" value={compareKind} onChange={(event) => setCompareKind(event.target.value as CompareKind)}>
+                    <option value="cities">Cities</option>
+                    <option value="neighborhoods">Neighborhoods in this city</option>
+                    <option value="variants">Variants of the idea</option>
+                  </select>
+                  <div className="lab-compare-options">
+                    {compareOptions.map((option, index) => (
+                      <label key={index} className="lab-label">
+                        Option {index + 1}
+                        <input
+                          value={option}
+                          maxLength={80}
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            setCompareOptions((current) => current.map((item, itemIndex) => (itemIndex === index ? value : item)));
+                          }}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  <p className="lab-fine">Up to five options. Each one gets the persona panel and one cached Qloo saturation read.</p>
+                </div>
+              ) : null}
               <div className="lab-split">
                 <div className="lab-card">
                   <label className="lab-label" htmlFor="lab-idea">Your idea</label>
@@ -1279,43 +1595,6 @@ export function LabApp() {
                   </div>
                 </div>
               </div>
-              <div className="lab-go">
-                <span className="byb-ring" data-busy={busy ? 'true' : 'false'}>
-                  <button type="button" className="byb-primary" onClick={() => void testIdea()} disabled={busy}>
-                    Test this idea
-                  </button>
-                </span>
-                <div className="lab-examples">
-                  {LAB_EXAMPLES.map((example) => (
-                    <button
-                      key={example.id}
-                      type="button"
-                      onClick={() => {
-                        const references = example.references.map((entity) => ({ ...entity }));
-                        const place = references.find((entity) => /place|destination/.test(entity.type));
-                        setDraft((current) => ({
-                          ...current,
-                          idea: example.idea,
-                          city: example.city,
-                          age: example.age,
-                          positioning: positioningForPrice(example.priceLevel),
-                          references,
-                          locations: place ? [{ ...place }] : [],
-                          interests: example.tags.map((tag) => ({ ...tag })),
-                        }));
-                        setControls((current) => ({
-                          ...current,
-                          priceLevel: example.priceLevel,
-                          scarcity: example.scarcity,
-                        }));
-                        setLibrary((current) => ({ ...current, assumptions: assumptionsForIdea(example.idea) }));
-                      }}
-                    >
-                      {example.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
               <div
                 className={over ? 'lab-albums is-over' : 'lab-albums'}
                 onDragOver={(event) => {
@@ -1344,6 +1623,28 @@ export function LabApp() {
                     </button>
                   </figure>
                 ))}
+              </div>
+              <div className="lab-examples">
+                {LAB_EXAMPLES.map((example) => (
+                  <button key={example.id} type="button" onClick={() => applyExample(example)}>
+                    {example.label}
+                  </button>
+                ))}
+              </div>
+              <p className="lab-fine lab-more">More starting points</p>
+              <div className="lab-examples" data-testid="judge-examples">
+                {JUDGE_EXAMPLES.map((example) => (
+                  <button key={example.id} type="button" onClick={() => applyExample(example)}>
+                    {example.label}
+                  </button>
+                ))}
+              </div>
+              <div className="lab-go">
+                <span className="byb-ring" data-busy={busy ? 'true' : 'false'}>
+                  <button type="button" className="byb-primary" onClick={() => void (labMode === 'compare' ? compareIdeas() : testIdea())} disabled={busy}>
+                    {labMode === 'compare' ? 'Compare these' : 'Test this idea'}
+                  </button>
+                </span>
               </div>
               <details className="lab-card">
                 <summary>Advanced</summary>
@@ -1382,6 +1683,38 @@ export function LabApp() {
               <h2 className="lab-section-title">What customers say</h2>
               {lastRun?.grounding === 'recorded' ? <span className="lab-pill" data-testid="recorded-run">Recorded run</span> : null}
               <p className="lab-fine">{status}</p>
+              {compareRows.length ? (
+                <div data-testid="compare-results">
+                  <p className="lab-compare-summary" data-testid="compare-summary">{compareSummary(compareRows)}</p>
+                  <ol className="lab-compare-list">
+                    {compareRows.map((row) => (
+                      <li key={row.id} className={row.verdict ? `lab-card is-${row.verdict}` : 'lab-card'} data-testid="compare-row">
+                        <header>
+                          <div>
+                            <h3><span className="lab-rank">{row.rank ?? '—'}</span> {row.label}</h3>
+                            <div className="lab-row-meta">
+                              {row.verdict === 'best-bet' ? <span className="lab-pill is-buy">Best bet</span> : null}
+                              {row.verdict === 'safe-market' ? <span className="lab-pill is-curious">Safe big market</span> : null}
+                              <span className="lab-pill">{saturationLabel(row.saturation)}</span>
+                            </div>
+                          </div>
+                          <strong className="lab-score-lg">{row.score ?? '—'}</strong>
+                        </header>
+                        <p>{row.reason}</p>
+                        <p className="lab-fine">{row.risk}</p>
+                        <details>
+                          <summary>Why?</summary>
+                          <p className="lab-fine">
+                            Score {row.score ?? '—'} from audience {row.local == null ? '—' : row.local.toFixed(2)}, heatmap {row.heatmap == null ? '—' : row.heatmap.toFixed(2)}, popularity {row.popularity == null ? '—' : row.popularity.toFixed(2)}.
+                            Engine fit {row.fit ?? '—'}. Saturation {row.saturation == null ? 'not measured' : row.saturation.toFixed(2)}.
+                            {row.personas.length ? ` Panel: ${row.personas.join(', ')}.` : ''}
+                          </p>
+                        </details>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              ) : null}
               {customersReady ? (
                 <>
                   {ask ? (
@@ -1427,6 +1760,29 @@ export function LabApp() {
                         </button>
                       </article>
                     ))}
+                    {redTeam ? (
+                      <article className="lab-card lab-persona lab-redteam" data-testid="red-team">
+                        <header>
+                          <div>
+                            <h3>{redTeam.label}</h3>
+                            <div className="lab-row-meta">
+                              <span className="lab-pill is-red">Red team</span>
+                              <span className="lab-pill is-pass">Objects</span>
+                            </div>
+                          </div>
+                          <strong className="lab-score-lg" data-testid="red-team-score">{redTeam.fit}</strong>
+                        </header>
+                        <div className="lab-anchors">
+                          {uniqueById(redTeam.anchors).slice(0, 3).map((anchor) => (
+                            <Cover key={anchor.id} name={anchor.name} type={anchor.type} image={anchor.image} size={48} />
+                          ))}
+                        </div>
+                        <p className="lab-quote" data-testid="red-team-quote">{redTeam.interview}</p>
+                        <button type="button" className="lab-quiet" onClick={() => openTalk(redTeam)}>
+                          Talk
+                        </button>
+                      </article>
+                    ) : null}
                   </div>
                   <div className="lab-follow">
                     <p className="lab-note" data-testid="customer-summary">{snag}</p>
@@ -1484,7 +1840,7 @@ export function LabApp() {
                     </p>
                   ) : null}
                 </>
-              ) : (
+              ) : compareRows.length ? null : (
                 <>
                   <p className="lab-fine" data-testid="customers-loading">Loading customers</p>
                   <div className="lab-personas">
@@ -1494,7 +1850,7 @@ export function LabApp() {
               )}
               <div className="lab-go">
                 <span className="byb-ring" data-busy={busy ? 'true' : 'false'}>
-                  <button type="button" className="byb-primary" disabled={busy || !proposal} onClick={() => bump(3)}>
+                  <button type="button" className="byb-primary" disabled={busy || (!proposal && !plan?.rounds.length)} onClick={() => bump(3)}>
                     Let the Agent fix it
                   </button>
                 </span>
@@ -1502,7 +1858,55 @@ export function LabApp() {
             </section>
           ) : null}
 
-          {step === 3 && proposal ? (
+          {step === 3 && plan && plan.rounds.length ? (
+            <section className="lab-in lab-card lab-proposal" data-testid="agent-rounds">
+              <p className="lab-eyebrow" style={{ color: '#4a5273' }}>Agent</p>
+              <h2 className="lab-section-title">Changes that move the score</h2>
+              <p className="lab-report-flips">{plan.before} → {plan.after}</p>
+              <ol className="lab-rounds">
+                {plan.rounds.map((round) => (
+                  <li key={`${round.kind}-${round.title}`} data-testid="agent-round">
+                    <b>{round.title}</b>
+                    <span>+{round.delta} to {round.score}</span>
+                    <p>{round.before}</p>
+                    <p>{round.after}</p>
+                    <p className="lab-fine">{round.why}</p>
+                  </li>
+                ))}
+              </ol>
+              <p data-testid="agent-stop">{plan.stop}</p>
+              <div className="lab-go">
+                <span className="byb-ring" data-busy={busy ? 'true' : 'false'}>
+                  <button type="button" className="byb-primary" disabled={busy} onClick={() => void approve()}>
+                    Approve
+                  </button>
+                </span>
+                <button type="button" className="lab-ghost" disabled={busy} onClick={() => void skip()}>
+                  Skip
+                </button>
+                <button type="button" className="lab-quiet" data-testid="why-qloo" onClick={() => void why()}>
+                  {whyBusy ? 'Comparing…' : 'Why Qloo'}
+                </button>
+              </div>
+              {whyRun ? (
+                <div className="lab-split" data-testid="why-qloo-panel">
+                  <article className="lab-card">
+                    <p className="lab-eyebrow" style={{ color: '#4a5273' }}>Qloo-grounded</p>
+                    <p>Cultural resonance score {v1?.score ?? '—'}</p>
+                    <p className="lab-fine">Not a sales forecast</p>
+                  </article>
+                  <article className="lab-card">
+                    <p className="lab-eyebrow" style={{ color: '#4a5273' }}>LLM-only</p>
+                    <p>No score. This pass does not call Qloo.</p>
+                    <p className="lab-fine" data-testid="llm-stop">{plainStopReason(whyRun.stopReason ?? 'insufficient_evidence')}</p>
+                    <p className="lab-plain">{whyRun.report}</p>
+                  </article>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+
+          {step === 3 && proposal && !(plan && plan.rounds.length) ? (
             <section className="lab-in lab-card lab-proposal">
               <p className="lab-eyebrow" style={{ color: '#4a5273' }}>One change</p>
               <h2 className="lab-section-title">The agent would change this</h2>
@@ -1560,7 +1964,7 @@ export function LabApp() {
             </section>
           ) : null}
 
-          {step === 3 && !proposal ? (
+          {step === 3 && !proposal && !(plan && plan.rounds.length) ? (
             <section className="lab-card">
               <h2 className="lab-section-title">No change is waiting</h2>
               {lastRun?.stopReason ? <p data-testid="stop-reason">{plainStopReason(lastRun.stopReason)}</p> : <p>Test the idea, then come back for the one change.</p>}
@@ -1569,6 +1973,7 @@ export function LabApp() {
 
           {step === 4 && !reportOpen ? (
             <section className="lab-in lab-result">
+              <BenchmarkPanel />
               <h2 className="lab-section-title">Version 1 beside version 2</h2>
               {lastRun?.grounding === 'recorded' ? <span className="lab-pill" data-testid="recorded-run">Recorded run</span> : null}
               <p className="lab-fine">Market-test cost avoided {formatMoney(shownCost)}. Estimate, not a forecast.</p>
@@ -1584,30 +1989,35 @@ export function LabApp() {
                   <p className="lab-fine">{busy ? status : 'Same personas, scored again.'}</p>
                 </article>
               </div>
-              {personas.map((persona) => {
+              {personas.map((persona, index) => {
                 const next = after.find((item) => item.id === persona.id) ?? after.find((item) => item.label === persona.label);
                 const api = features.reinterview.find((row) => row.id === persona.id) ?? features.reinterview.find((row) => row.label === persona.label);
                 const apiShift = Boolean(api && api.before != null && api.after != null && api.changedMind);
                 const shifted = next ? changedMind(persona.fit, next.fit, persona.measuring, next.measuring) || apiShift : false;
                 const anchors = next?.anchors.length ? next.anchors : persona.anchors;
-                const afterQuote = next
-                  ? voiceFor(anchors, next.fit, persona.fit)
-                  : 'Still measuring what this person actually likes.';
+                const afterQuote = afterQuotes[index] ?? 'Still measuring what this person actually likes.';
                 const afterSentiment = next ? sentimentOf(next.fit, next.measuring) : 'measuring';
+                const friction = v1?.frictions.map((item) => item.text).find((line) => line.trim()) ?? null;
                 return (
-                  <div key={persona.id} className="lab-card lab-pair">
-                    <div>
-                      <b>{persona.label}</b>
-                      <p className="lab-quote">{persona.interview}</p>
-                      <span className="lab-score" data-testid="persona-score"><small>Before</small>{persona.fit || '—'}</span>
-                    </div>
-                    <span className={`lab-pill ${shifted ? 'is-changed' : 'is-same'}`}>{shifted ? 'Changed mind' : 'Same mind'}</span>
-                    <div>
-                      <span className={`lab-pill is-${afterSentiment}`}>{sentimentLabel(afterSentiment)}</span>
-                      <p className="lab-quote" data-testid="persona-quote">{afterQuote}</p>
-                      <span className="lab-score"><small>After</small>{next && next.fit > 0 ? next.fit : '—'}</span>
-                    </div>
-                  </div>
+                  <ScoreReveal
+                    key={persona.id}
+                    name={persona.label}
+                    from={persona.fit}
+                    to={next && next.fit > 0 ? next.fit : persona.fit}
+                    fromSentiment={sentimentOf(persona.fit, persona.measuring)}
+                    toSentiment={afterSentiment}
+                    beforeQuote={persona.interview}
+                    afterQuote={afterQuote}
+                    shifted={shifted}
+                    evidence={moveEvidence(
+                      persona.anchors.map((anchor) => anchor.name),
+                      anchors.map((anchor) => anchor.name),
+                      api?.reason ?? null,
+                      friction,
+                    )}
+                    reduced={reduced}
+                    delayMs={index * 160}
+                  />
                 );
               })}
               <div className="lab-go">
@@ -1624,21 +2034,25 @@ export function LabApp() {
           ) : null}
 
           {reportOpen && lastRun ? (
-            <article className="lab-card lab-report-sheet" data-testid="launch-report">
-              <p className="lab-eyebrow" style={{ color: '#4a5273' }}>Launch report</p>
-              <h1>Cultural resonance score</h1>
-              <p className="lab-report-score" data-testid="report-score">{v2?.score ?? v1?.score ?? '—'}</p>
-              <p className="lab-fine">Not a sales forecast</p>
-              <p className="lab-fine">Market-test cost avoided {formatMoney(shownCost)}. Estimate, not a forecast.</p>
-              <p className="lab-plain" data-testid="report-text">{lastRun.report}</p>
-              <p data-testid="report-stop">{lastRun.stopReason ? plainStopReason(lastRun.stopReason) : lastRun.report}</p>
-              <div className="lab-heat" data-testid="heatmap">
-                {neighborhoods.map((label) => (
-                  <span key={label} className="lab-pill">{label}</span>
-                ))}
-              </div>
-              <button type="button" className="lab-quiet" onClick={() => setReportOpen(false)}>Back</button>
-            </article>
+            <LaunchReport
+              model={buildLaunchReport({
+                before: v1?.score ?? appliedPlan?.before ?? plan?.before ?? 0,
+                after: v2?.score ?? appliedPlan?.after ?? v1?.score ?? 0,
+                plan: appliedPlan ?? plan,
+                people: personas.map((persona) => {
+                  const next = after.find((item) => item.id === persona.id) ?? after.find((item) => item.label === persona.label);
+                  return {
+                    label: persona.label,
+                    before: persona.fit,
+                    after: next && next.fit > 0 ? next.fit : persona.fit,
+                    anchors: (next?.anchors.length ? next.anchors : persona.anchors).map((anchor) => ({ name: anchor.name })),
+                  };
+                }),
+                areas: heat.map((item) => ({ label: item.label, weight: item.weight })),
+                costLabel: formatMoney(shownCost),
+              })}
+              onBack={() => setReportOpen(false)}
+            />
           ) : null}
         </div>
       </main>
@@ -1672,9 +2086,12 @@ export function LabApp() {
               </p>
             ) : null}
             {lines.map((line, index) => (
-              <p key={`${line.role}-${index}`} className={line.role === 'you' ? 'is-you' : undefined}>
-                {line.text}
-                {line.note ? <small className="lab-chat-note">{line.note}</small> : null}
+              <p key={`${line.role}-${index}`} className={line.role === 'you' ? 'is-you' : 'is-agent'}>
+                {line.role === 'agent' ? <span className="lab-avatar" aria-hidden="true">{talking?.initials || 'A'}</span> : null}
+                <span>
+                  {line.text}
+                  {line.note ? <small className="lab-chat-note">{line.note}</small> : null}
+                </span>
               </p>
             ))}
           </div>

@@ -384,7 +384,14 @@ export type ReinterviewResult = z.infer<typeof ReinterviewResultSchema>;
 export const PersonaChatRequestSchema = z
   .object({
     persona: FeaturePersonaSchema.extend({
-      anchors: z.array(FeatureEntitySchema).min(1).max(8),
+      anchors: z
+        .array(
+          FeatureEntitySchema.extend({
+            reason: z.string().max(240).optional(),
+          }),
+        )
+        .min(1)
+        .max(8),
     }),
     message: z.string().min(1).max(500),
     history: z
@@ -397,6 +404,16 @@ export const PersonaChatRequestSchema = z
           .strict(),
       )
       .max(8)
+      .optional(),
+    /** The launch under discussion. Optional so older clients still chat. */
+    context: z
+      .object({
+        idea: z.string().max(500).optional(),
+        verdict: z.string().max(120).optional(),
+        frictions: z.array(z.string().max(240)).max(6).optional(),
+        stance: z.enum(['customer', 'red-team']).optional(),
+      })
+      .strict()
       .optional(),
     budget: BudgetField,
   })
