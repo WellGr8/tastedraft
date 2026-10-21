@@ -1077,6 +1077,11 @@
   font-size: 12px;
 }
 
+.lab-chat-toggle,
+.lab-chat-head {
+  display: none !important;
+}
+
 .lab-chat {
   margin-top: auto;
   display: flex;
@@ -1794,6 +1799,71 @@
   }
 }
 
+
+/* Mobile: compact agent bar + bottom-sheet chat (closed by default). */
+@media (max-width: 767px) {
+  html, body { overflow-x: hidden; }
+  .lab-canvas { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
+  .lab-drawer {
+    border-radius: 18px;
+    overflow: visible;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 6px 6px 4px;
+    min-height: 52px;
+  }
+  .lab-drawer .lab-work { flex: 1; min-width: 0; padding: 6px 10px; }
+  .lab-drawer .lab-status { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lab-drawer .lab-status > span:last-child { overflow: hidden; text-overflow: ellipsis; }
+  .lab-drawer .byb-bar { display: none; }
+  .lab-chat-toggle {
+    display: inline-flex !important;
+    flex: none;
+    align-items: center;
+    min-height: 40px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 999px;
+    background: #6d5efc;
+    color: #fff;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .lab-chat:not(.is-open) { display: none; }
+  .lab-drawer:has(.lab-chat.is-open) {
+    border-radius: 18px;
+    background: #14151c;
+  }
+  .lab-chat.is-open {
+    position: fixed;
+    inset: auto 0 0 0;
+    top: auto;
+    height: min(78dvh, 640px);
+    min-height: 0;
+    z-index: 60;
+    margin: 0;
+    padding: 14px 14px calc(14px + env(safe-area-inset-bottom));
+    border-radius: 20px 20px 0 0;
+    background: #14151f;
+    box-shadow: 0 -12px 40px rgba(10, 15, 46, 0.45);
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100vw;
+  }
+  .lab-chat-head {
+    display: flex !important;
+    color: #f4f1ea;
+    font-weight: 600;
+  }
+  .lab-chat.is-open .lab-lines { overflow-y: auto; min-height: 0; }
+  .lab-chat form { display: flex; gap: 8px; box-sizing: border-box; }
+  .lab-chat form input { flex: 1; min-width: 0; }
+  .lab-chat form button { flex: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lab-in,
   .lab-result,
@@ -1815,3 +1885,34 @@
     transition: none;
   }
 }
+
+/* Agentic chat: steps, proposal card, chips. */
+.lab-log li { list-style: none; }
+.lab-step { display: flex; gap: 8px; align-items: center; width: 100%; padding: 4px 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.lab-step:hover { color: #fff; }
+.lab-check { flex: none; width: 14px; color: #7ee2a8; font-size: 12px; }
+.lab-step-detail { margin: 2px 0 8px 22px; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,0.05); color: rgba(244,241,234,0.85); font-size: 12px; }
+.lab-step-detail p { margin: 0 0 4px; }
+.lab-step-detail ul { margin: 0; padding-left: 14px; }
+.lab-step-detail ul li { list-style: disc; }
+.lab-chat-proposal { padding: 10px 12px; border-radius: 14px; background: rgba(109,94,252,0.16); border: 1px solid rgba(109,94,252,0.4); color: #f4f1ea; font-size: 13px; }
+.lab-chat-proposal p { margin: 0 0 6px; }
+.lab-chat-proposal div { display: flex; gap: 6px; flex-wrap: wrap; }
+.lab-chat-proposal button, .lab-chips button { min-height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color: #f4f1ea; font: inherit; font-size: 13px; cursor: pointer; }
+.lab-chat-proposal button:first-child { background: #6d5efc; border-color: #6d5efc; }
+.lab-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.lab-chips button:hover, .lab-chat-proposal button:hover { border-color: #6d5efc; }
+
+.lab-chat .lab-chips button, .lab-chat .lab-chat-proposal button { width: auto; flex: 0 0 auto; }
+.lab-chat .lab-chips { max-height: 76px; overflow-y: auto; }
+
+.lab-chat-steps { display: none; }
+@media (max-width: 767px) {
+  .lab-chat-steps { display: block; flex: none; border-radius: 12px; background: rgba(255,255,255,0.05); padding: 6px 10px; color: #f4f1ea; font-size: 13px; }
+  .lab-chat-steps summary { cursor: pointer; display: flex; gap: 8px; align-items: center; list-style: none; }
+  .lab-chat-steps[open] .lab-log { display: block !important; max-height: 34dvh; overflow-y: auto; margin: 6px 0 0; padding: 0; }
+}
+.lab-drawer:has(.lab-chat.is-open) .lab-chat-steps { display: block; flex: none; border-radius: 12px; background: rgba(255,255,255,0.05); padding: 6px 10px; color: #f4f1ea; font-size: 13px; }
+.lab-chat-steps summary { cursor: pointer; display: flex; gap: 8px; align-items: center; list-style: none; }
+.lab-chat-steps[open] .lab-log { display: block !important; max-height: 34vh; overflow-y: auto; margin: 6px 0 0; padding: 0; }
+.lab-chat .lab-step, .lab-drawer .lab-step { background: none !important; border: 0 !important; box-shadow: none !important; min-height: 0 !important; height: auto !important; width: 100% !important; padding: 4px 0 !important; color: inherit !important; font-weight: 400 !important; font-size: 13px !important; justify-content: flex-start !important; border-radius: 0 !important; }

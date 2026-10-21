@@ -93,7 +93,7 @@ export function describeLlm(env: Record<string, string | undefined> = process.en
 
 export function createLlmClient(
   env: Record<string, string | undefined> = process.env,
-  fetchImpl: typeof fetch = fetch,
+  fetchImpl: typeof fetch = (input, init) => fetch(input, init),
 ): LlmClient {
   const apiKey = env.LLM_API_KEY?.trim() ?? '';
   if (!apiKey) {

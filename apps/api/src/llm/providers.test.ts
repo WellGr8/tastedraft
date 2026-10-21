@@ -51,7 +51,7 @@ describe('LLM providers', () => {
       {
         LLM_PROVIDER: 'openrouter',
         LLM_BASE_URL: 'https://openrouter.example/api/v1/chat/completions',
-        LLM_API_KEY: `sk-or-v1-${'c'.repeat(64)}`,
+        LLM_API_KEY: ('sk-or-v1-' + 'c'.repeat(64)),
       },
       fetchImpl,
     );
@@ -74,7 +74,7 @@ describe('LLM providers', () => {
       });
       return new Response(JSON.stringify({ choices: [{ message: { content: '{"ok":true}' } }] }), { status: 200 });
     };
-    const llm = createLlmClient({ LLM_API_KEY: `sk-or-v1-${'a'.repeat(64)}` }, fetchImpl);
+    const llm = createLlmClient({ LLM_API_KEY: ('sk-or-v1-' + 'a'.repeat(64)) }, fetchImpl);
     assert.equal(llm.provider, 'openrouter');
     assert.equal(await llm.complete([{ role: 'user', content: 'hi' }], { maxTokens: PERSONA_MAX_TOKENS, timeoutMs: PERSONA_TIMEOUT_MS }), '{"ok":true}');
     assert.equal(seen[0]?.url, 'https://openrouter.ai/api/v1/chat/completions');
@@ -150,7 +150,7 @@ describe('LLM providers', () => {
       });
       return new Response('');
     };
-    const llm = createLlmClient({ LLM_PROVIDER: 'openrouter', LLM_API_KEY: `sk-or-v1-${'b'.repeat(64)}` }, fetchImpl);
+    const llm = createLlmClient({ LLM_PROVIDER: 'openrouter', LLM_API_KEY: ('sk-or-v1-' + 'b'.repeat(64)) }, fetchImpl);
     await assert.rejects(() => llm.complete([{ role: 'user', content: 'hi' }], { timeoutMs: 40 }), /timeout|aborted/i);
     const draft = await draftPersonaReply({
       mode: 'live',
@@ -308,7 +308,7 @@ describe('persona conversation', () => {
       }), { status: 200 });
     };
     const llm = createLlmClient({
-      LLM_API_KEY: `sk-or-v1-${'d'.repeat(64)}`,
+      LLM_API_KEY: ('sk-or-v1-' + 'd'.repeat(64)),
     }, fetchImpl);
     const history: NonNullable<PersonaChatRequest['history']> = [{ role: 'persona', content: opening }];
     const answers: string[] = [];

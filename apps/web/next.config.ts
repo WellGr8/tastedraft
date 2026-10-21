@@ -2,7 +2,11 @@ import type { NextConfig } from 'next';
 
 const publicApi = (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8787').replace(/\/$/, '');
 
+// NEXT_OUTPUT=export builds a static site (out/) for Cloudflare Pages.
+const staticExport = process.env.NEXT_OUTPUT === 'export';
+
 const nextConfig: NextConfig = {
+  ...(staticExport ? { output: 'export' as const, images: { unoptimized: true }, trailingSlash: true } : {}),
   env: {
     NEXT_PUBLIC_API_URL: publicApi,
     NEXT_PUBLIC_API_BASE_URL: publicApi,

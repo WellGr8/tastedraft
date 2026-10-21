@@ -53,13 +53,14 @@ export function LaunchReport({ model, onBack }: { model: LaunchReportModel; onBa
       {model.neighborhoods.length ? (
         <section data-testid="report-neighborhoods">
           <h2>Where to test</h2>
+          <p className="lab-fine">Bar = Qloo taste heat for this audience (0–100). <b>Best bet</b>: strongest fit that isn't already crowded with similar offers. <b>Safe big market</b>: hottest area overall, but more competition.</p>
           <ul className="lab-report-areas">
-            {model.neighborhoods.map((area) => (
+            {[...model.neighborhoods].sort((a, b) => b.value - a.value).map((area) => (
               <li key={area.label}>
                 <span className="lab-area-name">{area.label}</span>
                 <i><em style={{ width: `${Math.max(area.value, 4)}%` }} /></i>
                 <b>{area.value}</b>
-                {area.badge ? <small className={area.badge === 'best-bet' ? 'is-best' : 'is-safe'}>{badgeLabel(area.badge)}</small> : null}
+                {area.badge ? <small title={area.badge === 'best-bet' ? 'Strongest fit among areas not crowded with similar offers' : 'Hottest area overall; more competition'} className={area.badge === 'best-bet' ? 'is-best' : 'is-safe'}>{badgeLabel(area.badge)}</small> : null}
               </li>
             ))}
           </ul>

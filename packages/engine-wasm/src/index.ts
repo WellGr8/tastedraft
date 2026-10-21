@@ -36,6 +36,9 @@ let cached: WasmExports | undefined;
 
 function wasm(): WasmExports {
   if (!cached) {
+    // Cloudflare Workers: apps/api/src/worker/engine.ts installs the web build here.
+    const injected = (globalThis as { __TD_WASM__?: WasmExports }).__TD_WASM__;
+    if (injected) return (cached = injected);
     const require = createRequire(import.meta.url);
     cached = require('../pkg/nodejs/tastedraft_engine.js') as WasmExports;
   }

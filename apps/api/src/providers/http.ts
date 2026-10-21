@@ -82,7 +82,7 @@ async function waitTurn(
 }
 
 export function createHttpClient(options: HttpClientOptions = {}): HttpClient {
-  const fetchImpl = options.fetchImpl ?? fetch;
+  const fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
   const cache = options.cache;
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const gaps = options.minIntervalByHost ?? { 'musicbrainz.org': 1100 };

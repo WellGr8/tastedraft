@@ -103,6 +103,9 @@ export function ScoreBoard({
         {v1 ? (
           <div className="flex flex-wrap gap-2">
             <Badge variant={tone}>{v1.evidenceStrength ?? 'LIMITED'}</Badge>
+            {v1.score == null ? (
+              <p data-testid="no-score-note" className="w-full text-sm text-slate">No score: Qloo returned no measured affinities for these references in this city, so we show no number rather than a guess. Try more widely known references or a nearby market.</p>
+            ) : null}
           </div>
         ) : (
           <p className="text-sm text-slate">Sliders rescore here. Score profile when you want the ledger saved.</p>

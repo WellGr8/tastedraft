@@ -217,22 +217,48 @@ function fitsFrom(resultFits: { text: string }[], input: ExplainInput): Fit[] {
  * Domain client over `server/src/llm`. parseBrief, explain, and critique never
  * receive ledger numbers. Change sets are mapped onto the engine's apply format.
  */
+/**
+ * Live model calls get a time budget (LLM_BUDGET_MS, default 15s). A slow or failing
+ * model falls back to the offline interpreter so a simulation still completes with
+ * its Qloo evidence instead of timing out the whole request.
+ */
+async function withOffline<T>(env: Record<string, string | undefined> | undefined, live: (o: LlmCallOptions) => Promise<T>): Promise<T> {
+  const source = env ?? process.env;
+  const offline: LlmCallOptions = { env: {} };
+  if (!source.LLM_API_KEY?.trim() && !source.OPENROUTER_API_KEY?.trim()) return live(callOptions(env));
+  const budget = Number(source.LLM_BUDGET_MS ?? '') || 15_000;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      live({ ...callOptions(env), maxAttempts: 1 }),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('LLM budget exceeded')), budget);
+      }),
+    ]);
+  } catch {
+    return live(offline);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 export function createEngineLlm(env?: Record<string, string | undefined>): LlmClient {
-  const options = callOptions(env);
   return {
     async parseBrief(brief) {
-      const parsed = await interpretBrief(brief.idea, formFrom(brief), options);
+      const parsed = await withOffline(env, (options) => interpretBrief(brief.idea, formFrom(brief), options));
       return toParsed(parsed);
     },
     async explain(input) {
       const evidence = evidenceForModel(input);
-      const explained = await explainEvidence(evidence, { evidenceStrength: input.evidenceStrength }, options);
+      const explained = await withOffline(env, (options) => explainEvidence(evidence, { evidenceStrength: input.evidenceStrength }, options));
       return { fits: fitsFrom(explained.fits, input) };
     },
     async critique(input) {
-      const parsed = await interpretBrief(input.brief.idea, formFrom(input.brief), options);
       const evidence = evidenceForModel(input);
-      const reviewed = await critiqueBrief(parsed, evidence, { evidenceStrength: input.evidenceStrength }, options);
+      const reviewed = await withOffline(env, async (options) => {
+        const parsed = await interpretBrief(input.brief.idea, formFrom(input.brief), options);
+        return critiqueBrief(parsed, evidence, { evidenceStrength: input.evidenceStrength }, options);
+      });
       const proposals = reviewed.status === 'proposals' ? mapChanges(reviewed.proposals, input) : [];
       return { frictions: frictionsFor(proposals, input, evidence.items), proposals };
     },

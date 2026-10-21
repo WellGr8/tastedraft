@@ -1,0 +1,29 @@
+# TasteDraft API on Cloudflare Workers.
+# Fill in the KV id after `npx wrangler kv namespace create QLOO_CACHE` (see docs/deploy-cloudflare.md).
+name = "tastedraft-api"
+main = "dist-worker/index.js"
+compatibility_date = "2025-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+[build]
+command = "node scripts/build-worker.mjs"
+watch_dir = ["src", "migrations", "../../packages", "../../split"]
+
+[[durable_objects.bindings]]
+name = "TASTEDRAFT"
+class_name = "TasteDraftApi"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["TasteDraftApi"]
+
+[[kv_namespaces]]
+binding = "QLOO_CACHE"
+id = "46d1ea05dcae4f97bc14742ddc5969f9"
+
+[vars]
+# Comma-separated origins allowed by CORS (your Pages URL).
+CORS_ORIGINS = "https://tastedraft.pages.dev,http://localhost:3000,http://127.0.0.1:3000"
+QLOO_DAILY_BUDGET = "1000"
+RATE_LIMIT_PER_MINUTE = "60"
+# Secrets (never put them here): npx wrangler secret put QLOO_API_KEY / LLM_API_KEY

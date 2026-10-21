@@ -103,6 +103,7 @@ import {
 import { askFromRun, decisionTrace, personasOf, readRunEvents, simulationOf, type RunProgress } from '@/lib/run';
 import { buildRecordedRun, RECORDED_NOTE, scoreBrief } from '@/lib/recorded-tour';
 import { distinctVoices, sentimentLabel, sentimentOf } from '@/lib/voice';
+import { explainFromRun, parseIntent, suggestChips } from '@/lib/chat-intent';
 
 /**
  * Taste lab. Progress labels come from the run stream.
@@ -167,6 +168,12 @@ function nearlyBlank(image: HTMLImageElement): boolean {
 
 function Cover({ name, type, image, size = 72 }: { name: string; type: string; image?: string | null; size?: number }) {
   const [hidden, setHidden] = useState(!image);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  useEffect(() => {
+    // Static export: an image can fail before React attaches onError, which leaves a broken icon.
+    const el = imgRef.current;
+    if (el && el.complete && el.naturalWidth === 0) setHidden(true);
+  });
   const shape = fitOf(type);
   const tone = hue(name);
   const letter = name.trim().slice(0, 1).toUpperCase() || '·';
@@ -202,7 +209,7 @@ function Cover({ name, type, image, size = 72 }: { name: string; type: string; i
       }}
     >
       {photo ? (
-        <img src={image ?? ''} alt="" referrerPolicy="no-referrer" onError={() => setHidden(true)} />
+        <img ref={imgRef} src={image ?? ''} alt="" referrerPolicy="no-referrer" loading="lazy" decoding="async" width={size} height={size} style={{ objectFit: /brand/i.test(type) ? 'contain' : 'cover', background: /brand/i.test(type) ? '#fff' : undefined, width: '100%', height: '100%' }} onError={() => setHidden(true)} />
       ) : (
         <span className="lab-mark">
           <b>{letter}</b>
@@ -226,6 +233,14 @@ function materialize(id: string, draft: DraftState, controls: ProfileControls, l
     versions: [],
   };
   return { ...base, title: ideaTitle(draft.idea), city: draft.city, draft, controls };
+}
+
+function readableWhy(why: string): string {
+  try {
+    const parsed = JSON.parse(why) as { hypothesis?: string; evidenceIds?: unknown[] };
+    if (parsed && typeof parsed.hypothesis === 'string') return `${parsed.hypothesis}${Array.isArray(parsed.evidenceIds) ? ` (${parsed.evidenceIds.length} evidence items)` : ''}`;
+  } catch {}
+  return why;
 }
 
 export function LabApp() {
@@ -262,6 +277,8 @@ export function LabApp() {
   const [studies, setStudies] = useState<CaseStudyView[]>([]);
   const [openStudy, setOpenStudy] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
+  const pendingAction = useRef<'test' | 'compare' | null>(null);
+  const [openStep, setOpenStep] = useState<string | null>(null);
   const [whyRun, setWhyRun] = useState<RunSnapshot | null>(null);
   const [whyBusy, setWhyBusy] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -450,7 +467,7 @@ export function LabApp() {
     const calls = run.qlooCalls;
     const budget = Math.max(run.budget, 1);
     const label = run.grounding === 'recorded'
-      ? `Recorded run. Scored ${city}.`
+      ? `Sample run (no live calls). Scored ${city}.`
       : run.status === 'awaiting_input'
         ? `Need one more detail for ${city}.`
         : run.status === 'awaiting_approval'
@@ -580,13 +597,13 @@ export function LabApp() {
       budget: current?.budget ?? 40,
       shown: 1,
       of: 1,
-      label: 'Recorded run. Scoring this launch on the engine.',
+      label: 'Sample run: scoring this launch on the engine.',
       step: Math.max(current?.step ?? 0, 1),
     }));
     setLabels((current) =>
-      current.includes('Recorded run. Scoring this launch on the engine.')
+      current.includes('Sample run: scoring this launch on the engine.')
         ? current
-        : [...current, 'Recorded run. Scoring this launch on the engine.'],
+        : [...current, 'Sample run: scoring this launch on the engine.'],
     );
     try {
       const snapshot = await buildRecordedRun(brief);
@@ -595,7 +612,7 @@ export function LabApp() {
       const playback = playbackDistricts(brief.city);
       const recordedNote = brief.city.trim().toLowerCase() === 'tokyo'
         ? RECORDED_NOTE
-        : 'Recorded run. District names are known neighborhoods. The bars are playback, not a live measurement.';
+        : 'Sample run. District names are known neighborhoods. The bars are a replay, not a live measurement.';
       setFeatures((current) => ({
         ...current,
         demographicLine: current.skews.length ? current.demographicLine : recordedNote,
@@ -634,6 +651,64 @@ export function LabApp() {
       setFeatures((current) => mergeFeatures(current, incoming));
     });
   }
+
+  const chatRun = useMemo(() => {
+    if (!lastRun) return null;
+    const city = draft.city;
+    const seen = new Set<string>();
+    const scored = (lastRun.personas ?? [])
+      .flatMap((persona) => persona.anchors ?? [])
+      .filter((anchor) => typeof anchor.affinity === 'number' && !seen.has(anchor.name) && seen.add(anchor.name))
+      .sort((a, b) => (b.affinity ?? 0) - (a.affinity ?? 0))
+      .map((anchor) => ({ id: `qa:${anchor.id}`, name: anchor.name, kind: String(anchor.type ?? 'entity').replace('urn:entity:', ''), ref: anchor.id, strength: lastRun.evidenceStrength, affinity: anchor.affinity as number, source: 'qloo' as const }));
+    const named = lastRun.districts.map((cell) => ({ ...cell, label: namedArea(cell.label ?? '', city, cell.lat, cell.lng) }));
+    const districts = groupDistricts(named.map((cell) => ({ ...cell, label: cell.label })));
+    return { ...lastRun, districts, evidence: [...scored, ...lastRun.evidence] };
+  }, [lastRun, draft.city]);
+
+  function renderSteps(testId: string) {
+    return (
+        <ul className="lab-log" data-testid={testId}>
+          {labels.map((label, index) => {
+            const live = busy && index === labels.length - 1;
+            const found = lastRun?.steps.find((item) => item.label === label);
+            const step = found && /^ev:/.test(found.detail ?? '') ? { ...found, detail: '' } : found;
+            const evidential = /qloo|evidence|insight|signal|heat|tag|entit/i.test(label);
+            const open = openStep === label;
+            return (
+              <li key={label} className={open ? 'is-open' : undefined}>
+                <button type="button" className="lab-step" onClick={() => setOpenStep(open ? null : label)} aria-expanded={open}>
+                  <span className={live ? 'lab-spin' : 'lab-check'} aria-hidden="true">{live ? '' : '✓'}</span>
+                  {label}
+                </button>
+                {open ? (
+                  <div className="lab-step-detail" data-testid="step-detail">
+                    {step?.detail ? <p>{step.detail}</p> : null}
+                    {evidential && chatRun?.evidence.length ? (
+                      <ul>
+                        {chatRun.evidence.filter((item) => item.affinity !== null).concat(chatRun.evidence.filter((item) => item.affinity === null)).slice(0, 8).map((item) => (
+                          <li key={item.id}>{item.name} · {item.kind} · {item.affinity === null ? 'not scored' : `affinity ${item.affinity.toFixed(2)}`} · {item.source === 'qloo' ? 'Qloo' : 'brief'}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    {!step?.detail && !(evidential && chatRun?.evidence.length) ? <p>{live ? 'Working on this step…' : 'No extra evidence recorded for this step.'}</p> : null}
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+    );
+  }
+
+  useEffect(() => {
+    const action = pendingAction.current;
+    if (!action) return;
+    pendingAction.current = null;
+    if (action === 'test') void testIdea();
+    else void compareIdeas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft]);
 
   async function testIdea() {
     let brief: BriefV2;
@@ -1138,8 +1213,8 @@ export function LabApp() {
     }
   }
 
-  async function send() {
-    const text = composer.trim();
+  async function send(preset?: string) {
+    const text = (preset ?? composer).trim();
     if (!text) return;
     const history = lines
       .slice(-8)
@@ -1229,11 +1304,58 @@ export function LabApp() {
         });
         return;
       }
-      if (!runId) {
-        setLines((current) => [...current, { role: 'agent', text: 'Test the idea first.' }]);
+      const say = (reply: string) => setLines((current) => [...current, { role: 'agent', text: reply }]);
+      const intent = parseIntent(text);
+      if (intent.kind === 'test' || (!runId && intent.kind === 'server')) {
+        say(busy ? 'A test is already running. Watch the steps.' : 'Running the test now: personas, Qloo evidence, engine score.');
+        if (!busy) pendingAction.current = 'test';
+        setDraft((current) => ({ ...current }));
         return;
       }
-      const result = await client.commandRun(runId, text);
+      if (intent.kind === 'city') {
+        say(`Switching the market to ${intent.city} and re-running the test.`);
+        pendingAction.current = 'test';
+        setDraft((current) => ({ ...current, city: intent.city }));
+        return;
+      }
+      if (intent.kind === 'compare') {
+        say(`Comparing ${intent.options.join(' vs ')} with the same engine.`);
+        setLabMode('compare');
+        setCompareOptions([...intent.options, '', '', '', '', ''].slice(0, 5));
+        setCompareRows([]);
+        pendingAction.current = 'compare';
+        setDraft((current) => ({ ...current }));
+        return;
+      }
+      if (intent.kind === 'explain') {
+        say(explainFromRun(chatRun, intent.subject));
+        return;
+      }
+      if (intent.kind === 'approve' || intent.kind === 'cheaper') {
+        if (!proposal) {
+          say(runId ? 'There is no open proposal right now.' : 'Testing first so the agent can propose a change.');
+          if (!runId && !busy) {
+            pendingAction.current = 'test';
+            setDraft((current) => ({ ...current }));
+          }
+          return;
+        }
+        if (intent.kind === 'cheaper' && !/price|cheap|\$|฿|budget/i.test(`${proposal.param ?? ''} ${proposal.after} ${proposal.why}`)) {
+          say(`The open proposal is not a price change: "${proposal.after}". Approve it, reject it, or say "why" for the evidence.`);
+          return;
+        }
+        say(`Approving: ${proposal.before} -> ${proposal.after}. Re-scoring.`);
+        await approve();
+        return;
+      }
+      if (intent.kind === 'reject') {
+        if (!runId || !proposal) {
+          say('There is no open proposal to reject.');
+          return;
+        }
+      }
+      if (!runId) return;
+      const result = await client.commandRun(runId, intent.kind === 'reject' ? 'reject' : text);
       setLines((current) => [...current, { role: 'agent', text: result.reply }]);
       if (briefRef.current) follow(result.run, briefRef.current);
     } catch (err) {
@@ -1471,7 +1593,7 @@ export function LabApp() {
                 ) : null}
               </div>
             ))}
-            <p className="lab-case-note">city-rank-2 locked 2026-10-14. Taste lift, not city size. Successes should rank in the top 2. Failures should rank in the bottom 2. Not a sales forecast.</p>
+            <p className="lab-case-note">Ranking method fixed on 2026-10-14. Ranks by taste lift, not city size. Successes should rank in the top 2. Failures should rank in the bottom 2. Not a sales forecast.</p>
           </div>
         ) : null}
       </aside>
@@ -1565,9 +1687,9 @@ export function LabApp() {
                 </div>
                 <div className="lab-card lab-impact" data-testid="impact-panel">
                   <div>
-                    <span className="lab-label">Cultural resonance</span>
+                    <span className="lab-label" title="0–100: how well this idea matches what this audience already loves, per Qloo taste data. Updates as you edit; Test this idea runs the full check.">Taste fit (preview)</span>
                     <strong data-testid="live-score">{live ?? '—'}</strong>
-                    <small className="lab-fine">Not a sales forecast</small>
+                    <small className="lab-fine">0–100 audience taste match. Press Test this idea for the full check. Not a sales forecast.</small>
                   </div>
                   <div>
                     <span className="lab-label">Market-test cost avoided</span>
@@ -2072,12 +2194,19 @@ export function LabApp() {
             <i style={{ width: `${width}%` }} />
           </div>
         </section>
-        <ul className="lab-log">
-          {labels.map((label) => (
-            <li key={label}>{label}</li>
-          ))}
-        </ul>
+        {renderSteps("agent-steps")}
+        {!chatOpen ? (
+          <button type="button" className="lab-chat-toggle" data-testid="chat-toggle" onClick={() => setChatOpen(true)}>
+            Chat with the agent
+          </button>
+        ) : null}
         <div className={chatOpen ? 'lab-chat is-open' : 'lab-chat'} data-testid={chatOpen ? 'persona-chat' : undefined}>
+          {chatOpen && !talking ? (
+            <p className="lab-chat-who lab-chat-head">
+              Agent chat
+              <button type="button" data-testid="chat-close" onClick={closeTalk}>Close</button>
+            </p>
+          ) : null}
           <div className="lab-lines">
             {talking ? (
               <p className="lab-chat-who">
@@ -2095,6 +2224,31 @@ export function LabApp() {
               </p>
             ))}
           </div>
+          {!talking && labels.length ? (
+            <details className="lab-chat-steps" data-testid="chat-steps">
+              <summary>{busy ? <span className="lab-spin" aria-hidden="true" /> : '✓'} Steps ({labels.length}) · {labels[labels.length - 1]}</summary>
+              {renderSteps('chat-steps-list')}
+            </details>
+          ) : null}
+          {!talking && proposal && lastRun?.status === 'awaiting_approval' ? (
+            <div className="lab-chat-proposal" data-testid="chat-proposal">
+              <p><strong>Proposal</strong> {proposal.before} → {proposal.after}{typeof proposal.predictedDelta === 'number' ? ` (predicted +${proposal.predictedDelta})` : ''}</p>
+              <p className="lab-chat-note">{readableWhy(proposal.why)}</p>
+              <div>
+                <button type="button" disabled={busy} onClick={() => void send('approve')}>Approve</button>
+                <button type="button" disabled={busy} onClick={() => void send('reject')}>Reject</button>
+                <button type="button" disabled={busy} onClick={() => { setComposer(`Adjust: ${proposal.after} → `); chatInput.current?.focus(); }}>Adjust</button>
+              </div>
+            </div>
+          ) : null}
+          {busy && !talking ? <p className="lab-chat-note" data-testid="chat-busy"><span className="lab-spin" aria-hidden="true" /> {status}</p> : null}
+          {!talking ? (
+            <div className="lab-chips" data-testid="chat-chips">
+              {suggestChips({ hasRun: Boolean(lastRun), busy, hasProposal: Boolean(proposal && lastRun?.status === 'awaiting_approval'), city: draft.city, districts: [...(chatRun?.districts ?? [])].sort((a, b) => b.weight - a.weight).map((cell) => cell.label ?? '').filter((name) => name && name !== draft.city && !/^-?[0-9.]+, *-?[0-9.]+$/.test(name)) }).map((chip) => (
+                <button key={chip} type="button" onClick={() => void send(chip === 'Test this idea' ? 'test' : chip)}>{chip}</button>
+              ))}
+            </div>
+          ) : null}
           <form
             onSubmit={(event) => {
               event.preventDefault();

@@ -19,6 +19,7 @@ const CITY_BOXES: readonly CityBox[] = [
   { name: 'Munich', south: 48.06, north: 48.25, west: 11.36, east: 11.72 },
   { name: 'Bangkok', south: 13.49, north: 13.96, west: 100.32, east: 100.95 },
   { name: 'Seoul', south: 37.42, north: 37.7, west: 126.79, east: 127.18 },
+  { name: 'Osaka', south: 34.55, north: 34.78, west: 135.4, east: 135.62 },
   { name: 'Lisbon', south: 38.69, north: 38.8, west: -9.23, east: -9.09 },
 ];
 
@@ -56,6 +57,27 @@ const GAZETTEER: readonly { name: string; lat: number; lng: number; city: string
   { name: 'Alfama', lat: 38.7126, lng: -9.1302, city: 'Lisbon' },
   { name: 'Bairro Alto', lat: 38.7122, lng: -9.1444, city: 'Lisbon' },
   { name: 'Príncipe Real', lat: 38.7166, lng: -9.1487, city: 'Lisbon' },
+  { name: 'Ari', lat: 13.7796, lng: 100.5446, city: 'Bangkok' },
+  { name: 'Ratchada', lat: 13.7660, lng: 100.5690, city: 'Bangkok' },
+  { name: 'Ladprao', lat: 13.8160, lng: 100.5610, city: 'Bangkok' },
+  { name: 'Bang Kapi', lat: 13.7650, lng: 100.6470, city: 'Bangkok' },
+  { name: 'Khan Na Yao', lat: 13.8270, lng: 100.6750, city: 'Bangkok' },
+  { name: 'Ram Inthra', lat: 13.8660, lng: 100.6500, city: 'Bangkok' },
+  { name: 'Min Buri', lat: 13.8140, lng: 100.7480, city: 'Bangkok' },
+  { name: 'Lat Krabang', lat: 13.7220, lng: 100.7590, city: 'Bangkok' },
+  { name: 'Prawet', lat: 13.7170, lng: 100.6900, city: 'Bangkok' },
+  { name: 'On Nut', lat: 13.7050, lng: 100.6010, city: 'Bangkok' },
+  { name: 'Bang Na', lat: 13.6680, lng: 100.6050, city: 'Bangkok' },
+  { name: 'Thonglor', lat: 13.7320, lng: 100.5830, city: 'Bangkok' },
+  { name: 'Silom', lat: 13.7250, lng: 100.5300, city: 'Bangkok' },
+  { name: 'Don Mueang', lat: 13.9130, lng: 100.6040, city: 'Bangkok' },
+  { name: 'Thonburi', lat: 13.7200, lng: 100.4850, city: 'Bangkok' },
+  { name: 'Umeda', lat: 34.7025, lng: 135.4959, city: 'Osaka' },
+  { name: 'Namba', lat: 34.6659, lng: 135.5013, city: 'Osaka' },
+  { name: 'Shinsaibashi', lat: 34.6748, lng: 135.5013, city: 'Osaka' },
+  { name: 'Tennoji', lat: 34.6466, lng: 135.5133, city: 'Osaka' },
+  { name: 'Horie', lat: 34.6735, lng: 135.4930, city: 'Osaka' },
+  { name: 'Nakazakicho', lat: 34.7070, lng: 135.5050, city: 'Osaka' },
 ];
 
 const COORDINATE_LABEL = /^-?\d{1,3}\.\d+\s*,\s*-?\d{1,3}\.\d+|^area\s+-?\d/i;

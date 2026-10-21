@@ -18,7 +18,11 @@
     "persona-live": "node --disable-warning=ExperimentalWarning --import tsx scripts/persona-live.ts",
     "typecheck": "tsc --noEmit",
     "build:web": "node ../../split/build.mjs",
-    "postinstall": "node scripts/link-contract-deps.mjs"
+    "postinstall": "node scripts/link-contract-deps.mjs",
+    "smoke": "node --disable-warning=ExperimentalWarning --import tsx scripts/smoke-loop.ts",
+    "build:worker": "node scripts/build-worker.mjs",
+    "dev:worker": "wrangler dev --port 8787",
+    "deploy:worker": "wrangler deploy"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.6",
@@ -28,8 +32,11 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261021.1",
     "@types/node": "^22.19.0",
+    "esbuild": "^0.28.2",
     "tsx": "^4.20.6",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "wrangler": "^4.151.3"
   }
 }

@@ -7,3 +7,7 @@ data/qloo-cache/
 *.sqlite-wal
 *.sqlite-shm
 dist/
+dist-worker/
+src/worker/*.generated.ts
+.wrangler/
+.dev.vars

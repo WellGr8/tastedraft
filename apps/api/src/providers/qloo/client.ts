@@ -208,6 +208,11 @@ function retryable(result: QlooResult): boolean {
   return result.status === 429 || result.status === 500 || result.status === 502 || result.status === 503 || result.status === 504;
 }
 
+interface QlooKv {
+  get(key: string): Promise<string | null>;
+  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
+}
+
 export class QlooClient {
   readonly mode: QlooMode;
   readonly baseUrl: string;
@@ -230,7 +235,8 @@ export class QlooClient {
     this.apiKey = readKey(options);
     this.mode = this.apiKey ? 'live' : 'mock';
     this.baseUrl = (options.baseUrl ?? QLOO_HACKATHON_BASE_URL).replace(/\/$/, '');
-    this.fetchImpl = options.fetchImpl ?? fetch;
+    // Wrapped: Workers throw "Illegal invocation" when fetch is called as a method.
+    this.fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
     this.timeoutMs = positive(options.timeoutMs, DEFAULT_TIMEOUT_MS);
     this.cacheDir = options.cacheDir ?? process.env.QLOO_CACHE_DIR ?? defaultQlooCacheDir();
     this.admitLive = options.admitLive ?? null;
@@ -272,7 +278,7 @@ export class QlooClient {
 
     const useCache = init?.cache !== false;
     if (useCache) {
-      const cached = this.readCache(url);
+      const cached = this.readCache(url) ?? (await this.readKv(url));
       if (cached) {
         return { ok: true, status: 200, mode: 'live', url, cached: true, body: cached };
       }
@@ -427,9 +433,39 @@ export class QlooClient {
     }
   }
 
+  /** Cloudflare KV cache (worker only). Installed by apps/api/src/worker/index.ts. */
+  private kv(): QlooKv | undefined {
+    return (globalThis as { __TD_QLOO_KV__?: QlooKv }).__TD_QLOO_KV__;
+  }
+
+  private kvKey(url: string): string {
+    return this.cachePath(url).split('/').pop() ?? url;
+  }
+
+  private async readKv(url: string): Promise<QlooEnvelope | undefined> {
+    const kv = this.kv();
+    if (!kv) return undefined;
+    try {
+      const text = await kv.get(this.kvKey(url));
+      if (!text) return undefined;
+      const raw = JSON.parse(text) as CacheFile;
+      const body = this.fresh(raw);
+      if (body) this.memory.set(url, raw);
+      return body;
+    } catch {
+      return undefined;
+    }
+  }
+
   private writeCache(url: string, body: QlooEnvelope): void {
     const file: CacheFile = { v: 1, storedAt: this.now(), body };
     this.memory.set(url, file);
+    const kv = this.kv();
+    if (kv) {
+      const ttl = Math.max(60, Math.floor(this.cacheTtlMs / 1000));
+      void kv.put(this.kvKey(url), JSON.stringify(file), { expirationTtl: ttl }).catch(() => {});
+      return;
+    }
     mkdirSync(this.cacheDir, { recursive: true });
     writeFileSync(this.cachePath(url), JSON.stringify(file));
   }

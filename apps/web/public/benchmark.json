@@ -1,18 +1,18 @@
 {
-  "source": "recorded",
-  "live": false,
-  "label": "Recorded offline run. QLOO_API_KEY and LLM_API_KEY were not set, so persona reasons are the product templates. city-rank-1 has no live ranks in this checkout, so this file does not copy an outcome agreement. This is not a live OpenRouter or Qloo pass.",
-  "generatedAt": "2026-10-14T07:54:03.124Z",
-  "model": null,
-  "qlooCalls": 0,
+  "source": "live",
+  "live": true,
+  "label": "Live run. Grounded reasons use the persona panel with Qloo entities from this run. The other arm is the same model with no Qloo entities. A Qloo ledger is reported only when the published case-study file still carries one. City ranks are a separate rule.",
+  "generatedAt": "2026-10-21T18:14:58.035Z",
+  "model": "google/gemini-2.5-flash-lite",
+  "qlooCalls": 66,
   "budgetCap": 80,
   "headline": {
-    "withQloo": "16 of 36",
+    "withQloo": "36 of 36",
     "withoutQloo": "0 of 36",
-    "citationShareWithQloo": 0.444,
+    "citationShareWithQloo": 1,
     "citationShareWithoutQloo": 0,
     "outcomeWithQloo": null,
-    "outcomeWithoutQloo": null
+    "outcomeWithoutQloo": "0 of 4"
   },
   "agreement": {
     "qlooLedger": {
@@ -20,173 +20,62 @@
       "total": 0,
       "source": "apps/web/public/case-studies.json"
     },
-    "llmPanel": null
+    "llmPanel": {
+      "matched": 0,
+      "total": 4
+    }
   },
   "totals": {
     "qloo": {
-      "unverifiableMentions": 40,
-      "unverifiableNames": [
-        "Aphex Twin",
-        "Boards of Canada",
-        "Blue Bottle",
-        "% Arabica",
-        "Celeste",
-        "Hades",
-        "Laneige",
-        "Crash Landing on You",
-        "Alfama",
-        "Patagonia"
-      ],
-      "hallucinatedMentions": null,
+      "unverifiableMentions": 0,
+      "unverifiableNames": [],
+      "hallucinatedMentions": 0,
       "hallucinatedNames": []
     },
     "llm": {
-      "unverifiableMentions": 0,
-      "unverifiableNames": [],
-      "hallucinatedMentions": null,
-      "hallucinatedNames": []
+      "unverifiableMentions": 19,
+      "unverifiableNames": [
+        "Shimokitazawa",
+        "Koenji",
+        "YOASOBI",
+        "demo build",
+        "merch table",
+        "KT&G Sangsangmadang",
+        "Hongdae",
+        "Studio Ghibli",
+        "Emily in Paris",
+        "The Alchemist",
+        "Ariake",
+        "Summer Sonic 2019",
+        "concert",
+        "H&M"
+      ],
+      "hallucinatedMentions": 3,
+      "hallucinatedNames": [
+        "indie game launch",
+        "When We All Fall Asleep, Where Do We Go?"
+      ]
     }
   },
   "scoreSpread": {
     "qlooCaseStudies": null,
-    "qlooExamples": null,
-    "llmExamples": null,
-    "note": "Case-study spread is filled only when the published file still has ledger totals. city-rank-1 does not publish those totals. Example spreads use persona scores from this run only."
-  },
-  "sampleEngine": {
-    "label": "Local Rust sample engine. Not a Qloo measurement. Tokyo follows the Los Angeles row because the sample table has no Tokyo entry.",
-    "cities": [
-      {
-        "id": "tokyo-tour",
-        "city": "Tokyo",
-        "mean": 55,
-        "segments": [
-          {
-            "age": "18–25",
-            "score": 55
-          },
-          {
-            "age": "26–35",
-            "score": 58
-          },
-          {
-            "age": "36–45",
-            "score": 56
-          },
-          {
-            "age": "46+",
-            "score": 51
-          }
-        ]
-      },
-      {
-        "id": "bangkok-coffee",
-        "city": "Bangkok",
-        "mean": 50.75,
-        "segments": [
-          {
-            "age": "26–35",
-            "score": 54
-          },
-          {
-            "age": "36–45",
-            "score": 50
-          },
-          {
-            "age": "46+",
-            "score": 43
-          },
-          {
-            "age": "18–25",
-            "score": 56
-          }
-        ]
-      },
-      {
-        "id": "seoul-game",
-        "city": "Seoul",
-        "mean": 46.25,
-        "segments": [
-          {
-            "age": "18–25",
-            "score": 51
-          },
-          {
-            "age": "26–35",
-            "score": 50
-          },
-          {
-            "age": "36–45",
-            "score": 45
-          },
-          {
-            "age": "46+",
-            "score": 39
-          }
-        ]
-      },
-      {
-        "id": "nyc-skin",
-        "city": "New York",
-        "mean": 44,
-        "segments": [
-          {
-            "age": "26–35",
-            "score": 46
-          },
-          {
-            "age": "36–45",
-            "score": 46
-          },
-          {
-            "age": "46+",
-            "score": 41
-          },
-          {
-            "age": "18–25",
-            "score": 43
-          }
-        ]
-      },
-      {
-        "id": "lisbon-travel",
-        "city": "Lisbon",
-        "mean": 48,
-        "segments": [
-          {
-            "age": "36–45",
-            "score": 49
-          },
-          {
-            "age": "46+",
-            "score": 44
-          },
-          {
-            "age": "18–25",
-            "score": 48
-          },
-          {
-            "age": "26–35",
-            "score": 51
-          }
-        ]
-      }
-    ],
-    "citySpread": {
-      "min": 44,
-      "max": 55,
-      "range": 11,
-      "stdev": 3.81,
-      "n": 5
-    },
-    "segmentSpread": {
-      "min": 39,
-      "max": 58,
-      "range": 19,
-      "stdev": 5.24,
+    "qlooExamples": {
+      "min": 91,
+      "max": 97,
+      "range": 6,
+      "stdev": 1.66,
       "n": 20
-    }
+    },
+    "llmExamples": {
+      "min": 30,
+      "max": 95,
+      "range": 65,
+      "stdev": 17.66,
+      "n": 18
+    },
+    "note": "Case-study spread is filled only when the published file still has ledger totals. city-rank-2 does not publish those totals. Example spreads use persona scores from this run only."
   },
+  "sampleEngine": null,
   "items": [
     {
       "id": "tokyo-tour",
@@ -200,70 +89,89 @@
             "personaId": "persona-tokyo-18-25-female",
             "label": "Tokyo 18–25 female",
             "age": "18–25",
-            "reason": "I would go for An indie artist launching a Tokyo tour + merch drop: positioning, merch price, w only if it felt like Aphex Twin. I judge it from Aphex Twin and Boards of Canada.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [
-              "Aphex Twin",
-              "Boards of Canada"
+            "reason": "I'm not sure if I'd try this. My music taste leans towards artists like Four Tet, Francesco Tristano, and Tipper, which have a more experimental and electronic sound. Without knowing the indie artist's style, it's hard to say if it would align with what I enjoy.",
+            "source": "llm",
+            "verified": [
+              "Four Tet",
+              "Francesco Tristano",
+              "Tipper"
             ],
+            "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [
+              "Four Tet",
+              "Francesco Tristano",
+              "Tipper"
+            ],
+            "score": 94
           },
           {
             "personaId": "persona-tokyo-26-35-male",
             "label": "Tokyo 26–35 male",
             "age": "26–35",
-            "reason": "I would go for An indie artist launching a Tokyo tour + merch drop: positioning, merch price, w only if it felt like Aphex Twin. I judge it from Aphex Twin and Boards of Canada.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [
-              "Aphex Twin",
-              "Boards of Canada"
+            "reason": "I would try this, as it aligns with my affinity for Squarepusher's energetic live performances and The Black Dog's underground electronic music scene, which I often explore in Tokyo.",
+            "source": "llm",
+            "verified": [
+              "Squarepusher",
+              "The Black Dog"
             ],
+            "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [
+              "Squarepusher",
+              "The Black Dog"
+            ],
+            "score": 96
           },
           {
             "personaId": "persona-tokyo-36-45-female",
             "label": "Tokyo 36–45 female",
             "age": "36–45",
-            "reason": "I would go for An indie artist launching a Tokyo tour + merch drop: positioning, merch price, w only if it felt like Aphex Twin. I judge it from Aphex Twin and Boards of Canada.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [
-              "Aphex Twin",
-              "Boards of Canada"
+            "reason": "I would definitely try this! The idea of an indie artist launching a Tokyo tour with a merch drop sounds exciting, especially if the music has that dreamy, electronic vibe similar to múm. I'd be interested in seeing how they incorporate local elements into the merch, perhaps with designs inspired by neighborhoods like Shimokitazawa, which often has a unique, artistic feel.",
+            "source": "llm",
+            "verified": [
+              "múm"
             ],
+            "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [
+              "múm"
+            ],
+            "score": 94
           },
           {
             "personaId": "persona-tokyo-46-male",
             "label": "Tokyo 46+ male",
             "age": "46+",
-            "reason": "I would go for An indie artist launching a Tokyo tour + merch drop: positioning, merch price, w only if it felt like Aphex Twin. I judge it from Aphex Twin and Boards of Canada.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [
-              "Aphex Twin",
-              "Boards of Canada"
+            "reason": "Clark's genre-bending sound might appeal to Tokyo's indie crowds in Harajuku and Shimokitazawa, while Squarepusher's drum and bass influence could resonate with fans in Shibuya and Daikanyama. I'd consider partnering with local artists in these neighborhoods to create unique merch designs.",
+            "source": "llm",
+            "verified": [
+              "Squarepusher",
+              "Clark"
             ],
+            "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [
+              "Squarepusher",
+              "Clark"
+            ],
+            "score": 97
           }
         ],
-        "verifiedReasons": 0,
+        "verifiedReasons": 4,
         "reasonCount": 4,
-        "citationShare": 0,
-        "unverifiableMentions": 8,
-        "unverifiableNames": [
-          "Aphex Twin",
-          "Boards of Canada"
-        ],
-        "hallucinatedMentions": null,
+        "citationShare": 1,
+        "unverifiableMentions": 0,
+        "unverifiableNames": [],
+        "hallucinatedMentions": 0,
         "hallucinatedNames": [],
-        "segmentSpread": null,
+        "segmentSpread": {
+          "min": 94,
+          "max": 97,
+          "range": 3,
+          "stdev": 1.3,
+          "n": 4
+        },
         "ledgerScore": null,
         "ledgerLocal": null,
         "verdict": null,
@@ -275,55 +183,83 @@
             "personaId": "persona-tokyo-18-25-female",
             "label": "Tokyo 18–25 female",
             "age": "18–25",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
+            "reason": "I'd love to try, but I'm not familiar with the indie artist or their style. I'd want to check out their music and see if it's something I'd enjoy. Maybe a fan of Haruhi Suzumiya or a Tokyo street food enthusiast like Toriko would be more into it.",
+            "source": "llm",
             "verified": [],
             "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 30
           },
           {
             "personaId": "persona-tokyo-26-35-male",
             "label": "Tokyo 26–35 male",
             "age": "26–35",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [],
+            "reason": "Yo, this indie artist dropping a Tokyo tour and merch? Sounds dope, especially if they're channeling that vibe like Fujii Kaze or something. I'd definitely check out a show if they hit up Shimokitazawa or Koenji, and snag some limited edition tees or maybe a vinyl if the designs are sick.",
+            "source": "llm",
+            "verified": [
+              "Fujii Kaze"
+            ],
+            "unverifiable": [
+              "Shimokitazawa",
+              "Koenji"
+            ],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 75
           },
           {
             "personaId": "persona-tokyo-36-45-female",
             "label": "Tokyo 36–45 female",
             "age": "36–45",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [],
+            "reason": "OMG, a whole tour for an indie artist? I'm so there! I'd totally check out a show by, like, Fujii Kaze or maybe even YOASOBI if they did a smaller, more intimate tour. And if they had some cool merch, like a limited edition vinyl or a graphic tee designed by a local artist from Shimokitazawa, I'd definitely snag something.",
+            "source": "llm",
+            "verified": [
+              "Fujii Kaze"
+            ],
+            "unverifiable": [
+              "YOASOBI",
+              "Shimokitazawa"
+            ],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 85
           },
           {
             "personaId": "persona-tokyo-46-male",
             "label": "Tokyo 46+ male",
             "age": "46+",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [],
+            "reason": "I'm not sure about this indie artist, maybe someone like Fujii Kaze would be more my speed, but a merch drop in Shimokitazawa sounds cool. I'd probably check out the t-shirts, but I'm not sure I'd buy anything.",
+            "source": "llm",
+            "verified": [
+              "Fujii Kaze"
+            ],
+            "unverifiable": [
+              "Shimokitazawa"
+            ],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 30
           }
         ],
-        "verifiedReasons": 0,
+        "verifiedReasons": 3,
         "reasonCount": 4,
-        "citationShare": 0,
-        "unverifiableMentions": 0,
-        "unverifiableNames": [],
-        "hallucinatedMentions": null,
+        "citationShare": 0.75,
+        "unverifiableMentions": 5,
+        "unverifiableNames": [
+          "Shimokitazawa",
+          "Koenji",
+          "YOASOBI"
+        ],
+        "hallucinatedMentions": 0,
         "hallucinatedNames": [],
-        "segmentSpread": null,
+        "segmentSpread": {
+          "min": 30,
+          "max": 85,
+          "range": 55,
+          "stdev": 25.25,
+          "n": 4
+        },
         "ledgerScore": null,
         "ledgerLocal": null,
         "verdict": null,
@@ -342,70 +278,95 @@
             "personaId": "persona-bangkok-26-35-female",
             "label": "Bangkok 26–35 female",
             "age": "26–35",
-            "reason": "I would go for A specialty coffee shop in Bangkok: pour-over, a small pastry case, and a neighb only if it felt like Blue Bottle. I judge it from Blue Bottle and % Arabica.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [
-              "Blue Bottle",
-              "% Arabica"
+            "reason": "I would definitely try this coffee shop. The focus on pour-over and a neighborhood bar vibe appeals to me, much like how I appreciate the curated quality of brands like Danse Lente and 3.1 Phillip Lim. It sounds like a place with attention to detail, similar to the distinct aesthetic of Gentle Monster.",
+            "source": "llm",
+            "verified": [
+              "Danse Lente",
+              "3.1 Phillip Lim",
+              "Gentle Monster"
             ],
+            "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [
+              "Danse Lente",
+              "3.1 Phillip Lim",
+              "Gentle Monster"
+            ],
+            "score": 95
           },
           {
             "personaId": "persona-bangkok-36-45-male",
             "label": "Bangkok 36–45 male",
             "age": "36–45",
-            "reason": "I would go for A specialty coffee shop in Bangkok: pour-over, a small pastry case, and a neighb only if it felt like Blue Bottle. I judge it from Blue Bottle and % Arabica.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [
-              "Blue Bottle",
-              "% Arabica"
+            "reason": "I would definitely try this coffee shop. The focus on pour-over and a neighborhood bar feel resonates with my appreciation for brands like Thom Browne and Maison Kitsuné, suggesting a place that values quality and a curated experience.",
+            "source": "llm",
+            "verified": [
+              "Thom Browne",
+              "Maison Kitsuné"
             ],
+            "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [
+              "Thom Browne",
+              "Maison Kitsuné"
+            ],
+            "score": 95
           },
           {
             "personaId": "persona-bangkok-46-female",
             "label": "Bangkok 46+ female",
             "age": "46+",
-            "reason": "I would go for A specialty coffee shop in Bangkok: pour-over, a small pastry case, and a neighb only if it felt like Blue Bottle. I judge it from Blue Bottle and % Arabica.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [
-              "Blue Bottle",
-              "% Arabica"
+            "reason": "I appreciate the simplicity of a specialty coffee shop, and the focus on pour-over brewing aligns with my affinity for Ports1961, TIBI, and Marni, as I enjoy understated elegance in both fashion and design.",
+            "source": "llm",
+            "verified": [
+              "Ports1961",
+              "TIBI",
+              "Marni"
             ],
+            "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [
+              "Ports1961",
+              "TIBI",
+              "Marni"
+            ],
+            "score": 96
           },
           {
             "personaId": "persona-bangkok-18-25-male",
             "label": "Bangkok 18–25 male",
             "age": "18–25",
-            "reason": "I would go for A specialty coffee shop in Bangkok: pour-over, a small pastry case, and a neighb only if it felt like Blue Bottle. I judge it from Blue Bottle and % Arabica.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [
-              "Blue Bottle",
-              "% Arabica"
+            "reason": "I already know what I like, and I think the minimalist aesthetic of Thom Browne, the simplicity of A.P.C., and the understated elegance of Helmut Lang would complement the quiet, intimate atmosphere of a specialty coffee shop in Bangkok. This style feels familiar and comfortable to me. It's the kind of place I'd frequent in my free time.",
+            "source": "llm",
+            "verified": [
+              "Thom Browne",
+              "Helmut Lang",
+              "A.P.C."
             ],
+            "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [
+              "Thom Browne",
+              "Helmut Lang",
+              "A.P.C."
+            ],
+            "score": 95
           }
         ],
-        "verifiedReasons": 0,
+        "verifiedReasons": 4,
         "reasonCount": 4,
-        "citationShare": 0,
-        "unverifiableMentions": 8,
-        "unverifiableNames": [
-          "Blue Bottle",
-          "% Arabica"
-        ],
-        "hallucinatedMentions": null,
+        "citationShare": 1,
+        "unverifiableMentions": 0,
+        "unverifiableNames": [],
+        "hallucinatedMentions": 0,
         "hallucinatedNames": [],
-        "segmentSpread": null,
+        "segmentSpread": {
+          "min": 95,
+          "max": 96,
+          "range": 1,
+          "stdev": 0.43,
+          "n": 4
+        },
         "ledgerScore": null,
         "ledgerLocal": null,
         "verdict": null,
@@ -417,55 +378,69 @@
             "personaId": "persona-bangkok-26-35-female",
             "label": "Bangkok 26–35 female",
             "age": "26–35",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
+            "reason": "Oh, a specialty coffee shop with pour-over and a pastry case sounds lovely! I'm always looking for new spots to relax, maybe somewhere like the cafes in 'Lost in Translation'. I'd definitely give it a try.",
+            "source": "llm",
+            "verified": [
+              "Lost in Translation"
+            ],
             "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 85
           },
           {
             "personaId": "persona-bangkok-36-45-male",
             "label": "Bangkok 36–45 male",
             "age": "36–45",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
+            "reason": "Yeah, I'd definitely give this place a shot. I'm always looking for a good pour-over spot, and the idea of a neighborhood bar with regulars sounds like my kind of vibe. It reminds me a bit of the cozy spots I've seen in films like 'Lost in Translation', where the atmosphere is just as important as the coffee.",
+            "source": "llm",
+            "verified": [
+              "Lost in Translation"
+            ],
             "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 85
           },
           {
             "personaId": "persona-bangkok-46-female",
             "label": "Bangkok 46+ female",
             "age": "46+",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
+            "reason": "I'd love to try a specialty coffee shop with pour-over, a small pastry case, and a neighborhood regulars bar, it sounds like a cozy spot to catch up with friends like I do at the cafes in Paris, as seen in Amélie.",
+            "source": "llm",
             "verified": [],
             "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 80
           },
           {
             "personaId": "persona-bangkok-18-25-male",
             "label": "Bangkok 18–25 male",
             "age": "18–25",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
+            "reason": "Yeah, I'd totally check this place out. Sounds like my kind of vibe, especially if they have good pastries to go with the coffee.",
+            "source": "llm",
             "verified": [],
             "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 85
           }
         ],
-        "verifiedReasons": 0,
+        "verifiedReasons": 2,
         "reasonCount": 4,
-        "citationShare": 0,
+        "citationShare": 0.5,
         "unverifiableMentions": 0,
         "unverifiableNames": [],
-        "hallucinatedMentions": null,
+        "hallucinatedMentions": 0,
         "hallucinatedNames": [],
-        "segmentSpread": null,
+        "segmentSpread": {
+          "min": 80,
+          "max": 85,
+          "range": 5,
+          "stdev": 2.17,
+          "n": 4
+        },
         "ledgerScore": null,
         "ledgerLocal": null,
         "verdict": null,
@@ -484,70 +459,95 @@
             "personaId": "persona-seoul-18-25-female",
             "label": "Seoul 18–25 female",
             "age": "18–25",
-            "reason": "I would go for An indie video game launch in Seoul: a narrative puzzle, a demo build, and a sma only if it felt like Celeste. I judge it from Celeste and Hades.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [
-              "Celeste",
-              "Hades"
+            "reason": "I think it's worth a shot because I have a taste for narrative puzzles, as evidenced by my affinity for Genshin Impact. I also enjoy competitive games, which might make me interested in a videogame like Valorant. Perhaps the unique gameplay mechanics of Overwatch could keep me engaged, too.",
+            "source": "llm",
+            "verified": [
+              "Genshin Impact",
+              "Valorant",
+              "Overwatch"
             ],
+            "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [
+              "Genshin Impact",
+              "Valorant",
+              "Overwatch"
+            ],
+            "score": 92
           },
           {
             "personaId": "persona-seoul-26-35-male",
             "label": "Seoul 26–35 male",
             "age": "26–35",
-            "reason": "I would go for An indie video game launch in Seoul: a narrative puzzle, a demo build, and a sma only if it felt like Celeste. I judge it from Celeste and Hades.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [
-              "Celeste",
-              "Hades"
+            "reason": "I might check it out, especially if it has a good story. I'm really into narrative-driven games like Apex Legends and Diablo Immortal, and the puzzle aspect sounds intriguing.",
+            "source": "llm",
+            "verified": [
+              "Puzzle",
+              "Apex Legends",
+              "Diablo Immortal"
             ],
+            "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [
+              "Apex Legends",
+              "Diablo Immortal"
+            ],
+            "score": 92
           },
           {
             "personaId": "persona-seoul-36-45-female",
             "label": "Seoul 36–45 female",
             "age": "36–45",
-            "reason": "I would go for An indie video game launch in Seoul: a narrative puzzle, a demo build, and a sma only if it felt like Celeste. I judge it from Celeste and Hades.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [
-              "Celeste",
-              "Hades"
+            "reason": "I would definitely try this indie game! It sounds like my kind of fun, similar to the engaging gameplay I enjoy in Final Fantasy XIV Online: A Realm Reborn and Among Us.",
+            "source": "llm",
+            "verified": [
+              "Final Fantasy XIV Online: A Realm Reborn",
+              "Among Us"
             ],
+            "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [
+              "Final Fantasy XIV Online: A Realm Reborn",
+              "Among Us"
+            ],
+            "score": 92
           },
           {
             "personaId": "persona-seoul-46-male",
             "label": "Seoul 46+ male",
             "age": "46+",
-            "reason": "I would go for An indie video game launch in Seoul: a narrative puzzle, a demo build, and a sma only if it felt like Celeste. I judge it from Celeste and Hades.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [
-              "Celeste",
-              "Hades"
+            "reason": "I'm not sure I would be interested. While I enjoy video games like Elden Ring, Anthem, and Borderlands 3, a narrative puzzle game with a small merch table doesn't really appeal to my current gaming tastes.",
+            "source": "llm",
+            "verified": [
+              "Puzzle",
+              "Anthem",
+              "Elden Ring",
+              "Borderlands 3"
             ],
+            "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [
+              "Anthem",
+              "Elden Ring",
+              "Borderlands 3"
+            ],
+            "score": 91
           }
         ],
-        "verifiedReasons": 0,
+        "verifiedReasons": 4,
         "reasonCount": 4,
-        "citationShare": 0,
-        "unverifiableMentions": 8,
-        "unverifiableNames": [
-          "Celeste",
-          "Hades"
-        ],
-        "hallucinatedMentions": null,
+        "citationShare": 1,
+        "unverifiableMentions": 0,
+        "unverifiableNames": [],
+        "hallucinatedMentions": 0,
         "hallucinatedNames": [],
-        "segmentSpread": null,
+        "segmentSpread": {
+          "min": 91,
+          "max": 92,
+          "range": 1,
+          "stdev": 0.43,
+          "n": 4
+        },
         "ledgerScore": null,
         "ledgerLocal": null,
         "verdict": null,
@@ -559,55 +559,93 @@
             "personaId": "persona-seoul-18-25-female",
             "label": "Seoul 18–25 female",
             "age": "18–25",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [],
-            "hallucinated": [],
-            "score": null
+            "reason": "OMG, an indie game launch sounds so fun! I'm always looking for new narrative puzzle games, and if they have a demo build, I'm definitely there. Plus, a merch table? I'm so there for it!",
+            "source": "llm",
+            "verified": [
+              "Puzzle"
+            ],
+            "unverifiable": [
+              "demo build",
+              "merch table"
+            ],
+            "hallucinated": [
+              "indie game launch"
+            ],
+            "specific": [],
+            "score": 85
           },
           {
             "personaId": "persona-seoul-26-35-male",
             "label": "Seoul 26–35 male",
             "age": "26–35",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [],
+            "reason": "An indie narrative puzzle game launch sounds pretty cool, especially if they have a demo I can try out. I'd definitely check it out if it's happening somewhere like the KT&G Sangsangmadang in Hongdae, and maybe snag some merch if it's good.",
+            "source": "llm",
+            "verified": [
+              "Puzzle"
+            ],
+            "unverifiable": [
+              "KT&G Sangsangmadang",
+              "Hongdae"
+            ],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 75
           },
           {
             "personaId": "persona-seoul-36-45-female",
             "label": "Seoul 36–45 female",
             "age": "36–45",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
+            "reason": "Oh, an indie game launch in Seoul? That sounds so cool! I'd definitely check out a narrative puzzle game, especially if there's a demo build to try. And a small merch table? Count me in!",
+            "source": "llm",
+            "verified": [
+              "Puzzle"
+            ],
             "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 85
           },
           {
             "personaId": "persona-seoul-46-male",
             "label": "Seoul 46+ male",
             "age": "46+",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [],
+            "reason": "An indie narrative puzzle game launch sounds pretty cool, especially if they have a demo build to try out. I'd definitely check it out if it's happening somewhere like the KT&G Sangsangmadang in Hongdae, and maybe grab some merch if they have anything related to the game's art style, like something from the indie animation studio Studio Ghibli.",
+            "source": "llm",
+            "verified": [
+              "Puzzle"
+            ],
+            "unverifiable": [
+              "KT&G Sangsangmadang",
+              "Hongdae",
+              "Studio Ghibli"
+            ],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 75
           }
         ],
-        "verifiedReasons": 0,
+        "verifiedReasons": 4,
         "reasonCount": 4,
-        "citationShare": 0,
-        "unverifiableMentions": 0,
-        "unverifiableNames": [],
-        "hallucinatedMentions": null,
-        "hallucinatedNames": [],
-        "segmentSpread": null,
+        "citationShare": 1,
+        "unverifiableMentions": 7,
+        "unverifiableNames": [
+          "demo build",
+          "merch table",
+          "KT&G Sangsangmadang",
+          "Hongdae",
+          "Studio Ghibli"
+        ],
+        "hallucinatedMentions": 1,
+        "hallucinatedNames": [
+          "indie game launch"
+        ],
+        "segmentSpread": {
+          "min": 75,
+          "max": 85,
+          "range": 10,
+          "stdev": 5,
+          "n": 4
+        },
         "ledgerScore": null,
         "ledgerLocal": null,
         "verdict": null,
@@ -626,70 +664,90 @@
             "personaId": "persona-new-york-26-35-female",
             "label": "New York 26–35 female",
             "age": "26–35",
-            "reason": "I would go for A K-drama-inspired skincare brand launching in New York: a glass serum, a SoHo p only if it felt like Laneige. I judge it from Laneige and Crash Landing on You.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [
-              "Laneige",
-              "Crash Landing on You"
+            "reason": "I would totally try this! The K-drama inspiration makes me think of the meticulous beauty routines I associate with brands like Jungsaemmool Beauty, and the idea of a limited first run sounds really exclusive, which I love.",
+            "source": "llm",
+            "verified": [
+              "Jungsaemmool Beauty"
             ],
+            "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [
+              "Jungsaemmool Beauty"
+            ],
+            "score": 93
           },
           {
             "personaId": "persona-new-york-36-45-male",
             "label": "New York 36–45 male",
             "age": "36–45",
-            "reason": "I would go for A K-drama-inspired skincare brand launching in New York: a glass serum, a SoHo p only if it felt like Laneige. I judge it from Laneige and Crash Landing on You.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [
-              "Laneige",
-              "Crash Landing on You"
+            "reason": "Yeah, I might check it out. I'm always looking for new skincare, and the K-drama angle is intriguing, especially since I already like brands like Soko Glam and KraveBeauty.",
+            "source": "llm",
+            "verified": [
+              "Soko Glam",
+              "KraveBeauty"
             ],
+            "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [
+              "Soko Glam",
+              "KraveBeauty"
+            ],
+            "score": 92
           },
           {
             "personaId": "persona-new-york-46-female",
             "label": "New York 46+ female",
             "age": "46+",
-            "reason": "I would go for A K-drama-inspired skincare brand launching in New York: a glass serum, a SoHo p only if it felt like Laneige. I judge it from Laneige and Crash Landing on You.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [
-              "Laneige",
-              "Crash Landing on You"
+            "reason": "I would definitely try this. The focus on a glass serum aligns with my interest in Cosrx, and the idea of a SoHo pop-up reminds me of how I discovered Soko Glam.",
+            "source": "llm",
+            "verified": [
+              "Soko Glam",
+              "SoHo",
+              "Cosrx"
             ],
+            "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [
+              "Soko Glam",
+              "Cosrx"
+            ],
+            "score": 95
           },
           {
             "personaId": "persona-new-york-18-25-male",
             "label": "New York 18–25 male",
             "age": "18–25",
-            "reason": "I would go for A K-drama-inspired skincare brand launching in New York: a glass serum, a SoHo p only if it felt like Laneige. I judge it from Laneige and Crash Landing on You.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [
-              "Laneige",
-              "Crash Landing on You"
+            "reason": "Yeah, I'd definitely try that. Seeing KraveBeauty, Cosrx, and Soko Glam as influences makes me think it's gonna be good quality stuff, and I'm all about that.",
+            "source": "llm",
+            "verified": [
+              "Soko Glam",
+              "KraveBeauty",
+              "Cosrx"
             ],
+            "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [
+              "Soko Glam",
+              "KraveBeauty",
+              "Cosrx"
+            ],
+            "score": 92
           }
         ],
-        "verifiedReasons": 0,
+        "verifiedReasons": 4,
         "reasonCount": 4,
-        "citationShare": 0,
-        "unverifiableMentions": 8,
-        "unverifiableNames": [
-          "Laneige",
-          "Crash Landing on You"
-        ],
-        "hallucinatedMentions": null,
+        "citationShare": 1,
+        "unverifiableMentions": 0,
+        "unverifiableNames": [],
+        "hallucinatedMentions": 0,
         "hallucinatedNames": [],
-        "segmentSpread": null,
+        "segmentSpread": {
+          "min": 92,
+          "max": 95,
+          "range": 3,
+          "stdev": 1.22,
+          "n": 4
+        },
         "ledgerScore": null,
         "ledgerLocal": null,
         "verdict": null,
@@ -701,55 +759,81 @@
             "personaId": "persona-new-york-26-35-female",
             "label": "New York 26–35 female",
             "age": "26–35",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
+            "reason": "OMG, a K-drama skincare brand with a glass serum and a SoHo pop-up? That sounds totally my vibe, like something straight out of 'Crash Landing on You'! I'm so there for this limited first run.",
+            "source": "llm",
+            "verified": [
+              "Crash Landing on You"
+            ],
             "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 95
           },
           {
             "personaId": "persona-new-york-36-45-male",
             "label": "New York 36–45 male",
             "age": "36–45",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
+            "reason": "Yo, a K-drama skincare brand with a glass serum and a pop-up in SoHo? That sounds kinda fire, like something out of 'Crash Landing on You' or a scene from 'Parasite'. I'd definitely check it out, especially if it's a limited first run.",
+            "source": "llm",
+            "verified": [
+              "Crash Landing on You",
+              "Parasite",
+              "SoHo"
+            ],
             "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 85
           },
           {
             "personaId": "persona-new-york-46-female",
             "label": "New York 46+ female",
             "age": "46+",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
+            "reason": "OMG, a K-drama skincare brand launching in SoHo with a glass serum? That sounds totally my vibe, like something straight out of 'Crash Landing on You'! I'm definitely intrigued by the limited first run, it feels so exclusive.",
+            "source": "llm",
+            "verified": [
+              "Crash Landing on You",
+              "SoHo"
+            ],
             "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 95
           },
           {
             "personaId": "persona-new-york-18-25-male",
             "label": "New York 18–25 male",
             "age": "18–25",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [],
+            "reason": "Yo, a K-drama skincare brand with a glass serum and a SoHo pop-up sounds kinda fire, like something straight outta 'Crash Landing on You' or a scene from 'Emily in Paris' if she was into skincare. I'd definitely check it out, especially if it's a limited run, gotta cop that exclusive vibe.",
+            "source": "llm",
+            "verified": [
+              "Crash Landing on You",
+              "SoHo"
+            ],
+            "unverifiable": [
+              "Emily in Paris"
+            ],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 85
           }
         ],
-        "verifiedReasons": 0,
+        "verifiedReasons": 4,
         "reasonCount": 4,
-        "citationShare": 0,
-        "unverifiableMentions": 0,
-        "unverifiableNames": [],
-        "hallucinatedMentions": null,
+        "citationShare": 1,
+        "unverifiableMentions": 1,
+        "unverifiableNames": [
+          "Emily in Paris"
+        ],
+        "hallucinatedMentions": 0,
         "hallucinatedNames": [],
-        "segmentSpread": null,
+        "segmentSpread": {
+          "min": 85,
+          "max": 95,
+          "range": 10,
+          "stdev": 5,
+          "n": 4
+        },
         "ledgerScore": null,
         "ledgerLocal": null,
         "verdict": null,
@@ -768,70 +852,91 @@
             "personaId": "persona-lisbon-36-45-female",
             "label": "Lisbon 36–45 female",
             "age": "36–45",
-            "reason": "I would go for An eco travel tour in Lisbon: small groups, tram neighborhoods, and a low-waste only if it felt like Alfama. I judge it from Alfama and Patagonia.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [
-              "Alfama",
-              "Patagonia"
+            "reason": "I would definitely try this eco-travel tour! Exploring neighborhoods by tram sounds like a wonderful way to experience Lisbon, much like my fondness for visiting places like Cascais. A low-waste stay aligns with my appreciation for preserving the beauty of destinations I enjoy, similar to Sintra.",
+            "source": "llm",
+            "verified": [
+              "Cascais",
+              "Sintra"
             ],
+            "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [
+              "Cascais",
+              "Sintra"
+            ],
+            "score": 93
           },
           {
             "personaId": "persona-lisbon-46-male",
             "label": "Lisbon 46+ male",
             "age": "46+",
-            "reason": "I would go for An eco travel tour in Lisbon: small groups, tram neighborhoods, and a low-waste only if it felt like Alfama. I judge it from Alfama and Patagonia.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [
-              "Alfama",
-              "Patagonia"
+            "reason": "I would go for An eco travel tour in Lisbon: small groups, tram neighborhoods, and a low-waste only if it felt like Sintra. I judge it from Sintra, Cascais and Porto.",
+            "source": "template",
+            "verified": [
+              "Cascais",
+              "Sintra",
+              "Porto"
             ],
+            "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [
+              "Cascais",
+              "Sintra",
+              "Porto"
+            ],
+            "score": 95
           },
           {
             "personaId": "persona-lisbon-18-25-female",
             "label": "Lisbon 18–25 female",
             "age": "18–25",
-            "reason": "I would go for An eco travel tour in Lisbon: small groups, tram neighborhoods, and a low-waste only if it felt like Alfama. I judge it from Alfama and Patagonia.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [
-              "Alfama",
-              "Patagonia"
+            "reason": "I might try this eco-travel tour in Lisbon. It sounds like it would align with my appreciation for destinations like Sintra, with its focus on experiencing neighborhoods in a more intimate way.",
+            "source": "llm",
+            "verified": [
+              "Sintra"
             ],
+            "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [
+              "Sintra"
+            ],
+            "score": 95
           },
           {
             "personaId": "persona-lisbon-26-35-male",
             "label": "Lisbon 26–35 male",
             "age": "26–35",
-            "reason": "I would go for An eco travel tour in Lisbon: small groups, tram neighborhoods, and a low-waste only if it felt like Alfama. I judge it from Alfama and Patagonia.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [
-              "Alfama",
-              "Patagonia"
+            "reason": "I already have a taste for the historic neighborhoods and scenic trams in Sintra and Cascais, which I've experienced before through Qloo. I'd love to explore more of Lisbon on a guided eco tour that stays true to its tram culture, and I'm willing to try a low-waste stay to support the city's sustainability efforts. Porto is also on my bucket list, and I'm intrigued by the idea of combining that with an eco tour of Lisbon.",
+            "source": "llm",
+            "verified": [
+              "Cascais",
+              "Sintra",
+              "Porto"
             ],
+            "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [
+              "Cascais",
+              "Sintra",
+              "Porto"
+            ],
+            "score": 95
           }
         ],
-        "verifiedReasons": 0,
+        "verifiedReasons": 4,
         "reasonCount": 4,
-        "citationShare": 0,
-        "unverifiableMentions": 8,
-        "unverifiableNames": [
-          "Alfama",
-          "Patagonia"
-        ],
-        "hallucinatedMentions": null,
+        "citationShare": 1,
+        "unverifiableMentions": 0,
+        "unverifiableNames": [],
+        "hallucinatedMentions": 0,
         "hallucinatedNames": [],
-        "segmentSpread": null,
+        "segmentSpread": {
+          "min": 93,
+          "max": 95,
+          "range": 2,
+          "stdev": 0.87,
+          "n": 4
+        },
         "ledgerScore": null,
         "ledgerLocal": null,
         "verdict": null,
@@ -844,10 +949,11 @@
             "label": "Lisbon 36–45 female",
             "age": "36–45",
             "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
+            "source": "template",
             "verified": [],
             "unverifiable": [],
             "hallucinated": [],
+            "specific": [],
             "score": null
           },
           {
@@ -855,43 +961,60 @@
             "label": "Lisbon 46+ male",
             "age": "46+",
             "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
+            "source": "template",
             "verified": [],
             "unverifiable": [],
             "hallucinated": [],
+            "specific": [],
             "score": null
           },
           {
             "personaId": "persona-lisbon-18-25-female",
             "label": "Lisbon 18–25 female",
             "age": "18–25",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
+            "reason": "I'd love to explore Lisbon's eco-friendly side, discovering hidden tram neighborhoods and sustainable accommodations, just like in the film 'The Motorcycle Diaries'. I'd join a small group tour, learning about local artisans like Maria do Rosário, and reducing my waste with eco-friendly brands like Patagonia. The idea of immersing myself in Lisbon's vibrant culture, from Fado music to street art, sounds like an adventure of a lifetime.",
+            "source": "llm",
+            "verified": [
+              "Patagonia"
+            ],
             "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 80
           },
           {
             "personaId": "persona-lisbon-26-35-male",
             "label": "Lisbon 26–35 male",
             "age": "26–35",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [],
+            "reason": "I'd love to explore Lisbon's eco-friendly side, discovering hidden tram neighborhoods and sustainable accommodations, just like in the film 'The Motorcycle Diaries'. I'd join a small group tour, learning about local artisans like the ones featured in 'The Alchemist'. This experience would be a perfect blend of adventure and environmental responsibility.",
+            "source": "llm",
+            "verified": [
+              "The Motorcycle Diaries"
+            ],
+            "unverifiable": [
+              "The Alchemist"
+            ],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 80
           }
         ],
-        "verifiedReasons": 0,
+        "verifiedReasons": 2,
         "reasonCount": 4,
-        "citationShare": 0,
-        "unverifiableMentions": 0,
-        "unverifiableNames": [],
-        "hallucinatedMentions": null,
+        "citationShare": 0.5,
+        "unverifiableMentions": 1,
+        "unverifiableNames": [
+          "The Alchemist"
+        ],
+        "hallucinatedMentions": 0,
         "hallucinatedNames": [],
-        "segmentSpread": null,
+        "segmentSpread": {
+          "min": 80,
+          "max": 80,
+          "range": 0,
+          "stdev": 0,
+          "n": 2
+        },
         "ledgerScore": null,
         "ledgerLocal": null,
         "verdict": null,
@@ -910,52 +1033,64 @@
             "personaId": "persona-tokyo-18-25-female",
             "label": "Tokyo 18–25 female",
             "age": "18–25",
-            "reason": "I would go for Billie Eilish, first solo Japan show. Before the 23 June 2022 announcement: Happ only if it felt like Billie Eilish. I judge it from Billie Eilish.",
-            "source": "offline-template",
+            "reason": "I would definitely try this! Billie Eilish is one of my absolute favorites, and I've been wanting to see her perform live in Japan for ages.",
+            "source": "llm",
             "verified": [
               "Billie Eilish"
             ],
             "unverifiable": [],
             "hallucinated": [],
+            "specific": [
+              "Billie Eilish"
+            ],
             "score": null
           },
           {
             "personaId": "persona-tokyo-26-35-male",
             "label": "Tokyo 26–35 male",
             "age": "26–35",
-            "reason": "I would go for Billie Eilish, first solo Japan show. Before the 23 June 2022 announcement: Happ only if it felt like Billie Eilish. I judge it from Billie Eilish.",
-            "source": "offline-template",
+            "reason": "I would definitely try to see her live, especially after she sold out her Ariake date and the festival set at Summer Sonic 2019. The fact that When We All Fall Asleep, Where Do We Go? was already out and Happier Than Ever had been number one in 15 countries suggests she's a huge talent. My love for Billie Eilish from When We All Fall Asleep, Where Do We Go? also makes me more excited for the possibility of seeing her perform in Japan.",
+            "source": "llm",
             "verified": [
               "Billie Eilish"
             ],
             "unverifiable": [],
             "hallucinated": [],
+            "specific": [
+              "Billie Eilish"
+            ],
             "score": null
           },
           {
             "personaId": "persona-tokyo-36-45-female",
             "label": "Tokyo 36–45 female",
             "age": "36–45",
-            "reason": "I would go for Billie Eilish, first solo Japan show. Before the 23 June 2022 announcement: Happ only if it felt like Billie Eilish. I judge it from Billie Eilish.",
-            "source": "offline-template",
+            "reason": "I would consider it, given Happier Than Ever's success in 15 countries and my affinity for When We All Fall Asleep, Where Do We Go?, which resonated with my taste in Billie Eilish.",
+            "source": "llm",
             "verified": [
               "Billie Eilish"
             ],
             "unverifiable": [],
             "hallucinated": [],
+            "specific": [
+              "Billie Eilish"
+            ],
             "score": null
           },
           {
             "personaId": "persona-tokyo-46-male",
             "label": "Tokyo 46+ male",
             "age": "46+",
-            "reason": "I would go for Billie Eilish, first solo Japan show. Before the 23 June 2022 announcement: Happ only if it felt like Billie Eilish. I judge it from Billie Eilish.",
-            "source": "offline-template",
+            "reason": "I would definitely try seeing Billie Eilish live. Her music, like the album Happier Than Ever, resonates with me, and I'm interested in experiencing her performance firsthand, especially after her previous cancelled show in Tokyo.",
+            "source": "llm",
             "verified": [
               "Billie Eilish"
             ],
             "unverifiable": [],
             "hallucinated": [],
+            "specific": [
+              "Billie Eilish"
+            ],
             "score": null
           }
         ],
@@ -964,7 +1099,7 @@
         "citationShare": 1,
         "unverifiableMentions": 0,
         "unverifiableNames": [],
-        "hallucinatedMentions": null,
+        "hallucinatedMentions": 0,
         "hallucinatedNames": [],
         "segmentSpread": null,
         "ledgerScore": null,
@@ -978,59 +1113,92 @@
             "personaId": "persona-tokyo-18-25-female",
             "label": "Tokyo 18–25 female",
             "age": "18–25",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
+            "reason": "I'd love to see Billie Eilish live, but I'm not a huge fan of her music.",
+            "source": "llm",
+            "verified": [
+              "Billie Eilish"
+            ],
             "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 20
           },
           {
             "personaId": "persona-tokyo-26-35-male",
             "label": "Tokyo 26–35 male",
             "age": "26–35",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [],
-            "hallucinated": [],
-            "score": null
+            "reason": "I'd definitely try to get tickets for Billie Eilish's first solo show in Japan! I remember her last Ariake date got cancelled, and her albums like 'Happier Than Ever' and 'When We All Fall Asleep, Where Do We Go?' are huge.",
+            "source": "llm",
+            "verified": [
+              "Billie Eilish",
+              "Happier Than Ever: A Love Letter to Los Angeles"
+            ],
+            "unverifiable": [
+              "Ariake"
+            ],
+            "hallucinated": [
+              "When We All Fall Asleep, Where Do We Go?"
+            ],
+            "specific": [],
+            "score": 95
           },
           {
             "personaId": "persona-tokyo-36-45-female",
             "label": "Tokyo 36–45 female",
             "age": "36–45",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
+            "reason": "I'd love to see Billie Eilish live, but I'm not a huge fan of her music.",
+            "source": "llm",
+            "verified": [
+              "Billie Eilish"
+            ],
             "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 20
           },
           {
             "personaId": "persona-tokyo-46-male",
             "label": "Tokyo 46+ male",
             "age": "46+",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [],
-            "hallucinated": [],
-            "score": null
+            "reason": "I'd definitely try to get tickets for Billie Eilish's first solo Japan show! I remember her last show in Tokyo got cancelled, and her albums like 'Happier Than Ever' and 'When We All Fall Asleep, Where Do We Go?' are huge. It would be amazing to see her live after her success at Summer Sonic 2019.",
+            "source": "llm",
+            "verified": [
+              "Billie Eilish",
+              "Happier Than Ever: A Love Letter to Los Angeles"
+            ],
+            "unverifiable": [
+              "Summer Sonic 2019"
+            ],
+            "hallucinated": [
+              "When We All Fall Asleep, Where Do We Go?"
+            ],
+            "specific": [],
+            "score": 95
           }
         ],
-        "verifiedReasons": 0,
+        "verifiedReasons": 4,
         "reasonCount": 4,
-        "citationShare": 0,
-        "unverifiableMentions": 0,
-        "unverifiableNames": [],
-        "hallucinatedMentions": null,
-        "hallucinatedNames": [],
-        "segmentSpread": null,
+        "citationShare": 1,
+        "unverifiableMentions": 2,
+        "unverifiableNames": [
+          "Ariake",
+          "Summer Sonic 2019"
+        ],
+        "hallucinatedMentions": 2,
+        "hallucinatedNames": [
+          "When We All Fall Asleep, Where Do We Go?"
+        ],
+        "segmentSpread": {
+          "min": 20,
+          "max": 95,
+          "range": 75,
+          "stdev": 37.5,
+          "n": 4
+        },
         "ledgerScore": null,
         "ledgerLocal": null,
-        "verdict": null,
-        "matched": null
+        "verdict": "caution",
+        "matched": false
       }
     },
     {
@@ -1046,38 +1214,51 @@
             "label": "Tokyo 18–25 female",
             "age": "18–25",
             "reason": "I would go for Olivia Rodrigo, first concert in Japan. Before the 9 May 2024 on-sale: SOUR (202 only if it felt like Olivia Rodrigo. I judge it from Olivia Rodrigo.",
-            "source": "offline-template",
+            "source": "template",
             "verified": [
               "Olivia Rodrigo"
             ],
             "unverifiable": [],
             "hallucinated": [],
+            "specific": [
+              "Olivia Rodrigo"
+            ],
             "score": null
           },
           {
             "personaId": "persona-tokyo-26-35-male",
             "label": "Tokyo 26–35 male",
             "age": "26–35",
-            "reason": "I would go for Olivia Rodrigo, first concert in Japan. Before the 9 May 2024 on-sale: SOUR (202 only if it felt like Olivia Rodrigo. I judge it from Olivia Rodrigo.",
-            "source": "offline-template",
+            "reason": "Yeah, I'd definitely try seeing Olivia Rodrigo live in Japan. Her albums SOUR and GUTS are huge, so a first concert here would be amazing.",
+            "source": "llm",
             "verified": [
-              "Olivia Rodrigo"
+              "Olivia Rodrigo",
+              "Sour",
+              "Guts"
             ],
             "unverifiable": [],
             "hallucinated": [],
+            "specific": [
+              "Olivia Rodrigo"
+            ],
             "score": null
           },
           {
             "personaId": "persona-tokyo-36-45-female",
             "label": "Tokyo 36–45 female",
             "age": "36–45",
-            "reason": "I would go for Olivia Rodrigo, first concert in Japan. Before the 9 May 2024 on-sale: SOUR (202 only if it felt like Olivia Rodrigo. I judge it from Olivia Rodrigo.",
-            "source": "offline-template",
+            "reason": "I'd definitely try to get tickets for Olivia Rodrigo's first concert in Japan. I'm a huge fan of her music, and with her albums SOUR and GUTS doing so well, I'm sure it would be an amazing show.",
+            "source": "llm",
             "verified": [
-              "Olivia Rodrigo"
+              "Olivia Rodrigo",
+              "Sour",
+              "Guts"
             ],
             "unverifiable": [],
             "hallucinated": [],
+            "specific": [
+              "Olivia Rodrigo"
+            ],
             "score": null
           },
           {
@@ -1085,12 +1266,16 @@
             "label": "Tokyo 46+ male",
             "age": "46+",
             "reason": "I would go for Olivia Rodrigo, first concert in Japan. Before the 9 May 2024 on-sale: SOUR (202 only if it felt like Olivia Rodrigo. I judge it from Olivia Rodrigo.",
-            "source": "offline-template",
+            "source": "template",
             "verified": [
-              "Olivia Rodrigo"
+              "Olivia Rodrigo",
+              "Sour"
             ],
             "unverifiable": [],
             "hallucinated": [],
+            "specific": [
+              "Olivia Rodrigo"
+            ],
             "score": null
           }
         ],
@@ -1099,7 +1284,7 @@
         "citationShare": 1,
         "unverifiableMentions": 0,
         "unverifiableNames": [],
-        "hallucinatedMentions": null,
+        "hallucinatedMentions": 0,
         "hallucinatedNames": [],
         "segmentSpread": null,
         "ledgerScore": null,
@@ -1113,59 +1298,85 @@
             "personaId": "persona-tokyo-18-25-female",
             "label": "Tokyo 18–25 female",
             "age": "18–25",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
+            "reason": "OMG, Olivia Rodrigo is finally coming to Japan?! I'm so hyped! I've been obsessed with SOUR and GUTS, and I can't believe she's never performed here before. I'm definitely trying to get tickets for her first show!",
+            "source": "llm",
+            "verified": [
+              "Olivia Rodrigo",
+              "Sour",
+              "Guts"
+            ],
             "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 95
           },
           {
             "personaId": "persona-tokyo-26-35-male",
             "label": "Tokyo 26–35 male",
             "age": "26–35",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [],
+            "reason": "I'd love to see Olivia Rodrigo live, but I've never been to a concert before and I don't know what to expect.",
+            "source": "llm",
+            "verified": [
+              "Olivia Rodrigo"
+            ],
+            "unverifiable": [
+              "concert"
+            ],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 20
           },
           {
             "personaId": "persona-tokyo-36-45-female",
             "label": "Tokyo 36–45 female",
             "age": "36–45",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
+            "reason": "I'd love to see Olivia Rodrigo live, but I've never been to a concert before and I'm not sure what to expect.",
+            "source": "llm",
+            "verified": [
+              "Olivia Rodrigo"
+            ],
             "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 20
           },
           {
             "personaId": "persona-tokyo-46-male",
             "label": "Tokyo 46+ male",
             "age": "46+",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [],
+            "reason": "I'd love to see Olivia Rodrigo live, but I've never been to a concert before and I don't know what to expect.",
+            "source": "llm",
+            "verified": [
+              "Olivia Rodrigo"
+            ],
+            "unverifiable": [
+              "concert"
+            ],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 20
           }
         ],
-        "verifiedReasons": 0,
+        "verifiedReasons": 4,
         "reasonCount": 4,
-        "citationShare": 0,
-        "unverifiableMentions": 0,
-        "unverifiableNames": [],
-        "hallucinatedMentions": null,
+        "citationShare": 1,
+        "unverifiableMentions": 2,
+        "unverifiableNames": [
+          "concert"
+        ],
+        "hallucinatedMentions": 0,
         "hallucinatedNames": [],
-        "segmentSpread": null,
+        "segmentSpread": {
+          "min": 20,
+          "max": 95,
+          "range": 75,
+          "stdev": 32.48,
+          "n": 4
+        },
         "ledgerScore": null,
         "ledgerLocal": null,
-        "verdict": null,
-        "matched": null
+        "verdict": "caution",
+        "matched": false
       }
     },
     {
@@ -1180,52 +1391,65 @@
             "personaId": "persona-tokyo-18-25-female",
             "label": "Tokyo 18–25 female",
             "age": "18–25",
-            "reason": "I would go for Harry Styles, first solo Japan shows. Before 7 December 2017: the solo album Har only if it felt like Harry Styles. I judge it from Harry Styles.",
-            "source": "offline-template",
+            "reason": "I think Harry Styles would be a great fit for a solo Japan show, given his existing fanbase in Japan from One Direction and his solo album 'Harry Styles' released in 2017.",
+            "source": "llm",
             "verified": [
               "Harry Styles"
             ],
             "unverifiable": [],
             "hallucinated": [],
+            "specific": [
+              "Harry Styles"
+            ],
             "score": null
           },
           {
             "personaId": "persona-tokyo-26-35-male",
             "label": "Tokyo 26–35 male",
             "age": "26–35",
-            "reason": "I would go for Harry Styles, first solo Japan shows. Before 7 December 2017: the solo album Har only if it felt like Harry Styles. I judge it from Harry Styles.",
-            "source": "offline-template",
+            "reason": "I already knew about Harry Styles' solo album and One Direction's Japan tour before 7 December 2017, which makes the idea of his first solo Japan shows seem exciting.",
+            "source": "llm",
             "verified": [
-              "Harry Styles"
+              "Harry Styles",
+              "One Direction"
             ],
             "unverifiable": [],
             "hallucinated": [],
+            "specific": [
+              "Harry Styles"
+            ],
             "score": null
           },
           {
             "personaId": "persona-tokyo-36-45-female",
             "label": "Tokyo 36–45 female",
             "age": "36–45",
-            "reason": "I would go for Harry Styles, first solo Japan shows. Before 7 December 2017: the solo album Har only if it felt like Harry Styles. I judge it from Harry Styles.",
-            "source": "offline-template",
+            "reason": "I have been to Harry Styles' solo concerts in Japan and enjoyed them. The energy of the performances and Harry's charisma drew me in. I have Qloo anchor A1: Harry Styles, which explains my enthusiasm for his music and live shows.",
+            "source": "llm",
             "verified": [
               "Harry Styles"
             ],
             "unverifiable": [],
             "hallucinated": [],
+            "specific": [
+              "Harry Styles"
+            ],
             "score": null
           },
           {
             "personaId": "persona-tokyo-46-male",
             "label": "Tokyo 46+ male",
             "age": "46+",
-            "reason": "I would go for Harry Styles, first solo Japan shows. Before 7 December 2017: the solo album Har only if it felt like Harry Styles. I judge it from Harry Styles.",
-            "source": "offline-template",
+            "reason": "I'm familiar with Harry Styles' previous solo shows in Japan, including the 2017 tour before his album was released, and I would have attended those concerts if they were happening today.",
+            "source": "llm",
             "verified": [
               "Harry Styles"
             ],
             "unverifiable": [],
             "hallucinated": [],
+            "specific": [
+              "Harry Styles"
+            ],
             "score": null
           }
         ],
@@ -1234,7 +1458,7 @@
         "citationShare": 1,
         "unverifiableMentions": 0,
         "unverifiableNames": [],
-        "hallucinatedMentions": null,
+        "hallucinatedMentions": 0,
         "hallucinatedNames": [],
         "segmentSpread": null,
         "ledgerScore": null,
@@ -1248,59 +1472,80 @@
             "personaId": "persona-tokyo-18-25-female",
             "label": "Tokyo 18–25 female",
             "age": "18–25",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
+            "reason": "OMG, Harry Styles in Japan?! I would totally try to go! I mean, he was already here with One Direction, but his solo stuff is so good. I can't wait to see what he does on his own.",
+            "source": "llm",
+            "verified": [
+              "Harry Styles",
+              "One Direction"
+            ],
             "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 95
           },
           {
             "personaId": "persona-tokyo-26-35-male",
             "label": "Tokyo 26–35 male",
             "age": "26–35",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
+            "reason": "I'd definitely try this! I'm a huge Harry Styles fan, and I've been waiting for his solo shows in Japan for ages. I'm so excited to see him perform live, especially since his first solo album came out last year.",
+            "source": "llm",
+            "verified": [
+              "Harry Styles"
+            ],
             "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 95
           },
           {
             "personaId": "persona-tokyo-36-45-female",
             "label": "Tokyo 36–45 female",
             "age": "36–45",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
+            "reason": "I'm not sure I'd go to Harry Styles' first solo Japan shows. While I know his solo album *Harry Styles* came out in 2017, and One Direction has toured Japan before, I'm not really a big fan of his solo music.",
+            "source": "llm",
+            "verified": [
+              "Harry Styles",
+              "One Direction"
+            ],
             "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 20
           },
           {
             "personaId": "persona-tokyo-46-male",
             "label": "Tokyo 46+ male",
             "age": "46+",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
+            "reason": "I'm not sure I'd go out of my way for Harry Styles' first solo shows in Japan, especially since One Direction already played here. I'd need a bit more convincing to drop my cash on it.",
+            "source": "llm",
+            "verified": [
+              "Harry Styles",
+              "One Direction"
+            ],
             "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 30
           }
         ],
-        "verifiedReasons": 0,
+        "verifiedReasons": 4,
         "reasonCount": 4,
-        "citationShare": 0,
+        "citationShare": 1,
         "unverifiableMentions": 0,
         "unverifiableNames": [],
-        "hallucinatedMentions": null,
+        "hallucinatedMentions": 0,
         "hallucinatedNames": [],
-        "segmentSpread": null,
+        "segmentSpread": {
+          "min": 20,
+          "max": 95,
+          "range": 75,
+          "stdev": 35.18,
+          "n": 4
+        },
         "ledgerScore": null,
         "ledgerLocal": null,
-        "verdict": null,
-        "matched": null
+        "verdict": "caution",
+        "matched": false
       }
     },
     {
@@ -1315,52 +1560,64 @@
             "personaId": "persona-tokyo-18-25-female",
             "label": "Tokyo 18–25 female",
             "age": "18–25",
-            "reason": "I would go for Forever 21, first Japan store. Before the 2009 opening: Forever 21 was a Los Ang only if it felt like Forever 21. I judge it from Forever 21.",
-            "source": "offline-template",
+            "reason": "I'm a teenager in Tokyo, and I'd love to try Forever 21's first Japan store. I've seen Forever 21 on Qloo, and it's already my taste anchor. I'm also familiar with H&M in Japan, which is often cheaper and offers similar styles, so I'd need to see something unique to make me try Forever 21.",
+            "source": "llm",
             "verified": [
               "Forever 21"
             ],
             "unverifiable": [],
             "hallucinated": [],
+            "specific": [
+              "Forever 21"
+            ],
             "score": null
           },
           {
             "personaId": "persona-tokyo-26-35-male",
             "label": "Tokyo 26–35 male",
             "age": "26–35",
-            "reason": "I would go for Forever 21, first Japan store. Before the 2009 opening: Forever 21 was a Los Ang only if it felt like Forever 21. I judge it from Forever 21.",
-            "source": "offline-template",
+            "reason": "I might try Forever 21. It's a brand that Qloo has identified as aligning with my tastes.",
+            "source": "llm",
             "verified": [
               "Forever 21"
             ],
             "unverifiable": [],
             "hallucinated": [],
+            "specific": [
+              "Forever 21"
+            ],
             "score": null
           },
           {
             "personaId": "persona-tokyo-36-45-female",
             "label": "Tokyo 36–45 female",
             "age": "36–45",
-            "reason": "I would go for Forever 21, first Japan store. Before the 2009 opening: Forever 21 was a Los Ang only if it felt like Forever 21. I judge it from Forever 21.",
-            "source": "offline-template",
+            "reason": "I might try it. It sounds like it could be a fun way to find new fashion, similar to how I enjoy browsing at Forever 21.",
+            "source": "llm",
             "verified": [
               "Forever 21"
             ],
             "unverifiable": [],
             "hallucinated": [],
+            "specific": [
+              "Forever 21"
+            ],
             "score": null
           },
           {
             "personaId": "persona-tokyo-46-male",
             "label": "Tokyo 46+ male",
             "age": "46+",
-            "reason": "I would go for Forever 21, first Japan store. Before the 2009 opening: Forever 21 was a Los Ang only if it felt like Forever 21. I judge it from Forever 21.",
-            "source": "offline-template",
+            "reason": "I would consider trying Forever 21 in Japan, as a unique shopping experience, given its Los Angeles roots and price point, which was already near $100 for a full outfit when it first started, A1: Forever 21, category entity, affinity not measured.",
+            "source": "llm",
             "verified": [
               "Forever 21"
             ],
             "unverifiable": [],
             "hallucinated": [],
+            "specific": [
+              "Forever 21"
+            ],
             "score": null
           }
         ],
@@ -1369,7 +1626,7 @@
         "citationShare": 1,
         "unverifiableMentions": 0,
         "unverifiableNames": [],
-        "hallucinatedMentions": null,
+        "hallucinatedMentions": 0,
         "hallucinatedNames": [],
         "segmentSpread": null,
         "ledgerScore": null,
@@ -1383,59 +1640,79 @@
             "personaId": "persona-tokyo-18-25-female",
             "label": "Tokyo 18–25 female",
             "age": "18–25",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
+            "reason": "I'd love to check out the Forever 21 store, I've seen the H&M ones and they're so trendy! I've been listening to Billie Eilish's new album and I'm obsessed with her style. I've been to Harajuku and seen all the cute outfits people wear there.",
+            "source": "llm",
+            "verified": [
+              "Forever 21"
+            ],
             "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 80
           },
           {
             "personaId": "persona-tokyo-26-35-male",
             "label": "Tokyo 26–35 male",
             "age": "26–35",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
+            "reason": "I'd love to check out the Forever 21 store in Tokyo, but I've never heard of their clothes before. I've seen Hörnemans in Japan, but I've never been to a Forever 21 store. I've seen the movie 'Clueless' and I've heard of Cher Horowitz's iconic yellow plaid outfit, but I don't know if I'd like their style.",
+            "source": "llm",
+            "verified": [
+              "Forever 21"
+            ],
             "unverifiable": [],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 30
           },
           {
             "personaId": "persona-tokyo-36-45-female",
             "label": "Tokyo 36–45 female",
             "age": "36–45",
-            "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
-            "verified": [],
-            "unverifiable": [],
+            "reason": "Forever 21 is opening its first store in Japan! I've heard it's a fast-fashion chain from Los Angeles, and their clothes are super affordable, like a whole outfit for around $100. I'm curious to see if it's as trendy as H&M, which is already here.",
+            "source": "llm",
+            "verified": [
+              "Forever 21"
+            ],
+            "unverifiable": [
+              "H&M"
+            ],
             "hallucinated": [],
-            "score": null
+            "specific": [],
+            "score": 75
           },
           {
             "personaId": "persona-tokyo-46-male",
             "label": "Tokyo 46+ male",
             "age": "46+",
             "reason": "I might look at something like this. Nothing here is tied to a place or a taste I already have.",
-            "source": "offline-template",
+            "source": "template",
             "verified": [],
             "unverifiable": [],
             "hallucinated": [],
+            "specific": [],
             "score": null
           }
         ],
-        "verifiedReasons": 0,
+        "verifiedReasons": 3,
         "reasonCount": 4,
-        "citationShare": 0,
-        "unverifiableMentions": 0,
-        "unverifiableNames": [],
-        "hallucinatedMentions": null,
+        "citationShare": 0.75,
+        "unverifiableMentions": 1,
+        "unverifiableNames": [
+          "H&M"
+        ],
+        "hallucinatedMentions": 0,
         "hallucinatedNames": [],
-        "segmentSpread": null,
+        "segmentSpread": {
+          "min": 30,
+          "max": 80,
+          "range": 50,
+          "stdev": 22.48,
+          "n": 3
+        },
         "ledgerScore": null,
         "ledgerLocal": null,
-        "verdict": null,
-        "matched": null
+        "verdict": "encourage",
+        "matched": false
       }
     }
   ],
@@ -1443,7 +1720,7 @@
     "A name counts as a verified Qloo entity only when this run resolved it, or when case-studies.json already records a resolved subject from the earlier live probe.",
     "Example reference names are the product sample list. Until a live search confirms them, a reason that cites them is unverifiable, not a confirmed hallucination.",
     "Hallucinated means a Qloo search in this run returned no matching entity. The recorded run does not search, so that count stays empty.",
-    "city-rank-1 ranks cities and has no live ranks in this checkout. An earlier absolute rule matched 2 of 4 scored Tokyo rows. Those totals are not copied here and are not city ranks.",
+    "city-rank-2 ranks cities by taste lift and has no live ranks in this checkout. city-rank-1 ranked every real city 1 of 5. An earlier absolute rule matched 2 of 4 scored Tokyo rows. Those totals are not copied here and are not city ranks.",
     "The sample-engine block is the local Rust fixture. It is not a Qloo score. Tokyo has no row in that fixture and follows the Los Angeles table.",
     "This is not a sales forecast.",
     "Entity counts use names the reply lists, plus any verified name that appears in the sentence. A stray proper noun that is neither listed nor in the Qloo catalog is left out, so the unverifiable count is not a scan of every capital letter."

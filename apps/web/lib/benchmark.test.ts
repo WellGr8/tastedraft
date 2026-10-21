@@ -5,7 +5,7 @@ import { parseBenchmark } from './benchmark.ts';
 
 describe('parseBenchmark', () => {
   it('reads the published headline and both arms', () => {
-    const body = JSON.parse(readFileSync(new URL('../public/benchmark.json', import.meta.url), 'utf8'));
+    const body = JSON.parse(readFileSync(new URL('./fixtures/benchmark.recorded.json', import.meta.url), 'utf8'));
     const view = parseBenchmark(body);
     assert.ok(view);
     assert.equal(view.source, 'recorded');

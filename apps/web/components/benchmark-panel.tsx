@@ -54,10 +54,10 @@ export function BenchmarkPanel() {
 
   return (
     <section className={styles.panel} data-testid="benchmark-slot" data-ready="true" data-source={view.source}>
-      <p className={styles.kicker}>Benchmark</p>
+      <p className={styles.kicker} title="9 sample launches × 4 personas = 36 persona reasons. A reason counts when it cites a taste entity Qloo resolved.">Benchmark · reasons backed by Qloo data</p>
       <p className={styles.number} data-testid="benchmark-headline">{selected.headline}</p>
       <p className={styles.sentence} data-testid="benchmark-sentence">
-        With Qloo: {qloo} persona reasons are backed by real taste data. Without: {plain}.
+        {view.rows.length} sample launches × 4 personas = {parts(qloo)?.total ?? '—'} reasons. With Qloo, {qloo} cite a taste entity Qloo actually resolved; the rest cite names that weren't checked{view.source === 'recorded' ? ' in this offline replay' : ''}, not wrong ones. Plain LLM: {plain}.
       </p>
       <div className={styles.bars} data-testid="benchmark-bars">
         <div data-on={arm === 'qloo' ? 'true' : 'false'}>
